@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    branches: ["main"]
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.22.x"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 1. 릴리즈 노트 자동 생성 (태그 push 시)
+  # ─────────────────────────────────────────────
+  release-notes:
+    name: Generate Release Notes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: release } = await github.rest.repos.generateReleaseNotes({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: context.ref.replace('refs/tags/', ''),
+            });
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: context.payload.release.id,
+              body: release.body,
+            });
+
+  # ─────────────────────────────────────────────
+  # 2. 백엔드 스테이징 배포 (develop 머지 시)
+  # ─────────────────────────────────────────────
+  deploy-staging-backend:
+    name: Deploy Backend → Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build Docker image
+        run: |
+          docker build -t mentorbridgex-backend:${{ github.sha }} .
+
+      # TODO: 실제 배포 대상(AWS ECS / GCP Cloud Run / K8s 등)에 맞게 교체
+      - name: Deploy to staging
+        run: echo "배포 스크립트를 이곳에 추가하세요."
+        env:
+          DEPLOY_TOKEN: ${{ secrets.STAGING_DEPLOY_TOKEN }}
+
+  # ─────────────────────────────────────────────
+  # 3. Flutter 릴리즈 빌드 (태그 push 시)
+  # ─────────────────────────────────────────────
+  build-flutter-release:
+    name: Flutter Release Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    defaults:
+      run:
+        working-directory: flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Android Release APK
+        run: flutter build apk --release
+        # TODO: 서명 설정 추가 필요 (keystore secrets)
+
+      - name: Build Windows Release
+        runs-on: windows-latest
+        run: flutter build windows --release
+        continue-on-error: true
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.event.release.tag_name }}
+          path: |
+            flutter/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90

@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CODEOWNERS — MentorBridgeX
+# 인프라 설계서 §3 파일 소유권 분류 기준
+#
+# 형식: <패턴>  <@GitHub-username 또는 @org/team>
+#
+# ※ 주의사항
+#   - 아래 팀/사용자명은 초안입니다. 실제 GitHub 사용자명으로 교체하세요.
+#   - 분류가 모호한 파일은 OQ 이슈([OQ] 라벨)로 등록하여 PM과 협의하세요.
+#   - 분류 변경 시: PR 제안 → 양 기능 리드 + PM 리뷰 → CODEOWNERS 갱신
+#
+# 팀 예시 (실제 org/team 구조에 맞게 수정 필요):
+#   @team-code-bridge-kr/backend-lead
+#   @team-code-bridge-kr/stt-lead
+#   @team-code-bridge-kr/viz-lead
+#   @team-code-bridge-kr/flutter-lead
+#   @team-code-bridge-kr/devops
+#   @team-code-bridge-kr/pm
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ═══════════════════════════════════════════════════════════════
+# 전체 기본 소유자 (아무 규칙도 매칭되지 않을 때)
+# ═══════════════════════════════════════════════════════════════
+*  @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/flutter-lead
+
+
+# ═══════════════════════════════════════════════════════════════
+# 공유 레이어 (shared) — 양 기능 리드 + 백엔드 리드 필수 리뷰
+# ─ DB 마이그레이션, API 스펙, 공통 모델, 권한, 에러 정책,
+#   인증 모듈, 공통 유틸, CI 설정, 부속 문서
+# ═══════════════════════════════════════════════════════════════
+
+# 데이터베이스 마이그레이션
+/backend/alembic/                   @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+
+# API 라우터·스키마 (Pydantic 모델 포함)
+/backend/app/api/                   @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+/backend/app/schemas/               @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+
+# 공통 모델 (ORM)
+/backend/app/models/                @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+
+# 인증 / 권한
+/backend/app/core/auth/             @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/pm
+/backend/app/core/permissions/      @team-code-bridge-kr/backend-lead  @team-code-bridge-kr/pm
+
+# 에러 정책 / 공통 유틸
+/backend/app/core/                  @team-code-bridge-kr/backend-lead
+/backend/app/utils/                 @team-code-bridge-kr/backend-lead
+
+# Flutter 공통 레이어
+/flutter/lib/core/                  @team-code-bridge-kr/flutter-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+/flutter/lib/shared/                @team-code-bridge-kr/flutter-lead  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead
+/flutter/lib/data/                  @team-code-bridge-kr/flutter-lead  @team-code-bridge-kr/backend-lead
+
+# 공유 도메인 인터페이스 (STT ↔ 시각화 계약)
+/flutter/lib/domain/stt_viz_contract/  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead  @team-code-bridge-kr/backend-lead
+
+
+# ═══════════════════════════════════════════════════════════════
+# STT 전용 — stt-lead 주 소유
+# ─ 음성 세션·녹음·STT 결과 처리·STT 워커·음성 UI 컴포넌트
+# ═══════════════════════════════════════════════════════════════
+
+# 백엔드 STT 전용
+/backend/app/features/stt/          @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/backend-lead
+/backend/app/workers/stt/           @team-code-bridge-kr/stt-lead
+
+# Flutter STT 전용
+/flutter/lib/features/stt/          @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/flutter-lead
+/flutter/lib/features/voice_session/ @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/flutter-lead
+
+
+# ═══════════════════════════════════════════════════════════════
+# 시각화 전용 — viz-lead 주 소유
+# ─ 그래프 캔버스·노드 레이아웃·시각화 워커·시각화 UI 컴포넌트
+# ═══════════════════════════════════════════════════════════════
+
+# 백엔드 온톨로지 / 시각화 전용
+/backend/app/features/ontology/     @team-code-bridge-kr/viz-lead  @team-code-bridge-kr/backend-lead
+/backend/app/workers/graph/         @team-code-bridge-kr/viz-lead
+
+# Flutter 시각화 전용
+/flutter/lib/features/ontology_viz/ @team-code-bridge-kr/viz-lead  @team-code-bridge-kr/flutter-lead
+/flutter/lib/features/graph_canvas/ @team-code-bridge-kr/viz-lead  @team-code-bridge-kr/flutter-lead
+
+
+# ═══════════════════════════════════════════════════════════════
+# 인프라 / 문서 — devops + pm
+# ═══════════════════════════════════════════════════════════════
+
+# GitHub Actions 워크플로우
+/.github/workflows/                 @team-code-bridge-kr/devops  @team-code-bridge-kr/backend-lead
+
+# CODEOWNERS 자체 변경은 pm + 양 리드 필수
+/.github/CODEOWNERS                 @team-code-bridge-kr/pm  @team-code-bridge-kr/stt-lead  @team-code-bridge-kr/viz-lead  @team-code-bridge-kr/backend-lead
+
+# 도커 / 빌드 설정
+/backend/Dockerfile                 @team-code-bridge-kr/devops  @team-code-bridge-kr/backend-lead
+/backend/docker-compose*.yml        @team-code-bridge-kr/devops
+/**/Dockerfile                      @team-code-bridge-kr/devops
+
+# 인프라 스크립트
+/scripts/                           @team-code-bridge-kr/devops
+
+# 부속 문서 (docs 폴더 사용 시)
+/docs/                              @team-code-bridge-kr/pm
+
+# 루트 설정 파일
+/pyproject.toml                     @team-code-bridge-kr/backend-lead
+/backend/requirements*.txt          @team-code-bridge-kr/backend-lead
+/flutter/pubspec.yaml               @team-code-bridge-kr/flutter-lead
+/flutter/pubspec.lock               @team-code-bridge-kr/flutter-lead
