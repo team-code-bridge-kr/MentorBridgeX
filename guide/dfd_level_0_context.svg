@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="460" viewBox="0 0 680 460" role="img" font-family="'Helvetica Neue', Arial, sans-serif">
+  <title>DFD Level 0 컨텍스트 다이어그램</title>
+  <desc>백엔드 시스템과 외부 엔티티(사용자, 모바일 앱, ML 서비스, STT 엔진, OAuth, PDF 파서) 간의 데이터 흐름</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .t { font-size: 14px; fill: #2C2C2A; }
+      .ts { font-size: 12px; fill: #5F5E5A; }
+      .th { font-size: 14px; font-weight: 500; fill: #2C2C2A; }
+      .arr { stroke: #5F5E5A; stroke-width: 1; fill: none; }
+    </style>
+  </defs>
+
+  <!-- 중앙: 백엔드 시스템 (purple) -->
+  <rect x="240" y="190" width="200" height="80" rx="40" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text class="th" x="340" y="222" text-anchor="middle" dominant-baseline="central" fill="#3C3489">백엔드 시스템</text>
+  <text class="ts" x="340" y="244" text-anchor="middle" dominant-baseline="central" fill="#534AB7">Process 0</text>
+
+  <!-- 좌상단: 사용자 (blue) -->
+  <rect x="40" y="40" width="160" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text class="th" x="120" y="62" text-anchor="middle" dominant-baseline="central" fill="#0C447C">사용자</text>
+  <text class="ts" x="120" y="80" text-anchor="middle" dominant-baseline="central" fill="#185FA5">학생 / 교사 / 관리자</text>
+
+  <!-- 우상단: 모바일 앱 (blue) -->
+  <rect x="480" y="40" width="160" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text class="th" x="560" y="62" text-anchor="middle" dominant-baseline="central" fill="#0C447C">모바일 앱</text>
+  <text class="ts" x="560" y="80" text-anchor="middle" dominant-baseline="central" fill="#185FA5">음성 캡처 클라이언트</text>
+
+  <!-- 좌하단: OAuth Provider (teal) -->
+  <rect x="40" y="370" width="160" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text class="th" x="120" y="392" text-anchor="middle" dominant-baseline="central" fill="#085041">OAuth Provider</text>
+  <text class="ts" x="120" y="410" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">소셜 로그인</text>
+
+  <!-- 좌중단: PDF 파서 (teal) -->
+  <rect x="40" y="200" width="160" height="56" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text class="th" x="120" y="222" text-anchor="middle" dominant-baseline="central" fill="#085041">PDF 파서</text>
+  <text class="ts" x="120" y="240" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">생기부 영역 분류</text>
+
+  <!-- 우중단: ML 서비스 (coral) -->
+  <rect x="480" y="200" width="160" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+  <text class="th" x="560" y="222" text-anchor="middle" dominant-baseline="central" fill="#712B13">ML 서비스</text>
+  <text class="ts" x="560" y="240" text-anchor="middle" dominant-baseline="central" fill="#993C1D">사용자별 RAG/추론</text>
+
+  <!-- 우하단: STT 엔진 (coral) -->
+  <rect x="480" y="370" width="160" height="56" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+  <text class="th" x="560" y="392" text-anchor="middle" dominant-baseline="central" fill="#712B13">STT 엔진</text>
+  <text class="ts" x="560" y="410" text-anchor="middle" dominant-baseline="central" fill="#993C1D">외부 API / 자체 모델</text>
+
+  <!-- 흐름: 사용자 ↔ 백엔드 -->
+  <line x1="200" y1="68" x2="280" y2="190" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="208" y="130">요청 / 그래프 편집</text>
+  <line x1="270" y1="200" x2="200" y2="80" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="220" y="166">응답 / 그래프 데이터</text>
+
+  <!-- 흐름: 모바일 앱 ↔ 백엔드 -->
+  <line x1="480" y1="68" x2="400" y2="190" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="430" y="130">음성 스트림</text>
+  <line x1="410" y1="200" x2="480" y2="80" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="430" y="166">라이브 자막</text>
+
+  <!-- 흐름: 백엔드 ↔ PDF 파서 -->
+  <line x1="240" y1="220" x2="200" y2="220" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="210" y="212" text-anchor="end">PDF 파일</text>
+  <line x1="200" y1="236" x2="240" y2="240" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="210" y="256" text-anchor="end">구조화 텍스트</text>
+
+  <!-- 흐름: 백엔드 ↔ ML 서비스 -->
+  <line x1="440" y1="220" x2="480" y2="220" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="460" y="212" text-anchor="middle">추론 요청</text>
+  <line x1="480" y1="236" x2="440" y2="240" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="460" y="256" text-anchor="middle">노드/추천 결과</text>
+
+  <!-- 흐름: 백엔드 ↔ OAuth -->
+  <line x1="280" y1="270" x2="200" y2="380" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="208" y="320">인증 요청</text>
+  <line x1="200" y1="395" x2="280" y2="280" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="220" y="350">사용자 정보</text>
+
+  <!-- 흐름: 백엔드 ↔ STT 엔진 -->
+  <line x1="400" y1="270" x2="480" y2="380" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="430" y="320">오디오 청크</text>
+  <line x1="480" y1="395" x2="400" y2="280" class="arr" marker-end="url(#arrow)"/>
+  <text class="ts" x="430" y="350">전사 텍스트</text>
+</svg>

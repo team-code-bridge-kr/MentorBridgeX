@@ -1,0 +1,26 @@
+cases:
+  - name: seed_quantum_computing
+    input:
+      seeds: ["양자컴퓨팅"]
+      max_results: 10
+    expect:
+      min_suggestions: 3
+      contains_labels:
+        - "큐비트"
+        - "양자 알고리즘"
+
+  - name: seed_environment_engineering
+    input:
+      seeds: ["환경공학"]
+      max_results: 5
+    expect:
+      min_suggestions: 2
+      contains_labels:
+        - "탄소중립"
+
+  - name: unknown_seed_defaults
+    input:
+      seeds: ["미지의주제"]
+      max_results: 3
+    expect:
+      min_suggestions: 1

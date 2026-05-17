@@ -1,0 +1,2597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합 IA v0.1 · 생기부 관리 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf9;
+    --bg-card: #ffffff;
+    --bg-elevated: #f5f5f4;
+    --bg-hover: #f0efed;
+    --border: #e7e5e4;
+    --border-strong: #d6d3d1;
+    --text: #1c1917;
+    --text-muted: #57534e;
+    --text-dim: #a8a29e;
+    --accent: #18181b;
+
+    /* role colors */
+    --student: #2563eb;
+    --student-bg: #dbeafe;
+    --teacher: #059669;
+    --teacher-bg: #d1fae5;
+    --admin: #7c3aed;
+    --admin-bg: #ede9fe;
+    --t2: #dc2626;
+    --t2-bg: #fee2e2;
+    --warning: #d97706;
+    --warning-bg: #fef3c7;
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --info: #0284c7;
+    --info-bg: #e0f2fe;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+
+    --radius-sm: 6px;
+    --radius: 10px;
+    --radius-lg: 14px;
+
+    --font-sans: 'Pretendard', 'IBM Plex Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0c0a09;
+    --bg-card: #1c1917;
+    --bg-elevated: #292524;
+    --bg-hover: #44403c;
+    --border: #292524;
+    --border-strong: #44403c;
+    --text: #fafaf9;
+    --text-muted: #d6d3d1;
+    --text-dim: #78716c;
+    --accent: #fafaf9;
+
+    --student-bg: #1e3a8a33;
+    --teacher-bg: #064e3b33;
+    --admin-bg: #4c1d9533;
+    --t2-bg: #7f1d1d33;
+    --warning-bg: #78350f33;
+    --success-bg: #14532d33;
+    --info-bg: #0c4a6e33;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  /* ===== Header ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .header-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .search-input {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    width: 280px;
+    transition: border 0.15s;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .theme-toggle {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 16px;
+    transition: background 0.15s;
+  }
+  .theme-toggle:hover { background: var(--bg-hover); }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-card);
+    position: sticky;
+    top: 65px;
+    z-index: 90;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .tab {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-family: var(--font-sans);
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+  .tab-number {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-right: 6px;
+  }
+
+  /* ===== Layout ===== */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ===== Typography ===== */
+  h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; }
+  .section-title {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  h3 { font-size: 18px; margin: 32px 0 12px; letter-spacing: -0.01em; }
+  h4 { font-size: 14px; margin: 20px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  p { margin-bottom: 12px; color: var(--text); }
+  .meta-text { color: var(--text-muted); font-size: 13px; }
+
+  code, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: var(--bg-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* ===== Cards & Grid ===== */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .grid {
+    display: grid;
+    gap: 12px;
+  }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* ===== Tables ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-elevated);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  tbody tr:hover { background: var(--bg-hover); }
+
+  /* ===== Badges ===== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+  .badge-student { background: var(--student-bg); color: var(--student); }
+  .badge-teacher { background: var(--teacher-bg); color: var(--teacher); }
+  .badge-admin { background: var(--admin-bg); color: var(--admin); }
+  .badge-t2 { background: var(--t2-bg); color: var(--t2); font-weight: 600; }
+  .badge-warning { background: var(--warning-bg); color: var(--warning); }
+  .badge-success { background: var(--success-bg); color: var(--success); }
+  .badge-info { background: var(--info-bg); color: var(--info); }
+  .badge-muted { background: var(--bg-elevated); color: var(--text-muted); }
+
+  /* ===== Filter Bar ===== */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .filter-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    font-family: var(--font-sans);
+  }
+  .filter-chip:hover { border-color: var(--border-strong); color: var(--text); }
+  .filter-chip.active {
+    background: var(--accent);
+    color: var(--bg-card);
+    border-color: var(--accent);
+  }
+
+  /* ===== Screen Cards (Inventory) ===== */
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .screen-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .screen-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .screen-card.hidden { display: none; }
+  .screen-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .screen-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 4px 0;
+    color: var(--text);
+  }
+  .screen-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  /* ===== Collapsible ===== */
+  .collapsible {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    background: var(--bg-card);
+    overflow: hidden;
+  }
+  .collapsible-trigger {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  .collapsible-trigger:hover { background: var(--bg-elevated); }
+  .collapsible-trigger .chevron {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .collapsible.open .chevron { transform: rotate(90deg); }
+  .collapsible-content {
+    display: none;
+    padding: 0 18px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .collapsible.open .collapsible-content { display: block; padding-top: 16px; }
+
+  /* ===== Tree (Sitemap) ===== */
+  .tree {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.9;
+    background: var(--bg-elevated);
+    padding: 20px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+  }
+  .tree-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 0;
+  }
+  .tree-path { color: var(--text); }
+  .tree-arrow { color: var(--text-dim); margin: 0 4px; }
+  .tree-screen { color: var(--text-muted); }
+
+  /* ===== Slide Panel ===== */
+  .panel-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .panel-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 480px;
+    max-width: 92vw;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border);
+    z-index: 201;
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 1;
+  }
+  .panel-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .panel-body {
+    padding: 16px 24px 40px;
+  }
+  .panel-section {
+    margin-bottom: 24px;
+  }
+  .panel-section h4 {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  /* ===== Misc ===== */
+  ul.bare { list-style: none; padding: 0; }
+  ul.bare li { padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  ul.bare li:last-child { border-bottom: none; }
+  .callout {
+    background: var(--info-bg);
+    border-left: 3px solid var(--info);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .callout-warning {
+    background: var(--warning-bg);
+    border-left-color: var(--warning);
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+  .kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--text-muted);
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="header">
+  <div class="header-inner">
+    <div>
+      <div class="header-title">통합 정보구조 (IA)</div>
+      <div class="header-meta">v0.3 · 2026-05-11 · 온톨로지 기반 생활기록부 관리 시스템</div>
+    </div>
+    <div class="header-actions">
+      <input type="text" class="search-input" id="globalSearch" placeholder="화면 ID, 이름으로 검색...">
+      <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">◐</button>
+    </div>
+  </div>
+</header>
+
+<!-- ===== Tabs ===== -->
+<nav class="tabs" id="tabs">
+  <button class="tab active" data-tab="overview"><span class="tab-number">01</span>개요</button>
+  <button class="tab" data-tab="glossary"><span class="tab-number">02</span>용어 정의</button>
+  <button class="tab" data-tab="inventory"><span class="tab-number">03</span>화면 인벤토리</button>
+  <button class="tab" data-tab="sitemap"><span class="tab-number">04</span>사이트맵</button>
+  <button class="tab" data-tab="navigation"><span class="tab-number">05</span>네비게이션</button>
+  <button class="tab" data-tab="components"><span class="tab-number">06</span>컴포넌트</button>
+  <button class="tab" data-tab="content"><span class="tab-number">07</span>컨텐츠 매트릭스</button>
+  <button class="tab" data-tab="api"><span class="tab-number">08</span>화면 × API</button>
+  <button class="tab" data-tab="labels"><span class="tab-number">09</span>라벨·URL</button>
+  <button class="tab" data-tab="search-classification"><span class="tab-number">10</span>검색·분류</button>
+  <button class="tab" data-tab="responsive"><span class="tab-number">11</span>반응형</button>
+  <button class="tab" data-tab="a11y"><span class="tab-number">12</span>접근성·i18n</button>
+  <button class="tab" data-tab="errors-perms"><span class="tab-number">13</span>에러·권한</button>
+  <button class="tab" data-tab="loading-modal"><span class="tab-number">14</span>로딩·모달</button>
+  <button class="tab" data-tab="onboarding"><span class="tab-number">15</span>온보딩</button>
+  <button class="tab" data-tab="consistency"><span class="tab-number">16</span>정합성</button>
+  <button class="tab" data-tab="oq"><span class="tab-number">17</span>OQ·다음 단계</button>
+</nav>
+
+<main class="container">
+
+<!-- ===== Tab 1: 개요 ===== -->
+<div class="tab-content active" id="tab-overview">
+  <h1 class="section-title">통합 정보구조 (IA)</h1>
+  <p class="section-desc">학생·교사·관리자 3개 역할의 화면·라우팅·네비게이션·컴포넌트·라벨 체계를 통합 정의하는 단일 진실 원천.</p>
+
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="card-title">📋 문서 목적</div>
+      <p class="meta-text">3개 화면설계서에 흩어진 IA 요소를 통합하여 디자이너·프론트엔드·백엔드 개발자의 공통 참조점 제공.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">📐 작성 범위</div>
+      <p class="meta-text">화면 인벤토리·사이트맵·네비게이션·컴포넌트·컨텐츠 매트릭스·API 매핑·라벨 규칙·검색 분류.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🚫 작성 외</div>
+      <p class="meta-text">시각 디자인(와이어프레임·색·폰트)·화면별 상세 콘텐츠·인터랙션 디테일은 별도 문서 참조.</p>
+    </div>
+  </div>
+
+  <h3>IA 원칙</h3>
+
+  <h4>역할별 분리 + 공통 영역 결합</h4>
+  <table>
+    <thead><tr><th>원칙</th><th>적용</th></tr></thead>
+    <tbody>
+      <tr><td>역할별 URL prefix</td><td><code>/auth/*</code> 공통, <code>/students/me/*</code> 학생, <code>/teachers/me/*</code> 교사, <code>/admin/*</code> 관리자</td></tr>
+      <tr><td>공통 영역 재사용</td><td>인증·온보딩(S01~S03), 알림(S25), 설정(S30~S32)은 학생·교사 공유</td></tr>
+      <tr><td>관리자는 별도 콘솔</td><td>OAuth 가입 불가·MFA 필수·4시간 세션·전혀 다른 URL prefix</td></tr>
+      <tr><td>다중 역할은 토글</td><td>학생+교사 사용자는 헤더에서 역할 전환 (URL prefix 전환)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>정보 우선순위 (P0~P3)</h4>
+  <table>
+    <thead><tr><th>Priority</th><th>종류</th><th>화면 내 위치</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-t2">P0</span></td><td>본문 데이터·핵심 액션</td><td>메인 영역 (가장 눈에 띄게)</td></tr>
+      <tr><td><span class="badge badge-warning">P1</span></td><td>메타데이터·관련 액션</td><td>사이드바·하단 보조</td></tr>
+      <tr><td><span class="badge badge-info">P2</span></td><td>통계·이력·도움말</td><td>탭·접기·별도 페이지</td></tr>
+      <tr><td><span class="badge badge-muted">P3</span></td><td>설정·디버깅</td><td>설정 메뉴 깊은 곳</td></tr>
+    </tbody>
+  </table>
+
+  <h4>일관성</h4>
+  <ul class="bare">
+    <li><b>라벨</b>: 격식체 한국어 일관 (에러 정책 1.4)</li>
+    <li><b>이모지</b>: 식별·관리 영역 미사용, 컨텐츠 영역 허용 (검증 정책 7.3.1)</li>
+    <li><b>URL slug</b>: kebab-case 영문 (예: <code>voice-sessions</code>, <code>format-outputs</code>)</li>
+    <li><b>상태 색상</b>: 빨강(위험·실패), 노랑(경고·진행), 초록(성공), 파랑(정보·일반)</li>
+  </ul>
+
+  <h3>참조 문서</h3>
+  <table>
+    <thead><tr><th>문서</th><th>버전</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td>학생·교사·관리자 화면설계서</td><td>v0.1</td><td>화면별 상세 콘텐츠·인터랙션</td></tr>
+      <tr><td>API 엔드포인트 카탈로그</td><td>v0.5</td><td>화면-API 매핑의 권위</td></tr>
+      <tr><td>권한 매트릭스</td><td>v0.3</td><td>역할·컨텍스트·tier 권한</td></tr>
+      <tr><td>데이터 검증 정책</td><td>v0.2</td><td>필드 한도·enum·자원 한도</td></tr>
+      <tr><td>인증·세션 상세</td><td>v0.2</td><td>토큰·세션·다중 디바이스</td></tr>
+      <tr><td>에러 정책</td><td>v0.2</td><td>카피 톤·차등 마스킹</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <b>참조 우선순위</b>: 화면 상세는 역할별 화면설계서 우선. 권한·API는 권한 매트릭스·카탈로그 우선. 본 문서는 <b>연결·매핑·체계</b>의 권위 — 화면 간 관계, 라우팅, 공통 컴포넌트, 라벨.
+  </div>
+</div>
+
+<!-- ===== Tab 2: 용어 정의 ===== -->
+<div class="tab-content" id="tab-glossary">
+  <h1 class="section-title">용어 정의 (Glossary)</h1>
+  <p class="section-desc">본 시스템의 핵심 용어 정의. 디자이너·개발자가 라벨·UI 결정 시 참조.</p>
+
+  <div class="callout">
+    가장 자주 묻는 질문: <b>"왜 이 화면만 빨간색(T2)인가?"</b> → 아래 [관리자 Tier 체계] 섹션 참조
+  </div>
+
+  <h3 id="glossary-tier" style="color: var(--t2);">⭐ 관리자 Tier 체계 (가장 중요)</h3>
+
+  <div class="callout callout-warning">
+    <b>본 시스템 관리자는 Tier 1(일반)·Tier 2(시니어)로 권한이 명확히 분리됩니다.</b><br>
+    Tier 2는 비가역적·시스템 영향이 큰 작업과 데이터 마스킹 해제 권한을 가집니다.
+  </div>
+
+  <h4>Tier 1 vs Tier 2 비교표</h4>
+  <table>
+    <thead><tr><th style="width: 22%;">측면</th><th style="width: 39%;">Tier 1 (일반 관리자)</th><th style="width: 39%;">Tier 2 (시니어 관리자)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>핵심 능력</b></td>
+        <td>일상 운영 — 정지·자격 검증·신고 처리·시스템 모니터링·공지 발행·마스터 데이터·디버깅 신청</td>
+        <td>Tier 1 전체 + <b>admin.investigation</b> 등급 작업 (마스킹 해제·강제 삭제·키 회전 등)</td>
+      </tr>
+      <tr>
+        <td><b>접근 가능 화면</b></td>
+        <td>25개 (32개 중 T2 전용 7개 제외)</td>
+        <td>32개 전체</td>
+      </tr>
+      <tr>
+        <td><b>restricted 데이터</b></td>
+        <td>마스킹된 형태로만 (예: 생기부 본문은 참조 ID만, audit logs critical 마스킹)</td>
+        <td>사유 입력 시 마스킹 해제 가능 (admin.investigation 발동 필수)</td>
+      </tr>
+      <tr>
+        <td><b>위험 동작</b></td>
+        <td>정지·해제·자격 승인·거부 (되돌릴 수 있음)</td>
+        <td>강제 삭제·tier 변경·키 회전·fail-close (비가역 또는 시스템 영향 큼)</td>
+      </tr>
+      <tr>
+        <td><b>외부 통보</b></td>
+        <td>일반 audit log만 (severity=low/medium)</td>
+        <td>모든 T2 작업 → 보안팀 슬랙·이메일 <b>즉시 통보</b> (severity=critical)</td>
+      </tr>
+      <tr>
+        <td><b>MFA</b></td>
+        <td>로그인 시 필수</td>
+        <td>로그인 시 필수 + 모든 T2 액션마다 재인증</td>
+      </tr>
+      <tr>
+        <td><b>세션</b></td>
+        <td>4시간 한도</td>
+        <td>4시간 한도 (동일)</td>
+      </tr>
+      <tr>
+        <td><b>본인 tier 변경</b></td>
+        <td>불가 (Tier 2 관리자가 변경)</td>
+        <td>본인 상승 불가, 다른 Tier 2가 변경</td>
+      </tr>
+      <tr>
+        <td><b>발급 기준</b></td>
+        <td>보안팀 직접 발급 (OAuth 가입 불가)</td>
+        <td>Tier 1 경력 + 운영 매뉴얼 기준 충족 시 보안팀 발급</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4>Tier 2 전용 화면·액션 7개</h4>
+  <table>
+    <thead><tr><th>화면</th><th>액션</th><th>T2 전용 사유</th></tr></thead>
+    <tbody>
+      <tr><td><code>A05</code></td><td>강제 사용자 삭제</td><td>비가역 · crypto-shredding 즉시 발동 · 30일 유예 무시</td></tr>
+      <tr><td><code>A12</code></td><td>사용자 데이터 스냅샷</td><td>restricted 데이터 마스킹 해제 R · 사유 입력 필수 · 2시간 활성</td></tr>
+      <tr><td><code>A19</code></td><td>JWKS 키 회전 승인</td><td>전체 인증 시스템 영향 · 7일 사후 모니터링 · 자동 롤백 가능</td></tr>
+      <tr><td><code>A20</code></td><td>Redis fail-close 토글</td><td>활성화 시 Redis 다운 = 전체 인증 차단 (의도적 시스템 다운)</td></tr>
+      <tr><td><code>A24</code></td><td>admin.investigation 발동</td><td>다른 T2 액션의 컨텍스트. 보안팀 즉시 통보 + 사유 기록</td></tr>
+      <tr><td><code>A30</code></td><td>관리자 tier 변경</td><td>권한 위임 · 본인 상승 불가 · 보안팀 통보</td></tr>
+      <tr><td>(<code>A23</code>)</td><td>감사 로그 대규모 export</td><td>1년 이상 기간 export는 자동 T2로 격상 (admin.investigation 등급)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>admin.investigation 발동 5단계 절차</h4>
+  <p class="meta-text">모든 [T2] 액션은 다음 순서로 진행:</p>
+  <ol style="padding-left: 24px; line-height: 2;">
+    <li>1차 확인 다이얼로그 — "정말 진행하시겠습니까?"</li>
+    <li>사유 입력 — <code>X-Investigation-Reason</code> 헤더 (10~500자 필수)</li>
+    <li>본인 MFA 재인증 (4시간 세션 내 재요청)</li>
+    <li>2차 확인 — "이 작업은 되돌릴 수 없습니다"</li>
+    <li>실행 + 자동 감사 로그 (severity=critical) + 보안팀 슬랙·이메일 즉시 통보</li>
+  </ol>
+
+  <h4>시각 디자인 가이드 (디자이너 참조)</h4>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title" style="color: var(--t2);">T2 화면·액션 시각 차별</div>
+      <ul class="bare">
+        <li>좌측 사이드바: T2 메뉴는 빨간 배지 또는 잠금 아이콘</li>
+        <li>액션 버튼: 빨간 강조 + 잠금 아이콘</li>
+        <li>화면 헤더: "시니어 관리자 전용" 배지</li>
+        <li>T1 사용자에게는: 메뉴 회색·비활성 또는 숨김</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">T1 사용자가 T2 액션 클릭 시</div>
+      <ul class="bare">
+        <li>다이얼로그: "이 작업은 Tier 2 시니어 관리자만 수행할 수 있습니다"</li>
+        <li>안내 텍스트: 필요 시 보안팀에 권한 상승 요청</li>
+        <li>관련 docs 링크 (운영 매뉴얼)</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr>
+
+  <h3>권한 컨텍스트 용어</h3>
+  <table>
+    <thead><tr><th>용어</th><th>의미</th><th>적용 화면</th></tr></thead>
+    <tbody>
+      <tr><td><code>public</code></td><td>인증 없이 접근 가능</td><td>S01, S02, A00</td></tr>
+      <tr><td><code>self</code></td><td>본인 데이터 (역할 무관)</td><td>S30~S32, S25, S26 등</td></tr>
+      <tr><td><code>self.student</code></td><td>본인이 학생 역할 보유 시 본인 데이터</td><td>S05~S29</td></tr>
+      <tr><td><code>self.teacher</code></td><td>본인이 교사 역할 보유 시 본인 데이터</td><td>T03~T06</td></tr>
+      <tr><td><code>linked.teacher</code></td><td>담당 교사로 매핑된 학생의 데이터 (R only + 코멘트 W)</td><td>T07~T09</td></tr>
+      <tr><td><code>session.host</code></td><td>음성 세션의 호스트 (참여자 관리 권한)</td><td>S18, T12</td></tr>
+      <tr><td><code>commenter</code></td><td>코멘트 작성자 (본인 코멘트 수정·삭제 권한)</td><td>S24, T11</td></tr>
+      <tr><td><code>T1+</code></td><td>Tier 1 이상 관리자 (= Tier 1 또는 Tier 2)</td><td>관리자 25개 화면</td></tr>
+      <tr><td><code>T2 only</code></td><td>Tier 2 시니어 관리자만</td><td>관리자 7개 화면</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>데이터 분류 (4단계)</h3>
+  <p class="meta-text">보안 정책 v0.2 정합. 데이터별 보호 수준.</p>
+  <table>
+    <thead><tr><th>등급</th><th>의미</th><th>예시</th><th>처리</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-t2">restricted</span></td><td>가장 민감</td><td>생기부 본문, 성적, 음성 보고서, 양식 결과물, 임베딩</td><td>사용자별 DEK 암호화, crypto-shredding</td></tr>
+      <tr><td><span class="badge badge-warning">confidential</span></td><td>민감</td><td>코멘트, 매핑 관계, 알림 내용</td><td>표준 암호화, 마스킹</td></tr>
+      <tr><td><span class="badge badge-info">internal</span></td><td>내부 운영</td><td>시스템 메트릭, 감사 로그 메타</td><td>관리자 R, 일반 사용자 X</td></tr>
+      <tr><td><span class="badge badge-muted">public</span></td><td>공개 가능</td><td>이용약관, 시스템 공지</td><td>전 사용자 R</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>사용자·계정 상태</h3>
+  <table>
+    <thead><tr><th>상태</th><th>의미</th><th>UX 차별</th></tr></thead>
+    <tbody>
+      <tr><td><code>active</code></td><td>정상 사용 가능</td><td>일반 화면</td></tr>
+      <tr><td><code>suspended</code></td><td>관리자가 정지</td><td>로그인 차단 · 풀스크린 안내 · 이메일로 사유 전달</td></tr>
+      <tr><td><code>deletion_pending</code></td><td>삭제 요청 후 30일 유예</td><td>로그인 가능 · 상단 영구 배너 · [철회하기] 가능</td></tr>
+      <tr><td><code>deleted</code></td><td>30일 경과 후 hard delete + crypto-shredding</td><td>접근 불가 · 감사 로그에 흔적만</td></tr>
+    </tbody>
+  </table>
+
+  <h4>매핑·신청·세션 상태</h4>
+  <table>
+    <thead><tr><th>상태</th><th>의미</th><th>적용</th></tr></thead>
+    <tbody>
+      <tr><td><code>pending</code></td><td>대기 중</td><td>교사 자격·매핑·신고·신청</td></tr>
+      <tr><td><code>approved</code></td><td>승인됨</td><td>교사 자격</td></tr>
+      <tr><td><code>rejected</code></td><td>거부됨</td><td>교사 자격·신고</td></tr>
+      <tr><td><code>cancelled</code></td><td>신청자가 취소</td><td>매핑·자격</td></tr>
+      <tr><td><code>revoked</code></td><td>해제됨 (매핑 종료)</td><td>매핑 (토큰 즉시 무효화)</td></tr>
+      <tr><td><code>active</code></td><td>활성 매핑</td><td>매핑</td></tr>
+      <tr><td><code>recording</code> / <code>processing</code> / <code>reviewed</code> / <code>reflected</code> / <code>failed</code></td><td>음성 세션 5단계</td><td>S15~S19</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>자원 한도 (3단계)</h3>
+  <p class="meta-text">검증 정책 v0.2 5.2 정합.</p>
+  <table>
+    <thead><tr><th>단계</th><th>임계</th><th>UX</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-warning">Warning</span></td><td>80%</td><td>토스트 1회 + 헤더 배지. 사용 계속 가능</td></tr>
+      <tr><td><span class="badge badge-warning">Soft Block</span></td><td>100%</td><td>다이얼로그. 신규 생성 차단, 수정·삭제는 가능. [정리하기]</td></tr>
+      <tr><td><span class="badge badge-t2">Hard Block</span></td><td>120%</td><td>다이얼로그. 모든 W 차단. [정리하기] 필수</td></tr>
+    </tbody>
+  </table>
+
+  <h4>주요 한도</h4>
+  <ul class="bare">
+    <li>노드: 10,000개 / 엣지: 50,000개 (학생 1인)</li>
+    <li>활성 voice_sessions: 5개, 세션당 4시간</li>
+    <li>양식 결과물 보관: 1,000개 (초과 시 자동 정리)</li>
+    <li>동시 활성 디바이스: 5개 (학생·교사), 3개 (관리자)</li>
+    <li>동시 담당 학생 (교사): 200명</li>
+    <li>토큰 페이로드 linked_students: 50명 (초과 시 DB 조회)</li>
+  </ul>
+
+  <hr>
+
+  <h3>시스템 공지 priority</h3>
+  <table>
+    <thead><tr><th>priority</th><th>발행 권한</th><th>표시</th><th>사용자 끄기</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-info">general</span></td><td>T1+</td><td>푸시 보통 + 7일 배너 + 피드 영구</td><td>적용됨 (꺼져 있으면 안 받음)</td></tr>
+      <tr><td><span class="badge badge-t2">urgent</span></td><td>T1+ (단, 발행 시 추가 확인)</td><td>푸시 강함 (음·진동) + 닫기 전까지 배너</td><td><b>무시</b> (강제 노출)</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>토큰·세션</h3>
+  <table>
+    <thead><tr><th>용어</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td>JWT (access)</td><td>API 호출용 토큰, 15분 만료, RS256 서명</td></tr>
+      <tr><td>JWT (refresh)</td><td>access 갱신용, 30일 만료, 회전 + 재사용 감지</td></tr>
+      <tr><td>linked_students</td><td>토큰 페이로드의 담당 학생 ID 목록 (50명 한도)</td></tr>
+      <tr><td>MFA</td><td>Multi-Factor Authentication (관리자 필수, TOTP)</td></tr>
+      <tr><td>JWKS</td><td>JSON Web Key Set, 키 회전 시 자동 배포</td></tr>
+      <tr><td>Idempotency-Key</td><td>중복 요청 방지 헤더, W 작업에 권장</td></tr>
+      <tr><td>다중 디바이스</td><td>학생·교사 5개, 관리자 3개 동시 활성 세션 한도</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>에러 분류</h3>
+  <table>
+    <thead><tr><th>분류</th><th>의미</th><th>마스킹</th></tr></thead>
+    <tbody>
+      <tr><td><code>4xx</code> (AUTH_*, VAL_*, DOC_*, SYS_RATE_*)</td><td>사용자 입력 오류·권한 부족</td><td>구체 사유 노출</td></tr>
+      <tr><td><code>5xx</code> (SYS_INTERNAL_*, SYS_MAINTENANCE)</td><td>서버 오류</td><td>마스킹 + trace_id</td></tr>
+      <tr><td><code>EXT_*</code> (EXT_ML_*, EXT_STT_*, EXT_PDF_*)</td><td>외부 의존성 오류</td><td>카테고리 메시지 + 벤더명 마스킹</td></tr>
+    </tbody>
+  </table>
+  <p class="meta-text"><code>trace_id</code>: 모든 에러에 첨부되는 ULID. 보안팀·운영팀 디버깅용. 사용자는 토스트·풀스크린 메시지로 복사 가능.</p>
+
+  <hr>
+
+  <h3>그래프 도메인</h3>
+  <table>
+    <thead><tr><th>용어</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td>온톨로지 그래프</td><td>학생 생기부의 키워드·활동·관계를 시각화한 그래프</td></tr>
+      <tr><td>노드 (6종)</td><td><b>Keyword</b> 키워드, <b>Inquiry</b> 탐구 주제, <b>Subject</b> 과목, <b>Activity</b> 활동, <b>Period</b> 학기, <b>Document</b> 문서</td></tr>
+      <tr><td>관계 (9종)</td><td>RELATES_TO, BELONGS_TO, MENTIONED_IN, DERIVED_FROM, OCCURRED_IN, INFLUENCES, EVOLVED_FROM, CONTRADICTS, EVIDENCED_BY</td></tr>
+      <tr><td>시드 (seed)</td><td>그래프 생성 시작점이 되는 사용자 입력 키워드 (1~20개)</td></tr>
+      <tr><td>가지치기 추천</td><td>시드 또는 기존 노드에서 ML이 새 노드를 추천하는 작업</td></tr>
+      <tr><td>매칭 (matching)</td><td>음성 보고서 → 기존 그래프 노드로 ML이 자동 매핑</td></tr>
+      <tr><td>임베딩 (embedding)</td><td>노드·문서의 벡터 표현 (pgvector 저장, RAG·검색·매칭에 사용)</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>음성 도메인</h3>
+  <table>
+    <thead><tr><th>용어</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td>STT</td><td>Speech-to-Text. 음성 → 텍스트 변환</td></tr>
+      <tr><td>라이브 STT</td><td>녹음 중 실시간 텍스트 표시 (WebSocket)</td></tr>
+      <tr><td>후처리 (post-processing)</td><td>녹음 종료 후 화자 분리·키워드 추출·구조화 (비동기)</td></tr>
+      <tr><td>회의 (참여자) 사본</td><td>회의 녹음 시 각 참여자가 받는 본인 사본 보고서</td></tr>
+      <tr><td>호스트 (host)</td><td>음성 세션을 생성한 사용자. 참여자 초대·제거 권한</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>운영 용어</h3>
+  <table>
+    <thead><tr><th>용어</th><th>의미</th></tr></thead>
+    <tbody>
+      <tr><td>OQ (Open Question)</td><td>결정이 필요한 미정 사항. 본 IA의 OQ는 v0.2에서 모두 결정 완료</td></tr>
+      <tr><td>NFR (Non-Functional Requirement)</td><td>비기능적 요구사항. 성능·자원·Rate Limit·가용성</td></tr>
+      <tr><td>DPA (Data Processing Agreement)</td><td>외부 벤더와의 개인정보 처리 위탁 계약</td></tr>
+      <tr><td>crypto-shredding</td><td>사용자별 DEK 폐기로 데이터를 즉시 복호 불가하게 만드는 삭제 방식</td></tr>
+      <tr><td>fail-open / fail-close</td><td>Redis 등 의존성 다운 시: fail-open(서비스 계속) / fail-close(차단). 기본 fail-open, 보안 사건 시 T2가 fail-close 전환</td></tr>
+      <tr><td>차등 마스킹</td><td>응답 코드별로 사용자에게 노출하는 정보 수준 차별 (4xx 구체 / 5xx 일반화 / EXT_* 카테고리)</td></tr>
+    </tbody>
+  </table>
+</div>
+ -->
+<div class="tab-content" id="tab-inventory">
+  <h1 class="section-title">화면 인벤토리</h1>
+  <p class="section-desc">전체 76개 고유 화면. 클릭하면 라우팅·권한·API 매핑 등 상세 정보를 확인할 수 있습니다.</p>
+
+  <div class="grid grid-3" style="margin-bottom: 24px;">
+    <div class="card">
+      <div class="card-title">학생용 <span class="badge badge-student">32</span></div>
+      <p class="meta-text">주 사용자. 본인 데이터 CRUD. 가장 많은 화면.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">교사용 <span class="badge badge-teacher">12</span></div>
+      <p class="meta-text">고유 12개 + 학생 화면 11개 재사용 = 23개 노출.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">관리자용 <span class="badge badge-admin">32</span></div>
+      <p class="meta-text">별도 콘솔. T1·T2 권한 분리.</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <span style="font-size: 12px; color: var(--text-muted); align-self: center; margin-right: 4px;">역할:</span>
+    <button class="filter-chip active" data-filter-role="all">전체</button>
+    <button class="filter-chip" data-filter-role="student">학생</button>
+    <button class="filter-chip" data-filter-role="teacher">교사</button>
+    <button class="filter-chip" data-filter-role="admin">관리자</button>
+    <span style="font-size: 12px; color: var(--text-muted); align-self: center; margin-left: 16px; margin-right: 4px;">권한:</span>
+    <button class="filter-chip active" data-filter-tier="all">전체</button>
+    <button class="filter-chip" data-filter-tier="t2">T2 전용만</button>
+  </div>
+
+  <div class="screen-grid" id="screenGrid"><!-- JS로 렌더링 --></div>
+</div>
+
+<!-- ===== Tab 3: 사이트맵 ===== -->
+<div class="tab-content" id="tab-sitemap">
+  <h1 class="section-title">통합 사이트맵</h1>
+  <p class="section-desc">모든 URL 라우팅을 계층 구조로 정리. 역할별 prefix와 공통 영역, 진입 시 분기 정책 포함.</p>
+
+  <h3>URL 라우팅 트리</h3>
+  <div class="callout">접기/펼치기로 탐색하세요. 같은 화면 ID는 다른 탭에서 클릭하면 상세가 열립니다.</div>
+
+  <div class="collapsible open">
+    <button class="collapsible-trigger">
+      <span><code>/</code> · 루트 (역할 자동 분기)</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <ul class="bare">
+        <li>토큰 없음 → <code>S01</code> 시작 화면</li>
+        <li>학생 토큰 → <code>S05</code> 학생 대시보드</li>
+        <li>교사 토큰 → <code>T03</code> 교사 대시보드</li>
+        <li>관리자 토큰 → <code>A01</code> 관리자 대시보드 (보통 <code>/admin/login</code> 경로로 이미 진입)</li>
+        <li>다중 역할 → 마지막 사용 역할 자동 + 헤더 토글</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span><code>/auth/*</code> · 인증 영역 (공통)</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/auth/google/callback</span><span class="tree-arrow">→</span><span class="tree-screen">S02 OAuth 콜백 (학생·교사 공통)</span></div>
+<div class="tree-row"><span class="tree-path">/admin/login</span><span class="tree-arrow">→</span><span class="tree-screen">A00 관리자 로그인 (별도)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span><code>/onboarding/*</code> · 온보딩 (학생·교사 공통)</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/onboarding</span><span class="tree-arrow">→</span><span class="tree-screen">S03 가입 환영</span></div>
+<div class="tree-row"><span class="tree-path">/onboarding/seed</span><span class="tree-arrow">→</span><span class="tree-screen">S04 시드 키워드 (학생)</span></div>
+<div class="tree-row"><span class="tree-path">/onboarding/verification</span><span class="tree-arrow">→</span><span class="tree-screen">T01·T02 교사 자격 검증</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span><code>/students/me/*</code> · 학생 본인 영역</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/students/me/graph</span><span class="tree-arrow">→</span><span class="tree-screen">S06 그래프 메인</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/graph/nodes/:id</span><span class="tree-arrow">→</span><span class="tree-screen">S07 노드 상세</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/graph/edges/:id</span><span class="tree-arrow">→</span><span class="tree-screen">S08 엣지 상세</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/graph/seed</span><span class="tree-arrow">→</span><span class="tree-screen">S09 시드 추가</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/graph/history</span><span class="tree-arrow">→</span><span class="tree-screen">S10 변경 이력</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/documents</span><span class="tree-arrow">→</span><span class="tree-screen">S11 텍스트 영역 목록</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/documents/:id</span><span class="tree-arrow">→</span><span class="tree-screen">S12 영역 상세·편집</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/documents/import</span><span class="tree-arrow">→</span><span class="tree-screen">S13 PDF 업로드</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/documents/import/:job_id</span><span class="tree-arrow">→</span><span class="tree-screen">S14 파싱 결과 검토</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/voice</span><span class="tree-arrow">→</span><span class="tree-screen">S15 음성 세션 목록</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/voice/:id/recording</span><span class="tree-arrow">→</span><span class="tree-screen">S16 녹음 중 (라이브)</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/voice/:id/report</span><span class="tree-arrow">→</span><span class="tree-screen">S17 보고서 검토</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/voice/:id/participants</span><span class="tree-arrow">→</span><span class="tree-screen">S18 참여자 관리</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/voice/:id/match</span><span class="tree-arrow">→</span><span class="tree-screen">S19 매칭 제안</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/format/templates</span><span class="tree-arrow">→</span><span class="tree-screen">S20 양식 템플릿</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/format/outputs</span><span class="tree-arrow">→</span><span class="tree-screen">S21 결과물 목록</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/format/outputs/:id</span><span class="tree-arrow">→</span><span class="tree-screen">S22 결과물 상세</span></div>
+<div class="tree-row"><span class="tree-path">/students/me/recommendations</span><span class="tree-arrow">→</span><span class="tree-screen">S23 가지치기 추천</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span><code>/teachers/me/*</code> · 교사 본인 영역</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/teachers/me/dashboard</span><span class="tree-arrow">→</span><span class="tree-screen">T03 교사 대시보드</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/links/new</span><span class="tree-arrow">→</span><span class="tree-screen">T04 매핑 신청</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/links/pending</span><span class="tree-arrow">→</span><span class="tree-screen">T05 신청 상태</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/students</span><span class="tree-arrow">→</span><span class="tree-screen">T06 담당 학생</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/students/:id</span><span class="tree-arrow">→</span><span class="tree-screen">T07 학생 상세 R</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/students/:id/graph</span><span class="tree-arrow">→</span><span class="tree-screen">T08 그래프 R</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/students/:id/graph/nodes/:node_id</span><span class="tree-arrow">→</span><span class="tree-screen">T09 노드 상세 R</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/comments/compose</span><span class="tree-arrow">→</span><span class="tree-screen">T10 코멘트 작성</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/comments</span><span class="tree-arrow">→</span><span class="tree-screen">T11 답글·큐</span></div>
+<div class="tree-row"><span class="tree-path">/teachers/me/voice/...</span><span class="tree-arrow">→</span><span class="tree-screen">T12 회의 호스트 (학생 음성 재사용)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span>공통 영역 (학생·교사)</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/comments</span><span class="tree-arrow">→</span><span class="tree-screen">S24 코멘트 (본인 받은 것)</span></div>
+<div class="tree-row"><span class="tree-path">/notifications</span><span class="tree-arrow">→</span><span class="tree-screen">S25 알림</span></div>
+<div class="tree-row"><span class="tree-path">/feed</span><span class="tree-arrow">→</span><span class="tree-screen">S26 피드</span></div>
+<div class="tree-row"><span class="tree-path">/search</span><span class="tree-arrow">→</span><span class="tree-screen">S27 통합 검색</span></div>
+<div class="tree-row"><span class="tree-path">/stats</span><span class="tree-arrow">→</span><span class="tree-screen">S28 통계 (컨텍스트별 데이터)</span></div>
+<div class="tree-row"><span class="tree-path">/exports</span><span class="tree-arrow">→</span><span class="tree-screen">S29 내보내기</span></div>
+<div class="tree-row"><span class="tree-path">/settings</span><span class="tree-arrow">→</span><span class="tree-screen">S30 설정 메인</span></div>
+<div class="tree-row"><span class="tree-path">/settings/account</span><span class="tree-arrow">→</span><span class="tree-screen">S31 계정 정보</span></div>
+<div class="tree-row"><span class="tree-path">/settings/account/deletion</span><span class="tree-arrow">→</span><span class="tree-screen">S32 삭제 요청·철회</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <button class="collapsible-trigger">
+      <span><code>/admin/*</code> · 관리자 콘솔 (별도)</span>
+      <span class="chevron">▶</span>
+    </button>
+    <div class="collapsible-content">
+      <div class="tree">
+<div class="tree-row"><span class="tree-path">/admin/login</span><span class="tree-arrow">→</span><span class="tree-screen">A00 로그인</span></div>
+<div class="tree-row"><span class="tree-path">/admin/dashboard</span><span class="tree-arrow">→</span><span class="tree-screen">A01 대시보드</span></div>
+<div class="tree-row"><span class="tree-path">/admin/users</span><span class="tree-arrow">→</span><span class="tree-screen">A02 사용자 목록</span></div>
+<div class="tree-row"><span class="tree-path">/admin/users/:id</span><span class="tree-arrow">→</span><span class="tree-screen">A03 사용자 상세</span></div>
+<div class="tree-row"><span class="tree-path">/admin/users/:id/suspend</span><span class="tree-arrow">→</span><span class="tree-screen">A04 정지·해제</span></div>
+<div class="tree-row"><span class="tree-path">/admin/users/:id/delete</span><span class="tree-arrow">→</span><span class="tree-screen">A05 강제 삭제 [T2]</span></div>
+<div class="tree-row"><span class="tree-path">/admin/teacher-verifications</span><span class="tree-arrow">→</span><span class="tree-screen">A06 자격 큐</span></div>
+<div class="tree-row"><span class="tree-path">/admin/teacher-verifications/:id</span><span class="tree-arrow">→</span><span class="tree-screen">A07 자격 상세</span></div>
+<div class="tree-row"><span class="tree-path">/admin/reports</span><span class="tree-arrow">→</span><span class="tree-screen">A08 신고 큐</span></div>
+<div class="tree-row"><span class="tree-path">/admin/reports/:id</span><span class="tree-arrow">→</span><span class="tree-screen">A09 신고 처리</span></div>
+<div class="tree-row"><span class="tree-path">/admin/content/comments</span><span class="tree-arrow">→</span><span class="tree-screen">A10 신고 코멘트</span></div>
+<div class="tree-row"><span class="tree-path">/admin/content/comments/:id/delete</span><span class="tree-arrow">→</span><span class="tree-screen">A11 강제 삭제</span></div>
+<div class="tree-row"><span class="tree-path">/admin/content/users/:id/snapshot</span><span class="tree-arrow">→</span><span class="tree-screen">A12 데이터 스냅샷 [T2]</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/health</span><span class="tree-arrow">→</span><span class="tree-screen">A13 헬스</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/metrics</span><span class="tree-arrow">→</span><span class="tree-screen">A14 메트릭</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/embedding-models</span><span class="tree-arrow">→</span><span class="tree-screen">A15·A16 임베딩 모델</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/announcements</span><span class="tree-arrow">→</span><span class="tree-screen">A17·A18 공지</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/jwt-rotation</span><span class="tree-arrow">→</span><span class="tree-screen">A19 키 회전 [T2]</span></div>
+<div class="tree-row"><span class="tree-path">/admin/system/failclose-toggle</span><span class="tree-arrow">→</span><span class="tree-screen">A20 fail-close [T2]</span></div>
+<div class="tree-row"><span class="tree-path">/admin/audit-logs</span><span class="tree-arrow">→</span><span class="tree-screen">A21·A22·A23 감사 로그</span></div>
+<div class="tree-row"><span class="tree-path">/admin/investigation/start</span><span class="tree-arrow">→</span><span class="tree-screen">A24 investigation [T2]</span></div>
+<div class="tree-row"><span class="tree-path">/admin/master/*</span><span class="tree-arrow">→</span><span class="tree-screen">A25~A28 마스터 데이터</span></div>
+<div class="tree-row"><span class="tree-path">/admin/admins</span><span class="tree-arrow">→</span><span class="tree-screen">A29·A30·A31 관리자 자체</span></div>
+<div class="tree-row"><span class="tree-path">/admin/debugging/request</span><span class="tree-arrow">→</span><span class="tree-screen">A32 디버깅 신청</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>라우팅 규칙</h3>
+
+  <h4>권한 검증</h4>
+  <table>
+    <thead><tr><th>접근 시도</th><th>처리</th></tr></thead>
+    <tbody>
+      <tr><td><code>/students/me/*</code> + student 미보유</td><td>403 권한 부족 화면</td></tr>
+      <tr><td><code>/teachers/me/*</code> + teacher 미보유</td><td>403 또는 T01 자격 검증 안내</td></tr>
+      <tr><td><code>/admin/*</code> + admin 미보유</td><td>A00 로그인 리다이렉트 (정보 노출 차단)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>URL Slug 규칙</h4>
+  <table>
+    <thead><tr><th>영역</th><th>규칙</th><th>예시</th></tr></thead>
+    <tbody>
+      <tr><td>명사 복수형</td><td>컬렉션</td><td><code>/students</code>, <code>/documents</code>, <code>/voice-sessions</code></td></tr>
+      <tr><td>개별 리소스</td><td><code>:id</code> 또는 ULID</td><td><code>/nodes/01HXY...</code></td></tr>
+      <tr><td>액션</td><td>동사 또는 <code>:action</code></td><td><code>/voice-sessions/:id/recording</code></td></tr>
+      <tr><td>영역명</td><td>kebab-case</td><td><code>format-templates</code>, <code>teacher-verifications</code></td></tr>
+      <tr><td>본인 컨텍스트</td><td><code>/me</code></td><td><code>/students/me</code>, <code>/admin/me</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>딥링크</h3>
+
+  <h4>알림·푸시에서 진입</h4>
+  <table>
+    <thead><tr><th>알림 종류</th><th>진입 화면</th><th>URL 패턴</th></tr></thead>
+    <tbody>
+      <tr><td>코멘트 받음</td><td>S24 / T11</td><td><code>/comments?focus=:comment_id</code></td></tr>
+      <tr><td>매핑 요청 받음 (학생)</td><td>S25 → 수락 모달</td><td><code>/notifications?action=link_request&link_id=...</code></td></tr>
+      <tr><td>매핑 수락됨 (교사)</td><td>T06</td><td><code>/teachers/me/students</code></td></tr>
+      <tr><td>작업 완료</td><td>S29 → 다운로드</td><td><code>/exports?job_id=...</code></td></tr>
+      <tr><td>시스템 공지</td><td>S25 → 공지 상세</td><td><code>/notifications/announcement/:id</code></td></tr>
+      <tr><td>교사 자격 결과</td><td>T02</td><td><code>/onboarding/verification</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== Tab 4: 네비게이션 ===== -->
+<div class="tab-content" id="tab-navigation">
+  <h1 class="section-title">글로벌 네비게이션 모델</h1>
+  <p class="section-desc">역할별 1차 메뉴와 헤더 보조 메뉴. 다중 역할 사용자의 역할 전환 모델.</p>
+
+  <h3>학생 네비게이션</h3>
+  <h4>1차 메뉴 (5개)</h4>
+  <p class="meta-text">하단 탭바(모바일) 또는 좌측 사이드바(데스크톱)</p>
+  <table>
+    <thead><tr><th>순서</th><th>라벨</th><th>진입 화면</th><th>활성 영역</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>대시보드</td><td>S05</td><td><code>/dashboard</code>, <code>/</code></td></tr>
+      <tr><td>2</td><td>그래프</td><td>S06</td><td><code>/students/me/graph/*</code>, <code>/recommendations</code></td></tr>
+      <tr><td>3</td><td>텍스트</td><td>S11</td><td><code>/students/me/documents/*</code></td></tr>
+      <tr><td>4</td><td>음성</td><td>S15</td><td><code>/students/me/voice/*</code></td></tr>
+      <tr><td>5</td><td>양식</td><td>S20·S21</td><td><code>/students/me/format/*</code></td></tr>
+    </tbody>
+  </table>
+
+  <h4>헤더 보조</h4>
+  <table>
+    <thead><tr><th>영역</th><th>컨텐츠</th></tr></thead>
+    <tbody>
+      <tr><td>좌측</td><td>로고 (→ 대시보드)</td></tr>
+      <tr><td>중앙</td><td>(선택) 현재 화면 타이틀</td></tr>
+      <tr><td>우측</td><td>검색 → S27, 알림 (배지) → S25, 프로필 → S30</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>교사 네비게이션</h3>
+  <h4>1차 메뉴 (5개)</h4>
+  <table>
+    <thead><tr><th>순서</th><th>라벨</th><th>진입 화면</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>대시보드</td><td>T03</td></tr>
+      <tr><td>2</td><td>학생</td><td>T06 (담당 학생 목록)</td></tr>
+      <tr><td>3</td><td>코멘트</td><td>T11 (답글·큐)</td></tr>
+      <tr><td>4</td><td>음성</td><td>S15 (회의 녹음 중심)</td></tr>
+      <tr><td>5</td><td>양식</td><td>S20 (본인 + 학생 공유 템플릿)</td></tr>
+    </tbody>
+  </table>
+
+  <p class="meta-text">헤더 보조는 학생과 동일 + <b>역할 전환 토글</b> (학생+교사 다중 역할 시)</p>
+
+  <hr>
+
+  <h3>관리자 네비게이션</h3>
+  <h4>좌측 사이드바 (8개 카테고리)</h4>
+  <table>
+    <thead><tr><th>순서</th><th>라벨</th><th>진입 화면</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>대시보드</td><td>A01</td></tr>
+      <tr><td>2</td><td>사용자</td><td>A02 (A03~A09 하위)</td></tr>
+      <tr><td>3</td><td>컨텐츠</td><td>A10 (A11~A12 하위)</td></tr>
+      <tr><td>4</td><td>시스템</td><td>A13 (A14~A20 하위)</td></tr>
+      <tr><td>5</td><td>감사</td><td>A21 (A22~A24 하위)</td></tr>
+      <tr><td>6</td><td>마스터</td><td>A25 (A26~A28 하위)</td></tr>
+      <tr><td>7</td><td>관리자 자체</td><td>A29 (A30·A31 하위)</td></tr>
+      <tr><td>8</td><td>도구</td><td>A32</td></tr>
+    </tbody>
+  </table>
+
+  <h4>상단 헤더</h4>
+  <table>
+    <thead><tr><th>영역</th><th>컨텐츠</th></tr></thead>
+    <tbody>
+      <tr><td>좌측</td><td>관리자 콘솔 로고 + <b>환경 표시</b> (Production/Staging)</td></tr>
+      <tr><td>우측</td><td>본인 이름 + <b>tier 배지</b> (Tier 1 / Tier 2) → A31, 로그아웃</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-warning">
+    <b>Tier 2 시각 차별</b>: T2 전용 메뉴는 <span class="badge badge-t2">빨간 표시</span>, T2 전용 액션 버튼은 잠금 아이콘 + 색상 차별. T1 사용자에게는 비활성 또는 숨김.
+  </div>
+
+  <hr>
+
+  <h3>다중 역할 사용자</h3>
+
+  <h4>역할 전환 토글</h4>
+  <p>학생+교사 보유 사용자:</p>
+  <ul class="bare">
+    <li>헤더에 역할 전환 토글 (Pill 또는 Dropdown)</li>
+    <li>토글 시 URL prefix 전환 (<code>/students/me/*</code> ↔ <code>/teachers/me/*</code>)</li>
+    <li>토큰은 그대로 (재발급 X), 컨텍스트 헤더만 변경</li>
+    <li>마지막 사용 역할 기억 (로그인 시 자동 진입)</li>
+  </ul>
+
+  <h4>동시 알림 통합</h4>
+  <ul class="bare">
+    <li>학생·교사 양쪽 컨텍스트의 알림은 S25에 통합 노출</li>
+    <li>각 알림에 컨텍스트 배지 ("학생 모드 / 교사 모드")</li>
+    <li>알림 탭 시 해당 컨텍스트로 자동 전환 후 진입</li>
+  </ul>
+
+  <h4>관리자 + 학생/교사</h4>
+  <p class="meta-text">관리자는 별도 콘솔이므로 동일 사용자가 관리자+학생/교사 가질 수 있으나, URL prefix가 완전히 분리되어 토글 대신 별도 로그인.</p>
+</div>
+<!-- ===== Tab 5: 컴포넌트 ===== -->
+<div class="tab-content" id="tab-components">
+  <h1 class="section-title">글로벌 컴포넌트 카탈로그</h1>
+  <p class="section-desc">모든 화면 공통 컴포넌트의 종류·사용 영역·상태. 디자이너의 컴포넌트 라이브러리 정의 인풋.</p>
+
+  <h3>1. 헤더</h3>
+  <table>
+    <thead><tr><th>종류</th><th>사용 영역</th><th>컨텐츠</th></tr></thead>
+    <tbody>
+      <tr><td>학생·교사 헤더</td><td><code>/students/me/*</code>, <code>/teachers/me/*</code>, 공통 영역</td><td>로고·중앙·검색·알림·프로필·(역할 토글)</td></tr>
+      <tr><td>관리자 헤더</td><td><code>/admin/*</code></td><td>콘솔 로고·환경 표시·이름·tier 배지·로그아웃</td></tr>
+      <tr><td>인증 헤더</td><td><code>/auth/*</code>, <code>/onboarding/*</code></td><td>로고만 (단순)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2. 네비게이션</h3>
+  <table>
+    <thead><tr><th>종류</th><th>위치</th><th>사용</th></tr></thead>
+    <tbody>
+      <tr><td>하단 탭바</td><td>모바일 (학생·교사)</td><td>1차 메뉴 5개</td></tr>
+      <tr><td>좌측 사이드바</td><td>데스크톱 (학생·교사·관리자)</td><td>1차 메뉴 + 보조</td></tr>
+      <tr><td>브레드크럼</td><td>관리자 콘솔 일부</td><td>사용자 상세·교사 자격 상세 등 깊은 화면</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3. 다이얼로그</h3>
+  <table>
+    <thead><tr><th>종류</th><th>사용 케이스</th><th>특징</th></tr></thead>
+    <tbody>
+      <tr><td>확인 다이얼로그</td><td>삭제·중요 변경</td><td>좌 [취소] / 우 [확인] (위험 동작은 색상 차별)</td></tr>
+      <tr><td>경고 다이얼로그</td><td>한도 도달·권한 부족</td><td>OK 버튼 1개</td></tr>
+      <tr><td>입력 다이얼로그</td><td>짧은 텍스트 입력</td><td>입력 + [취소]/[확인]</td></tr>
+      <tr><td>풀스크린 모달</td><td>긴 입력·복합 작업</td><td>헤더 X 버튼</td></tr>
+      <tr><td>위험 동작 다이얼로그 (관리자)</td><td>강제 삭제·tier 변경 등 <span class="badge badge-t2">T2</span></td><td>사유 + MFA + 2차 확인</td></tr>
+    </tbody>
+  </table>
+
+  <h4>위험 동작 표준 5단계 (관리자)</h4>
+  <div class="callout callout-warning">
+    <span class="badge badge-t2">T2</span> 액션은 다음 5단계:<br>
+    ① 1차 확인 ("정말 진행하시겠습니까?")<br>
+    ② 사유 입력 (X-Investigation-Reason)<br>
+    ③ 본인 MFA 재인증<br>
+    ④ 2차 확인 ("이 작업은 되돌릴 수 없습니다")<br>
+    ⑤ 실행 + 자동 감사 로그(severity=critical) + 보안팀 통보
+  </div>
+
+  <h3>4. 토스트·스낵바</h3>
+  <table>
+    <thead><tr><th>종류</th><th>트리거</th><th>지속</th><th>색상</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-success">성공</span></td><td>저장·전송·완료</td><td>3초 자동</td><td>초록</td></tr>
+      <tr><td><span class="badge badge-info">정보</span></td><td>비동기 작업 시작·진행</td><td>3초</td><td>파랑</td></tr>
+      <tr><td><span class="badge badge-warning">경고</span></td><td>자원 한도 80% 등</td><td>5초, 닫기 가능</td><td>노랑</td></tr>
+      <tr><td><span class="badge badge-t2">에러</span></td><td>API 실패</td><td>5초, 닫기 가능 (trace_id 포함)</td><td>빨강</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5. 빈 상태 (Empty State)</h3>
+  <table>
+    <thead><tr><th>화면</th><th>메시지</th><th>액션</th></tr></thead>
+    <tbody>
+      <tr><td><code>S06</code> 그래프 (빈 그래프)</td><td>"아직 그래프가 없습니다. 시드 키워드를 입력해 시작해보세요."</td><td>[시드 입력] → S09</td></tr>
+      <tr><td><code>S11</code> 텍스트</td><td>"아직 텍스트 영역이 없습니다."</td><td>[영역 추가] / [PDF 업로드]</td></tr>
+      <tr><td><code>S15</code> 음성</td><td>"아직 녹음한 활동이 없습니다."</td><td>[새 녹음 시작]</td></tr>
+      <tr><td><code>S20</code> 템플릿</td><td>"사용할 템플릿이 없습니다."</td><td>[템플릿 만들기]</td></tr>
+      <tr><td><code>S21</code> 결과물</td><td>"생성한 양식이 없습니다."</td><td>[템플릿 선택]</td></tr>
+      <tr><td><code>S24</code> 코멘트</td><td>"받은 코멘트가 없습니다."</td><td>(액션 없음)</td></tr>
+      <tr><td><code>S25</code> 알림</td><td>"새 알림이 없습니다."</td><td>(액션 없음)</td></tr>
+      <tr><td><code>S26</code> 피드</td><td>"피드가 비어 있습니다."</td><td>(액션 없음)</td></tr>
+      <tr><td><code>S27</code> 검색</td><td>"검색 결과가 없습니다."</td><td>(검색어 변경 안내)</td></tr>
+      <tr><td><code>T06</code> 담당 학생</td><td>"담당 학생이 없습니다."</td><td>[매핑 신청] → T04</td></tr>
+      <tr><td><code>A02</code> 사용자 (필터 결과 0)</td><td>"조건에 맞는 사용자가 없습니다."</td><td>(필터 변경 안내)</td></tr>
+      <tr><td><code>A08</code> 신고 큐</td><td>"처리할 신고가 없습니다."</td><td>(액션 없음)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6. 로딩 상태</h3>
+  <table>
+    <thead><tr><th>종류</th><th>표현</th></tr></thead>
+    <tbody>
+      <tr><td>화면 진입 로딩</td><td>풀스크린 스피너 또는 스켈레톤 UI</td></tr>
+      <tr><td>부분 갱신 로딩</td><td>컴포넌트 단위 스켈레톤</td></tr>
+      <tr><td>비동기 작업 진행</td><td>진행 표시줄 + 백그라운드 표시 + S29에서 확인 가능</td></tr>
+      <tr><td>ML/STT 라이브</td><td>실시간 청크 표시 + "처리 중..." 인디케이터</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7. 에러 화면 (전체 차단)</h3>
+  <table>
+    <thead><tr><th>상황</th><th>화면</th></tr></thead>
+    <tbody>
+      <tr><td>네트워크 끊김</td><td>"인터넷 연결을 확인해주세요" + [다시 시도]</td></tr>
+      <tr><td>서버 다운 (5xx 지속)</td><td>"서비스에 일시 장애가 있습니다. 잠시 후 다시 시도해주세요" + trace_id</td></tr>
+      <tr><td>점검 중</td><td>"현재 시스템 점검 중입니다. ○○시까지 완료 예정"</td></tr>
+      <tr><td>토큰 만료 → refresh 실패</td><td>자동 로그아웃 → S01 + 토스트</td></tr>
+      <tr><td>권한 부족 (403)</td><td>화면 내 빈 상태 + "이 컨텐츠에 접근할 권한이 없습니다"</td></tr>
+      <tr><td>컨텐츠 없음 (404)</td><td>"해당 항목을 찾을 수 없습니다" + [목록으로]</td></tr>
+    </tbody>
+  </table>
+
+  <h3>8. 자원 한도 도달</h3>
+  <p class="meta-text">검증 정책 5.2 정합</p>
+  <table>
+    <thead><tr><th>상태</th><th>UX</th></tr></thead>
+    <tbody>
+      <tr><td>80% 도달 (Warning)</td><td>토스트 1회 + 헤더 배지. 사용 계속 가능</td></tr>
+      <tr><td>100% 도달 (Soft Block)</td><td>다이얼로그 "한도 도달". 신규 생성 차단, 수정·삭제 가능. [정리하기] 버튼</td></tr>
+      <tr><td>120% 도달 (Hard Block)</td><td>다이얼로그 "한도 초과". 모든 W 차단. [정리하기] 필수</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9. 시스템 공지 표시</h3>
+  <p class="meta-text">NFR 9.4 정합</p>
+  <table>
+    <thead><tr><th>priority</th><th>노출 위치</th><th>사용자 끄기</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-info">general (일반)</span></td><td>푸시 보통 + 7일 배너 + 피드 영구</td><td>적용됨</td></tr>
+      <tr><td><span class="badge badge-t2">urgent (긴급)</span></td><td>푸시 강함 (음·진동) + 닫기 전까지 배너 + 피드 영구</td><td><b>무시</b> (강제 노출)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== Tab 6: 컨텐츠 매트릭스 ===== -->
+<div class="tab-content" id="tab-content">
+  <h1 class="section-title">화면 × 컨텐츠 매트릭스</h1>
+  <p class="section-desc">각 화면이 표시하는 컨텐츠 블록을 영역별로 정리. 핵심 5개 화면 발췌.</p>
+
+  <h3>학생 대시보드 (S05)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>블록</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>글로벌 헤더</td><td>인증 컨텍스트</td></tr>
+      <tr><td>메인 상단</td><td>인사 + 빠른 액션 3개</td><td><code>users.display_name</code></td></tr>
+      <tr><td>메인 중앙</td><td>그래프 미리보기 카드</td><td><code>graph:summary</code></td></tr>
+      <tr><td>메인 중앙</td><td>최근 활동 (5건)</td><td><code>feed?limit=5</code></td></tr>
+      <tr><td>메인 하단</td><td>미읽 코멘트 (3건)</td><td><code>comments?unread=true</code></td></tr>
+      <tr><td>메인 하단</td><td>미읽 알림 (3건)</td><td><code>notifications?unread=true</code></td></tr>
+      <tr><td>상단 배너</td><td>시스템 공지 (있을 시)</td><td><code>announcements:active</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>그래프 메인 (S06)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>블록</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>글로벌 헤더</td><td></td></tr>
+      <tr><td>메인 캔버스</td><td>그래프 (노드·엣지)</td><td><code>graph</code></td></tr>
+      <tr><td>도구 모음 (상단)</td><td>검색·필터·레이아웃·노드 추가</td><td>UI 상태</td></tr>
+      <tr><td>사이드바 (우측)</td><td>선택 노드 상세 (선택 시)</td><td><code>graph/nodes/:id</code></td></tr>
+      <tr><td>하단 상태바</td><td>노드/엣지 수 · 한도 비율 · 동기화 시각</td><td><code>graph:summary</code></td></tr>
+      <tr><td>토스트 (오버레이)</td><td>추천받기·동기화 알림</td><td>이벤트</td></tr>
+    </tbody>
+  </table>
+
+  <h3>음성 보고서 검토 (S17)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>블록</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>글로벌 헤더 + 세션명</td><td></td></tr>
+      <tr><td>메인 상단</td><td>메타 (녹음 시간·참여자)</td><td><code>voice-sessions/:id</code></td></tr>
+      <tr><td>메인 좌측</td><td>전사 영역 (화자 라벨)</td><td><code>report.transcript</code></td></tr>
+      <tr><td>메인 우측</td><td>키워드·구조화 페이로드</td><td><code>report.payload</code></td></tr>
+      <tr><td>하단 액션</td><td>[매칭 제안 받기] [폐기] [임시 저장] [확정]</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>양식 결과물 상세 (S22)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>블록</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>글로벌 헤더 + 템플릿 이름·버전</td><td></td></tr>
+      <tr><td>메인</td><td>본문 (편집 가능)</td><td><code>format-outputs/:id.content</code></td></tr>
+      <tr><td>사이드바 (우측)</td><td>사용된 노드 (1~100개)</td><td><code>source_node_ids</code></td></tr>
+      <tr><td>사이드바 (우측)</td><td>코멘트 영역</td><td><code>comments?target=...</code></td></tr>
+      <tr><td>하단</td><td>액션 ([편집] [재생성] [내보내기])</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <h3>관리자 사용자 상세 (A03)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>블록</th><th>데이터 출처</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>콘솔 헤더 + 환경 표시</td><td></td></tr>
+      <tr><td>메인 헤더</td><td>user_id · 이메일 · 역할 · 상태 · tier</td><td><code>admin/users/:id</code></td></tr>
+      <tr><td>메인 좌측</td><td>계정 정보 (가입일·OAuth·디바이스)</td><td>동일</td></tr>
+      <tr><td>메인 우측</td><td>활동 통계</td><td><code>admin/users/:id/stats</code></td></tr>
+      <tr><td>사이드바</td><td>액션 패널 ([정지] [강제 삭제 T2] [tier 변경 T2] [감사 로그])</td><td>권한 매트릭스</td></tr>
+      <tr><td>하단</td><td>최근 감사 로그 (이 사용자 관련)</td><td><code>admin/audit-logs?target_user_id=:id</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>컨텐츠 블록 공통 컨벤션</h3>
+  <table>
+    <thead><tr><th>블록</th><th>위치</th><th>컨벤션</th></tr></thead>
+    <tbody>
+      <tr><td>헤더</td><td>모든 화면 상단 (50~60px)</td><td>컴포넌트 1</td></tr>
+      <tr><td>메인</td><td>콘텐츠 중심</td><td>P0 우선</td></tr>
+      <tr><td>사이드바</td><td>우측 (데스크톱) / 아래 (모바일)</td><td>P1 보조</td></tr>
+      <tr><td>푸터</td><td>모바일 탭바 / 데스크톱 좌측 사이드바</td><td>1차 메뉴</td></tr>
+      <tr><td>모달</td><td>오버레이</td><td>다이얼로그 또는 풀스크린</td></tr>
+    </tbody>
+  </table>
+</div>
+<!-- ===== Tab 7: 화면 × API ===== -->
+<div class="tab-content" id="tab-api">
+  <h1 class="section-title">화면 × API 매핑</h1>
+  <p class="section-desc">각 화면이 의존하는 핵심 엔드포인트. 화면 카드를 클릭하면 상세 API 목록이 사이드 패널에 표시됩니다.</p>
+
+  <div class="callout">
+    <b>양방향 탐색</b>: 화면 → API는 본 탭에서. API → 화면 (역방향)은 API 카탈로그 v0.5의 화면 참조 컬럼 활용.
+  </div>
+
+  <h3>학생 핵심 매핑</h3>
+  <table>
+    <thead><tr><th>화면</th><th>주요 API</th></tr></thead>
+    <tbody>
+      <tr><td><code>S05</code> 대시보드</td><td><code>GET /v1/students/me/graph:summary</code>, <code>GET /v1/feed?limit=5</code>, <code>GET /v1/comments?unread=true&limit=3</code>, <code>GET /v1/notifications?unread=true&limit=3</code>, <code>GET /v1/announcements:active</code></td></tr>
+      <tr><td><code>S06</code> 그래프</td><td><code>GET /v1/students/me/graph</code>, <code>GET /v1/students/me/graph:search</code></td></tr>
+      <tr><td><code>S07</code> 노드 상세</td><td><code>GET /v1/students/{id}/graph/nodes/{node_id}</code>, <code>PATCH</code>, <code>DELETE</code></td></tr>
+      <tr><td><code>S09</code> 시드 입력</td><td><code>POST /v1/students/me/graph:seed</code> (비동기 작업)</td></tr>
+      <tr><td><code>S11</code> 텍스트</td><td><code>GET /v1/students/me/documents</code></td></tr>
+      <tr><td><code>S12</code> 영역 편집</td><td><code>GET /v1/students/{id}/documents/{id}</code>, <code>PATCH</code> (Idempotency-Key)</td></tr>
+      <tr><td><code>S13</code> PDF 업로드</td><td><code>POST /v1/students/me/documents:import-pdf</code> (multipart, 5 RPH)</td></tr>
+      <tr><td><code>S15</code> 음성 세션</td><td><code>GET /v1/students/me/voice-sessions</code>, <code>POST /v1/voice-sessions</code></td></tr>
+      <tr><td><code>S16</code> 녹음 중</td><td><code>WS /v1/voice-sessions/{id}/stream</code>, <code>POST .../end</code>, <code>.../pause</code>, <code>.../resume</code></td></tr>
+      <tr><td><code>S17</code> 보고서</td><td><code>GET /v1/voice-sessions/{id}/report</code>, <code>PATCH</code>, <code>POST .../request-match</code></td></tr>
+      <tr><td><code>S20</code> 템플릿</td><td><code>GET /v1/format-templates</code>, <code>POST /v1/format-outputs:generate</code></td></tr>
+      <tr><td><code>S22</code> 결과물</td><td><code>GET /v1/format-outputs/{id}</code>, <code>PATCH</code>, <code>POST .../regenerate</code></td></tr>
+      <tr><td><code>S23</code> 추천 검토</td><td><code>GET /v1/students/me/recommendations</code>, <code>POST .../:id:accept</code>/:reject</td></tr>
+      <tr><td><code>S24</code> 코멘트</td><td><code>GET /v1/comments</code>, <code>POST</code> (답글)</td></tr>
+      <tr><td><code>S25</code> 알림</td><td><code>GET /v1/notifications</code>, <code>PATCH /:id</code>, <code>POST :mark-all-read</code></td></tr>
+      <tr><td><code>S27</code> 검색</td><td><code>POST /v1/search</code> (30 RPM)</td></tr>
+      <tr><td><code>S29</code> 내보내기</td><td><code>GET /v1/jobs</code> 또는 <code>/v1/exports</code>, <code>POST /v1/exports</code>, <code>GET .../download</code></td></tr>
+      <tr><td><code>S32</code> 삭제</td><td><code>POST /v1/auth/me:request-deletion</code>, <code>POST :cancel-deletion</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>교사 핵심 매핑</h3>
+  <table>
+    <thead><tr><th>화면</th><th>주요 API</th></tr></thead>
+    <tbody>
+      <tr><td><code>T01</code> 자격 검증</td><td><code>POST /v1/auth/teacher-verifications</code> (multipart)</td></tr>
+      <tr><td><code>T02</code> 검증 상태</td><td><code>GET /v1/auth/teacher-verifications/me</code>, <code>DELETE</code></td></tr>
+      <tr><td><code>T03</code> 대시보드</td><td><code>GET /v1/teachers/me/students:summary</code>, <code>GET /v1/comments?role_filter=student_replies&unread=true</code>, <code>GET /v1/teachers/me/links?status=pending</code></td></tr>
+      <tr><td><code>T04</code> 매핑 신청</td><td><code>GET /v1/users:search?role=student</code>, <code>POST /v1/teachers/me/links</code></td></tr>
+      <tr><td><code>T06</code> 담당 학생</td><td><code>GET /v1/teachers/me/students</code></td></tr>
+      <tr><td><code>T07</code> 학생 상세 R</td><td><code>GET /v1/students/{student_id}</code>, <code>:summary</code>, <code>documents</code>, <code>voice-sessions</code>, <code>format-outputs</code> (linked.teacher 컨텍스트)</td></tr>
+      <tr><td><code>T08</code> 학생 그래프 R</td><td><code>GET /v1/students/{student_id}/graph</code></td></tr>
+      <tr><td><code>T10</code> 코멘트 작성</td><td><code>POST /v1/comments</code> (Idempotency-Key)</td></tr>
+      <tr><td><code>T11</code> 답글·큐</td><td><code>GET /v1/comments?role_filter=teacher_compose</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>관리자 핵심 매핑</h3>
+  <table>
+    <thead><tr><th>화면</th><th>주요 API</th></tr></thead>
+    <tbody>
+      <tr><td><code>A00</code> 로그인</td><td><code>POST /v1/admin/auth/login</code></td></tr>
+      <tr><td><code>A01</code> 대시보드</td><td><code>GET /v1/admin/system/health</code>, <code>GET /v1/admin/reports?status=pending</code> 등</td></tr>
+      <tr><td><code>A02</code> 사용자 목록</td><td><code>GET /v1/admin/users</code></td></tr>
+      <tr><td><code>A04</code> 정지·해제</td><td><code>POST /v1/admin/users/{id}:suspend</code>, <code>:reactivate</code></td></tr>
+      <tr><td><code>A05</code> 강제 삭제 <span class="badge badge-t2">T2</span></td><td><code>DELETE /v1/admin/users/{id}</code> + <code>X-Investigation-Reason</code></td></tr>
+      <tr><td><code>A06</code> 자격 큐</td><td><code>GET /v1/admin/teacher-verifications?status=pending</code></td></tr>
+      <tr><td><code>A07</code> 자격 상세</td><td><code>GET /v1/admin/teacher-verifications/{id}</code>, <code>:approve</code>, <code>:reject</code></td></tr>
+      <tr><td><code>A09</code> 신고 처리</td><td><code>GET /v1/admin/reports/{id}</code>, <code>:resolve</code></td></tr>
+      <tr><td><code>A12</code> 데이터 스냅샷 <span class="badge badge-t2">T2</span></td><td><code>GET /v1/admin/content/users/{id}/data-snapshot</code> + 사유</td></tr>
+      <tr><td><code>A13~A14</code> 헬스·메트릭</td><td><code>GET /v1/admin/system/health</code>, <code>/metrics</code></td></tr>
+      <tr><td><code>A18</code> 공지 발행</td><td><code>POST /v1/admin/system/announcements</code> (priority 포함)</td></tr>
+      <tr><td><code>A19</code> 키 회전 <span class="badge badge-t2">T2</span></td><td><code>POST /v1/admin/system/jwt-rotation:approve</code></td></tr>
+      <tr><td><code>A20</code> fail-close <span class="badge badge-t2">T2</span></td><td><code>POST /v1/admin/system/failclose-toggle</code></td></tr>
+      <tr><td><code>A21</code> 감사 검색</td><td><code>GET /v1/admin/audit-logs</code></td></tr>
+      <tr><td><code>A24</code> investigation <span class="badge badge-t2">T2</span></td><td><code>POST /v1/admin/investigation:start</code></td></tr>
+      <tr><td><code>A30</code> tier 변경 <span class="badge badge-t2">T2</span></td><td><code>PATCH /v1/admin/admins/{id}/tier</code> + 사유</td></tr>
+      <tr><td><code>A32</code> 디버깅 신청</td><td><code>POST /v1/admin/debugging:request</code></td></tr>
+    </tbody>
+  </table>
+
+  <p class="meta-text" style="margin-top: 16px;">모든 엔드포인트 상세는 API 카탈로그 v0.5 참조. 권한 검증은 권한 매트릭스 v0.3 참조.</p>
+</div>
+
+<!-- ===== Tab 8: 라벨·URL ===== -->
+<div class="tab-content" id="tab-labels">
+  <h1 class="section-title">라벨·URL slug 규칙</h1>
+  <p class="section-desc">페이지 타이틀·액션 버튼·카피 톤·URL 영문 매핑의 일관 규칙.</p>
+
+  <h3>페이지 타이틀 (격식체)</h3>
+  <table>
+    <thead><tr><th>카테고리</th><th>패턴</th><th>예시</th></tr></thead>
+    <tbody>
+      <tr><td>목록 화면</td><td>"○○ 목록"</td><td>"텍스트 영역 목록", "코멘트 목록", "사용자 목록"</td></tr>
+      <tr><td>상세 화면</td><td>"○○ 상세" 또는 항목명</td><td>"노드 상세", "사용자 상세"</td></tr>
+      <tr><td>편집 화면</td><td>"○○ 편집"</td><td>"본문 편집"</td></tr>
+      <tr><td>작성 화면</td><td>"새 ○○" 또는 "○○ 작성"</td><td>"새 코멘트", "공지 작성"</td></tr>
+      <tr><td>설정</td><td>"○○ 설정"</td><td>"알림 설정", "디바이스 설정"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>액션 버튼</h3>
+  <table>
+    <thead><tr><th>액션</th><th>라벨 (격식체)</th></tr></thead>
+    <tbody>
+      <tr><td>저장</td><td>[저장하기] 또는 [저장]</td></tr>
+      <tr><td>등록</td><td>[등록하기] 또는 [등록]</td></tr>
+      <tr><td>삭제</td><td>[삭제] (위험 동작은 빨간 색상)</td></tr>
+      <tr><td>취소</td><td>[취소] (다이얼로그 좌측)</td></tr>
+      <tr><td>확인</td><td>[확인] (다이얼로그 우측)</td></tr>
+      <tr><td>닫기</td><td>[닫기] 또는 X 아이콘</td></tr>
+      <tr><td>발행</td><td>[발행하기] (공지·결과물)</td></tr>
+      <tr><td>적용</td><td>[적용] (필터·설정)</td></tr>
+      <tr><td>다시 시도</td><td>[다시 시도]</td></tr>
+      <tr><td>더 보기</td><td>[더 보기]</td></tr>
+      <tr><td>모두 보기</td><td>[모두 보기]</td></tr>
+      <tr><td>정리하기</td><td>[정리하기] (한도 도달 시)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>카피 톤 (격식체)</h3>
+  <p class="meta-text">에러 정책 1.4 정합</p>
+  <table>
+    <thead><tr><th>상황</th><th>표현</th></tr></thead>
+    <tbody>
+      <tr><td>저장 성공</td><td>"저장되었습니다"</td></tr>
+      <tr><td>삭제 확인</td><td>"정말 삭제하시겠습니까?"</td></tr>
+      <tr><td>실패 일반</td><td>"잠시 후 다시 시도해주세요"</td></tr>
+      <tr><td>입력 오류</td><td>"내용을 확인해주세요"</td></tr>
+      <tr><td>환영</td><td>"○○○님, 환영합니다"</td></tr>
+      <tr><td>빈 상태</td><td>"아직 ○○이 없습니다"</td></tr>
+      <tr><td>완료 안내</td><td>"완료되었습니다"</td></tr>
+    </tbody>
+  </table>
+
+  <h3>URL slug 영문 매핑</h3>
+  <div class="grid grid-2">
+    <table>
+      <thead><tr><th>한국어</th><th>URL slug</th></tr></thead>
+      <tbody>
+        <tr><td>그래프</td><td><code>graph</code></td></tr>
+        <tr><td>노드</td><td><code>nodes</code></td></tr>
+        <tr><td>엣지</td><td><code>edges</code></td></tr>
+        <tr><td>시드</td><td><code>seed</code></td></tr>
+        <tr><td>텍스트 영역</td><td><code>documents</code></td></tr>
+        <tr><td>음성 세션</td><td><code>voice-sessions</code></td></tr>
+        <tr><td>보고서</td><td><code>report</code></td></tr>
+        <tr><td>양식 템플릿</td><td><code>format-templates</code></td></tr>
+        <tr><td>양식 결과물</td><td><code>format-outputs</code></td></tr>
+        <tr><td>추천</td><td><code>recommendations</code></td></tr>
+        <tr><td>코멘트</td><td><code>comments</code></td></tr>
+        <tr><td>알림</td><td><code>notifications</code></td></tr>
+        <tr><td>피드</td><td><code>feed</code></td></tr>
+        <tr><td>검색</td><td><code>search</code></td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>한국어</th><th>URL slug</th></tr></thead>
+      <tbody>
+        <tr><td>통계</td><td><code>stats</code></td></tr>
+        <tr><td>내보내기</td><td><code>exports</code></td></tr>
+        <tr><td>설정</td><td><code>settings</code></td></tr>
+        <tr><td>계정</td><td><code>account</code></td></tr>
+        <tr><td>디바이스</td><td><code>devices</code></td></tr>
+        <tr><td>차단</td><td><code>blocks</code></td></tr>
+        <tr><td>신고</td><td><code>reports</code></td></tr>
+        <tr><td>매핑</td><td><code>links</code></td></tr>
+        <tr><td>자격 검증</td><td><code>teacher-verifications</code></td></tr>
+        <tr><td>학기·과목</td><td><code>master/periods</code></td></tr>
+        <tr><td>감사 로그</td><td><code>audit-logs</code></td></tr>
+        <tr><td>시스템 공지</td><td><code>announcements</code></td></tr>
+        <tr><td>investigation</td><td><code>investigation</code></td></tr>
+        <tr><td>디버깅</td><td><code>debugging</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- ===== Tab 9: 검색·분류 ===== -->
+<div class="tab-content" id="tab-search-classification">
+  <h1 class="section-title">검색·태그·필터 분류 체계</h1>
+  <p class="section-desc">통합 검색 결과 그룹·도메인 태그·필터 표준·학기 라벨.</p>
+
+  <h3>통합 검색 (S27) 결과 그룹</h3>
+  <table>
+    <thead><tr><th>그룹</th><th>종류</th><th>데이터 소스</th></tr></thead>
+    <tbody>
+      <tr><td>노드</td><td>Keyword/Inquiry/Subject/Activity/Period/Document</td><td>Neo4j + pgvector</td></tr>
+      <tr><td>문서</td><td>section_type 8종</td><td><code>documents</code></td></tr>
+      <tr><td>보고서</td><td>activity_reports</td><td>PostgreSQL</td></tr>
+      <tr><td>코멘트</td><td>comments</td><td>PostgreSQL</td></tr>
+      <tr><td>양식 결과물</td><td>format_outputs</td><td>PostgreSQL</td></tr>
+    </tbody>
+  </table>
+
+  <h3>도메인 태그 (<code>domain_tags</code>)</h3>
+  <p class="meta-text">검증 정책 3.6 정합. 노드·문서에 부여하는 학문 분야 태그.</p>
+  <ul class="bare">
+    <li>인문학·사회과학·자연과학·공학·예술·체육·진로 등</li>
+    <li>사용자 정의 0~10개</li>
+  </ul>
+
+  <h3>필터 표준</h3>
+  <table>
+    <thead><tr><th>필터 영역</th><th>옵션</th></tr></thead>
+    <tbody>
+      <tr><td>기간</td><td>오늘·이번 주·이번 달·이번 학기·올해·전체·사용자 정의</td></tr>
+      <tr><td>상태</td><td>(도메인별 enum, 검증 정책 3.x)</td></tr>
+      <tr><td>종류</td><td>노드 타입 6종, 영역 8종, enum</td></tr>
+      <tr><td>정렬</td><td>최신순·오래된 순·이름순·관련도순</td></tr>
+    </tbody>
+  </table>
+
+  <h3>학기·과목 마스터 라벨</h3>
+  <table>
+    <thead><tr><th>항목</th><th>패턴</th><th>예시</th></tr></thead>
+    <tbody>
+      <tr><td>학기</td><td>"○학년 ○학기"</td><td>"1학년 1학기"</td></tr>
+      <tr><td>과목</td><td>표준 명칭 (DB 스키마 <code>subjects.name</code>)</td><td>"통합과학", "한국사"</td></tr>
+      <tr><td>영역</td><td>표준 한국어 (8영역)</td><td>"세특", "자율", "동아리" 등</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== Tab 10: 반응형 ===== -->
+<div class="tab-content" id="tab-responsive">
+  <h1 class="section-title">반응형 정책</h1>
+  <p class="section-desc">모바일·태블릿·데스크톱 브레이크포인트와 화면별 레이아웃 변형. v0.2에서 OQ 4 해결.</p>
+
+  <h3>브레이크포인트</h3>
+  <table>
+    <thead><tr><th>이름</th><th>범위</th><th>대상 디바이스</th></tr></thead>
+    <tbody>
+      <tr><td><code>xs</code> (mobile)</td><td>&lt; 640px</td><td>휴대폰</td></tr>
+      <tr><td><code>sm</code> (tablet portrait)</td><td>640~767px</td><td>작은 태블릿·큰 휴대폰 가로</td></tr>
+      <tr><td><code>md</code> (tablet)</td><td>768~1023px</td><td>태블릿</td></tr>
+      <tr><td><code>lg</code> (desktop)</td><td>1024~1279px</td><td>노트북·작은 모니터</td></tr>
+      <tr><td><code>xl</code> (wide)</td><td>≥ 1280px</td><td>외장 모니터</td></tr>
+    </tbody>
+  </table>
+  <p class="meta-text">디자이너가 시각 디자인 단계에서 최종 픽셀 값을 확정. 본 IA는 카테고리 기준 제공.</p>
+
+  <h3>역할별 디바이스 우선순위</h3>
+  <table>
+    <thead><tr><th>역할</th><th>1순위</th><th>2순위</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-student">학생</span></td><td>모바일 (xs)</td><td>데스크톱 (lg)</td><td>태블릿(md)도 지원하나 모바일 레이아웃 확장</td></tr>
+      <tr><td><span class="badge badge-teacher">교사</span></td><td>데스크톱 (lg)</td><td>모바일 (xs)</td><td>학생 데이터 R 모드는 큰 화면이 효율적</td></tr>
+      <tr><td><span class="badge badge-admin">관리자</span></td><td>데스크톱 (lg/xl)</td><td>-</td><td>모바일 미지원 가정</td></tr>
+    </tbody>
+  </table>
+
+  <h3>네비게이션 변형</h3>
+  <table>
+    <thead><tr><th>디바이스</th><th>학생·교사</th><th>관리자</th></tr></thead>
+    <tbody>
+      <tr><td>모바일 (xs)</td><td>하단 탭바 5개 + 햄버거 메뉴 (보조)</td><td>미지원 (안내 화면)</td></tr>
+      <tr><td>태블릿 (sm·md)</td><td>하단 탭바 또는 좌측 사이드바</td><td>좌측 사이드바 (압축)</td></tr>
+      <tr><td>데스크톱 (lg·xl)</td><td>좌측 사이드바 5개 + 우측 보조</td><td>좌측 사이드바 8개 카테고리</td></tr>
+    </tbody>
+  </table>
+
+  <h3>레이아웃 변형 (핵심 화면)</h3>
+  <table>
+    <thead><tr><th>화면</th><th>모바일 (xs)</th><th>데스크톱 (lg+)</th></tr></thead>
+    <tbody>
+      <tr><td><code>S05</code> 학생 대시보드</td><td>카드 세로 스택 (1열)</td><td>카드 그리드 (2~3열)</td></tr>
+      <tr><td><code>S06</code> 그래프 메인</td><td>캔버스 풀스크린 + 하단 시트</td><td>캔버스 + 우측 사이드바 (영구)</td></tr>
+      <tr><td><code>S07</code> 노드 상세</td><td>풀스크린 모달</td><td>사이드 패널</td></tr>
+      <tr><td><code>S12</code> 영역 편집</td><td>풀스크린 편집기</td><td>좌측 본문 + 우측 사이드바</td></tr>
+      <tr><td><code>S16</code> 녹음 중</td><td>풀스크린 (대형 컨트롤)</td><td>풀스크린 (동일)</td></tr>
+      <tr><td><code>S17</code> 보고서 검토</td><td>탭 (전사/키워드/페이로드)</td><td>좌우 분할</td></tr>
+      <tr><td><code>S22</code> 양식 결과물</td><td>본문 + 하단 시트</td><td>본문 + 우측 사이드바</td></tr>
+      <tr><td><code>S27</code> 통합 검색</td><td>결과 그룹 세로 스택</td><td>결과 + 좌측 필터 사이드바</td></tr>
+      <tr><td><code>T07</code> 학생 상세 R</td><td>탭 (그래프/텍스트/음성/양식)</td><td>탭 또는 좌우 분할</td></tr>
+      <tr><td><code>A01</code> 관리자 대시보드</td><td>미지원</td><td>카드 그리드 (3~4열)</td></tr>
+      <tr><td><code>A02</code> 사용자 목록</td><td>미지원</td><td>데이터 테이블 + 필터 패널</td></tr>
+    </tbody>
+  </table>
+
+  <h3>특수 패턴</h3>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">📱 모바일 특수 패턴</div>
+      <ul class="bare">
+        <li><b>하단 시트</b>: S06 노드 상세, S22 사용 노드, S27 필터</li>
+        <li><b>풀스크린 모달</b>: S07, S12, S16, S17</li>
+        <li><b>스와이프 액션</b>: 알림·코멘트의 [삭제]·[읽음]</li>
+        <li><b>풀투리프레시</b>: S25, S26, S15</li>
+        <li><b>무한 스크롤</b>: S26, S27, A21 (페이지네이션 대체)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">🖥️ 데스크톱 특수 패턴</div>
+      <ul class="bare">
+        <li><b>좌우 분할</b>: S12, S17, A03</li>
+        <li><b>영구 사이드 패널</b>: S06, T07</li>
+        <li><b>데이터 테이블</b>: A02, A06, A08, A21</li>
+        <li><b>키보드 단축키</b>: <kbd>/</kbd> 검색, <kbd>Esc</kbd>, <kbd>Cmd/Ctrl+S</kbd></li>
+        <li><b>드래그·드롭</b>: S13 PDF 업로드, S06 노드</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout callout-warning">
+    <b>미지원 디바이스 안내</b>: 모바일에서 <code>/admin/*</code> 접근 시 "관리자 콘솔은 데스크톱(1024px 이상)에서 이용해주세요" 안내 표시.
+  </div>
+</div>
+
+<!-- ===== Tab 11: 접근성·i18n ===== -->
+<div class="tab-content" id="tab-a11y">
+  <h1 class="section-title">접근성 · i18n</h1>
+  <p class="section-desc">WCAG 2.1 AA 수준 접근성 표준과 다국어 진입 준비도 (v1.x 이연).</p>
+
+  <h3>접근성 (a11y)</h3>
+
+  <h4>키보드 네비게이션</h4>
+  <table>
+    <thead><tr><th>키</th><th>동작</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd></td><td>포커스 이동</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>버튼·링크 활성화</td></tr>
+      <tr><td><kbd>Space</kbd></td><td>버튼·체크박스 토글</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>다이얼로그·모달·패널 닫기</td></tr>
+      <tr><td><kbd>↑/↓/←/→</kbd></td><td>그래프 캔버스 노드 이동, 리스트 항목</td></tr>
+      <tr><td><kbd>/</kbd></td><td>글로벌 검색 포커스</td></tr>
+      <tr><td><kbd>Cmd/Ctrl+S</kbd></td><td>편집 화면 저장</td></tr>
+    </tbody>
+  </table>
+
+  <h4>스크린리더 지원 (ARIA)</h4>
+  <table>
+    <thead><tr><th>영역</th><th>정책</th></tr></thead>
+    <tbody>
+      <tr><td>역할 (role)</td><td>커스텀 컴포넌트에 적절한 role 지정 (button·dialog·navigation 등)</td></tr>
+      <tr><td>라벨 (aria-label)</td><td>아이콘 단독 버튼은 반드시 명시</td></tr>
+      <tr><td>라이브 영역</td><td>토스트·STT·진행률은 aria-live="polite" 또는 "assertive"</td></tr>
+      <tr><td>상태 표시</td><td>aria-expanded·aria-selected 등 명시</td></tr>
+      <tr><td>장식 요소</td><td>aria-hidden="true"로 숨김</td></tr>
+    </tbody>
+  </table>
+
+  <h4>색상 의존 금지</h4>
+  <p class="meta-text">상태마다 색상 + 아이콘 + 텍스트 병행</p>
+  <table>
+    <thead><tr><th>상태</th><th>표현</th></tr></thead>
+    <tbody>
+      <tr><td>성공</td><td>초록 + ✓ + "성공"</td></tr>
+      <tr><td>경고</td><td>노랑 + ⚠ + "경고"</td></tr>
+      <tr><td>에러</td><td>빨강 + ✕ + "오류"</td></tr>
+      <tr><td>필수 입력</td><td>빨간 별표 + "필수" 라벨</td></tr>
+      <tr><td>미읽 알림</td><td>파란 점 + 굵은 텍스트 + "미읽"</td></tr>
+    </tbody>
+  </table>
+
+  <h4>기타 표준</h4>
+  <ul class="bare">
+    <li><b>폰트 크기</b>: 브라우저 폰트 크기 조정 시 레이아웃 깨짐 없음. 최소 본문 14px</li>
+    <li><b>터치 영역</b>: 최소 44×44px (iOS·Android HIG)</li>
+    <li><b>미디어</b>: 자동 재생 금지, 깜빡임 초당 3회 이상 금지</li>
+    <li><b>폼</b>: 모든 입력 필드 label 또는 aria-label 필수</li>
+    <li><b>그래프 캔버스 대안</b>: 노드 목록 뷰 토글 제공 (S06)</li>
+  </ul>
+
+  <h4>검증 도구</h4>
+  <ul class="bare">
+    <li>자동: axe DevTools, Lighthouse a11y (CI 통합)</li>
+    <li>수동: 키보드만으로 모든 동선 통과</li>
+    <li>스크린리더: macOS VoiceOver, Windows NVDA, iOS, Android</li>
+  </ul>
+
+  <hr>
+
+  <h3>i18n 준비도 (v1.x 이연)</h3>
+
+  <p>v1.0은 한국어 단일. v1.x 또는 v2.x에서 다국어 진입 시 영향 영역 미리 정리.</p>
+
+  <h4>영향 받는 영역</h4>
+  <table>
+    <thead><tr><th>영역</th><th>처리</th></tr></thead>
+    <tbody>
+      <tr><td>메뉴·페이지 타이틀·버튼·카피</td><td>i18n 키로 추출 (예: <code>nav.dashboard</code>)</td></tr>
+      <tr><td>에러 메시지</td><td>i18n 키 + 변수 치환 (<code>{maxChars}</code>)</td></tr>
+      <tr><td>URL slug</td><td>영문 고정 유지 (v1.0 정책 그대로)</td></tr>
+      <tr><td>날짜·시간</td><td>사용자 로케일 (Intl.DateTimeFormat)</td></tr>
+      <tr><td>숫자 형식</td><td>로케일 기반 (1,234 vs 1.234)</td></tr>
+      <tr><td>정렬 (Collation)</td><td>locale-aware (DB level)</td></tr>
+      <tr><td>폰트</td><td>한국어 Pretendard / 영어 폴백 / CJK Noto Sans</td></tr>
+      <tr><td>레이아웃 RTL</td><td>v2.x 이연 (히브리어·아랍어 시)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>v1.0 진입 시 i18n 준비 작업</h4>
+  <ul class="bare">
+    <li>모든 사용자 노출 텍스트를 i18n 키로 추출 (소스 코드 차원)</li>
+    <li>날짜·시간·숫자를 Intl API 사용</li>
+    <li>폰트 폴백 정의</li>
+    <li>RTL 준비는 v2.x 이연</li>
+  </ul>
+
+  <h4>한국어 → 영어 카피 매핑 (1차 안)</h4>
+  <table>
+    <thead><tr><th>한국어 (격식체)</th><th>영어</th></tr></thead>
+    <tbody>
+      <tr><td>"저장되었습니다"</td><td>"Saved"</td></tr>
+      <tr><td>"정말 삭제하시겠습니까?"</td><td>"Are you sure you want to delete this?"</td></tr>
+      <tr><td>"잠시 후 다시 시도해주세요"</td><td>"Please try again later"</td></tr>
+      <tr><td>"○○○님, 환영합니다"</td><td>"Welcome, ○○○"</td></tr>
+      <tr><td>"아직 ○○이 없습니다"</td><td>"No ○○ yet"</td></tr>
+      <tr><td>"이 작업은 되돌릴 수 없습니다"</td><td>"This action cannot be undone"</td></tr>
+    </tbody>
+  </table>
+  <p class="meta-text">위는 1차 안. 실제 영어 진입 시 native 카피라이터 검수.</p>
+</div>
+
+<!-- ===== Tab 12: 에러·권한 ===== -->
+<div class="tab-content" id="tab-errors-perms">
+  <h1 class="section-title">에러 화면 카피 매트릭스 · 권한 부족·정지·차단</h1>
+  <p class="section-desc">에러 정책 v0.2 차등 마스킹 정합 + 권한 부족·정지·차단·매핑 해제 시 화면 패턴.</p>
+
+  <h3>차등 마스킹 원칙</h3>
+  <table>
+    <thead><tr><th>응답 코드</th><th>사용자 노출</th><th>마스킹</th></tr></thead>
+    <tbody>
+      <tr><td>4xx (사용자 입력 오류)</td><td>구체 사유 노출 (어떻게 고칠지)</td><td>거의 없음</td></tr>
+      <tr><td>5xx (서버 오류)</td><td>일반화된 메시지 + trace_id</td><td>내부 상세 마스킹</td></tr>
+      <tr><td>EXT_* (외부 의존성)</td><td>어떤 기능이 영향받는지만 노출</td><td>외부 벤더명 마스킹</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4xx 클라이언트 에러</h3>
+  <table>
+    <thead><tr><th>에러 코드</th><th>화면 카피</th><th>표시 위치</th></tr></thead>
+    <tbody>
+      <tr><td><code>AUTH_INVALID_TOKEN</code></td><td>"다시 로그인해주세요"</td><td>풀스크린 → S01</td></tr>
+      <tr><td><code>AUTH_TOKEN_EXPIRED</code></td><td>(자동 refresh, 실패 시 자동 로그아웃)</td><td>토스트 후 S01</td></tr>
+      <tr><td><code>AUTH_FORBIDDEN</code></td><td>"이 컨텐츠에 접근할 권한이 없습니다"</td><td>화면 내 빈 상태</td></tr>
+      <tr><td><code>AUTH_ACCOUNT_SUSPENDED</code></td><td>"계정이 정지되었습니다. 자세한 사유는 가입한 이메일을 확인해주세요"</td><td>풀스크린</td></tr>
+      <tr><td><code>AUTH_ACCOUNT_DELETION_PENDING</code></td><td>"이 계정은 삭제 요청 상태입니다. ○월 ○일까지 [철회하기] 가능합니다"</td><td>S32로 이동</td></tr>
+      <tr><td><code>AUTH_MFA_FAILED</code></td><td>"MFA 코드를 확인해주세요"</td><td>A00 인라인</td></tr>
+      <tr><td><code>VAL_FIELD_REQUIRED</code></td><td>"이 항목은 필수입니다"</td><td>입력 필드 인라인</td></tr>
+      <tr><td><code>VAL_FIELD_TOO_LONG</code></td><td>"최대 N자까지 입력 가능합니다"</td><td>인라인 + 카운터 빨강</td></tr>
+      <tr><td><code>VAL_FIELD_FORMAT_INVALID</code></td><td>"올바른 형식이 아닙니다"</td><td>입력 필드 인라인</td></tr>
+      <tr><td><code>VAL_INVALID_FILE_FORMAT</code></td><td>"이 파일 형식은 지원하지 않습니다" + 허용 형식</td><td>인라인 + 토스트</td></tr>
+      <tr><td><code>VAL_PAYLOAD_TOO_LARGE</code></td><td>"파일 크기가 너무 큽니다 (최대 ○MB)"</td><td>인라인 + 토스트</td></tr>
+      <tr><td><code>VAL_RESOURCE_LIMIT_WARNING</code></td><td>"한도의 80%에 도달했습니다 (N/M)"</td><td>토스트 (한 번만)</td></tr>
+      <tr><td><code>VAL_RESOURCE_LIMIT_REACHED</code></td><td>"한도에 도달했습니다. 정리 후 다시 시도해주세요"</td><td>다이얼로그 + [정리하기]</td></tr>
+      <tr><td><code>DOC_NOT_FOUND</code></td><td>"해당 항목을 찾을 수 없습니다" + [목록으로]</td><td>풀스크린 404</td></tr>
+      <tr><td><code>DOC_VERSION_CONFLICT</code></td><td>"다른 곳에서 수정되었습니다. 새로고침 후 다시 시도해주세요"</td><td>다이얼로그</td></tr>
+      <tr><td><code>SYS_RATE_LIMITED</code></td><td>"요청이 너무 많습니다. 잠시 후 다시 시도해주세요"</td><td>토스트</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5xx 서버 에러 (마스킹)</h3>
+  <table>
+    <thead><tr><th>에러 코드</th><th>사용자 카피</th><th>표시 위치</th></tr></thead>
+    <tbody>
+      <tr><td><code>SYS_INTERNAL_ERROR</code></td><td>"일시 오류가 발생했습니다. 잠시 후 다시 시도해주세요. (trace_id: 01HXY...)"</td><td>토스트 또는 풀스크린</td></tr>
+      <tr><td><code>SYS_MAINTENANCE</code></td><td>"현재 시스템 점검 중입니다. ○○시까지 완료 예정"</td><td>풀스크린</td></tr>
+      <tr><td><code>SYS_TEMPORARILY_UNAVAILABLE</code></td><td>"서비스에 일시 장애가 있습니다. 잠시 후 다시 시도해주세요" + trace_id</td><td>풀스크린 + [다시 시도]</td></tr>
+    </tbody>
+  </table>
+
+  <h3>EXT_* 외부 의존성 (카테고리 메시지)</h3>
+  <table>
+    <thead><tr><th>에러 코드</th><th>사용자 카피</th></tr></thead>
+    <tbody>
+      <tr><td><code>EXT_ML_TIMEOUT</code></td><td>"AI 처리가 지연되고 있습니다. 잠시 후 다시 시도해주세요"</td></tr>
+      <tr><td><code>EXT_ML_FAILED</code></td><td>"AI 처리를 완료할 수 없습니다. 다시 시도해주세요"</td></tr>
+      <tr><td><code>EXT_STT_LIVE_FAILED</code></td><td>"음성 인식이 일시 중단되었습니다. 녹음은 계속됩니다"</td></tr>
+      <tr><td><code>EXT_STT_POSTPROCESS_FAILED</code></td><td>"음성 처리 중 오류가 발생했습니다" + [수동 입력]</td></tr>
+      <tr><td><code>EXT_PDF_PARSER_FAILED</code></td><td>"PDF 처리 중 오류가 발생했습니다. 다른 PDF로 시도해주세요"</td></tr>
+      <tr><td><code>EXT_OAUTH_FAILED</code></td><td>"로그인 서비스에 일시 장애가 있습니다"</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h3>권한 부족·정지·차단 화면</h3>
+
+  <h4>권한 부족 (403)</h4>
+  <table>
+    <thead><tr><th>상황</th><th>표시</th></tr></thead>
+    <tbody>
+      <tr><td>학생 URL에 student 미보유</td><td>풀스크린 "이 페이지에 접근할 권한이 없습니다" + [홈으로]</td></tr>
+      <tr><td>교사 URL에 teacher 미보유</td><td>"교사 자격이 필요합니다" + [교사 자격 신청] → T01</td></tr>
+      <tr><td>관리자 URL에 admin 미보유</td><td>A00 로그인 리다이렉트 (정보 노출 차단)</td></tr>
+      <tr><td>학생 데이터에 다른 학생 접근</td><td>"이 컨텐츠를 찾을 수 없습니다" (404로 가장)</td></tr>
+      <tr><td>매핑 해제된 학생 데이터 접근</td><td>"더 이상 담당하지 않는 학생입니다" + [담당 학생 목록]</td></tr>
+      <tr><td>차단된 사용자 컨텐츠 직접 URL</td><td>404로 가장</td></tr>
+      <tr><td>Tier 1이 [T2] 화면 접근</td><td>"이 작업은 Tier 2 시니어 관리자만 수행할 수 있습니다"</td></tr>
+    </tbody>
+  </table>
+
+  <h4>계정 정지·삭제 유예</h4>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">계정 정지</div>
+      <pre style="font-size: 12px; white-space: pre-wrap;">✕ 계정이 정지되었습니다
+
+자세한 사유는 가입한 이메일을
+확인해주세요.
+
+[이메일 확인]  [고객 지원에 문의]</pre>
+      <p class="meta-text">정지 사유는 직접 노출 X (이메일로만)</p>
+    </div>
+    <div class="card">
+      <div class="card-title">삭제 유예 (deletion_pending)</div>
+      <pre style="font-size: 12px; white-space: pre-wrap;">⏳ 계정 삭제 유예 중
+
+○○○○년 ○월 ○일까지 영구 삭제.
+[철회하기]로 정상 사용 복귀.
+
+남은 기간: ○○일
+
+[철회하기]  [그대로 진행]</pre>
+      <p class="meta-text">로그인 가능 + 상단 영구 배너</p>
+    </div>
+  </div>
+
+  <h4>매핑 해제·차단·점검</h4>
+  <table>
+    <thead><tr><th>상황</th><th>처리</th></tr></thead>
+    <tbody>
+      <tr><td>매핑 해제 (학생 측)</td><td>S10 변경 이력에 "○○ 교사 매핑 해제됨" 시스템 이벤트</td></tr>
+      <tr><td>매핑 해제 (교사 측)</td><td>토큰 무효화 → refresh → T06에서 학생 사라짐. 기존 코멘트는 보존</td></tr>
+      <tr><td>차단 등록 직후</td><td>대상 사용자 코멘트 자동 숨김. 캐시·피드 즉시 무효화</td></tr>
+      <tr><td>차단 해제</td><td>신규 코멘트는 다시 받으나, 차단 기간 코멘트는 미복원 (영구)</td></tr>
+      <tr><td>시스템 점검</td><td>전체 503 + 풀스크린 "시스템 점검 중. ○○시까지 완료 예정"</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ===== Tab 13: 로딩·모달 ===== -->
+<div class="tab-content" id="tab-loading-modal">
+  <h1 class="section-title">로딩 상태 · 모달·다이얼로그</h1>
+  <p class="section-desc">로딩 표현 5종의 결정 트리와 모달·다이얼로그 사용 기준.</p>
+
+  <h3>로딩 상태 세분화</h3>
+
+  <h4>로딩 표현 5종</h4>
+  <table>
+    <thead><tr><th>종류</th><th>시각</th><th>사용 시점</th></tr></thead>
+    <tbody>
+      <tr><td>스피너</td><td>원형 회전</td><td>짧은 작업 (&lt; 500ms), 단순 액션</td></tr>
+      <tr><td>스켈레톤</td><td>컨텐츠 형태의 빈 박스</td><td>화면 진입·리스트 (500ms~3s)</td></tr>
+      <tr><td>프로그레스 바</td><td>0~100% 진행률</td><td>알려진 진행률 (업로드·내보내기)</td></tr>
+      <tr><td>인디터미닛 프로그레스</td><td>무한 슬라이딩 바</td><td>진행률 모르나 진행 중</td></tr>
+      <tr><td>인디케이터 점</td><td>점 3개 애니메이션</td><td>라이브 처리 (STT 청크)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>결정 트리</h4>
+  <pre style="background: var(--bg-elevated); padding: 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.6;">예상 소요 시간?
+├─ &lt; 500ms          → 표시 없음 (낙관적 업데이트)
+├─ 500ms ~ 3s
+│   ├─ 화면 전체     → 스켈레톤
+│   ├─ 부분 갱신     → 인디터미닛 (작은 영역)
+│   └─ 단순 액션     → 스피너 (버튼 내)
+├─ 3s ~ 30s
+│   ├─ 진행률 앎     → 프로그레스 바
+│   └─ 진행률 모름   → 인디터미닛 + 안내 메시지
+└─ &gt; 30s             → 비동기 작업 (백그라운드) + S29 추적</pre>
+
+  <h4>화면별 로딩 패턴 (발췌)</h4>
+  <table>
+    <thead><tr><th>화면</th><th>로딩 표현</th></tr></thead>
+    <tbody>
+      <tr><td><code>S05</code> 대시보드 진입</td><td>스켈레톤 (카드별 윤곽)</td></tr>
+      <tr><td><code>S06</code> 그래프 초기</td><td>스켈레톤 캔버스 + "그래프를 불러오는 중..."</td></tr>
+      <tr><td><code>S12</code> 본문 저장</td><td>버튼 내 스피너</td></tr>
+      <tr><td><code>S13</code> PDF 업로드</td><td>프로그레스 바 → 인디터미닛 (파싱)</td></tr>
+      <tr><td><code>S16</code> 라이브 STT</td><td>인디케이터 점 + 실시간 청크</td></tr>
+      <tr><td><code>S19</code> 매칭 생성</td><td>인디터미닛 + "AI가 매칭을 찾는 중..."</td></tr>
+      <tr><td><code>S22</code> 양식 재생성</td><td>비동기 위임 + 완료 알림</td></tr>
+      <tr><td><code>S27</code> 통합 검색</td><td>디바운스 300ms → 스피너 → 스켈레톤</td></tr>
+    </tbody>
+  </table>
+
+  <h4>낙관적 업데이트</h4>
+  <ul class="bare">
+    <li><b>알림 읽음</b>: 즉시 UI + 백그라운드 API</li>
+    <li><b>코멘트 작성</b>: 즉시 표시 + "전송 중..." → 성공/실패 갱신</li>
+    <li><b>노드 위치 변경</b>: 즉시 화면 + 백그라운드 저장</li>
+    <li>실패 시 자동 롤백 + 토스트 안내</li>
+  </ul>
+
+  <hr>
+
+  <h3>모달·다이얼로그 사용 기준</h3>
+
+  <h4>결정 트리</h4>
+  <pre style="background: var(--bg-elevated); padding: 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.6;">컨텍스트 유지 필요?
+├─ 네, 작은 변경        → 인라인 편집
+└─ 네, 보조 정보        → 사이드 패널
+
+컨텍스트 차단 필요?
+├─ 확인만               → 확인 다이얼로그
+├─ 짧은 입력            → 입력 다이얼로그
+└─ 복합 작업
+    ├─ 모바일           → 풀스크린 모달
+    ├─ 데스크톱 짧음    → 일반 모달
+    └─ 데스크톱 긴 작업 → 별도 페이지</pre>
+
+  <h4>유형별 사용 케이스</h4>
+  <table>
+    <thead><tr><th>유형</th><th>사용 케이스</th></tr></thead>
+    <tbody>
+      <tr><td>인라인 편집</td><td>노드 라벨 (더블클릭), 표시 이름, 답글, 도메인 태그</td></tr>
+      <tr><td>사이드 패널</td><td>S06 노드 상세 (데스크톱), T07 학생 상세, A03 액션 패널</td></tr>
+      <tr><td>확인 다이얼로그</td><td>삭제·되돌리기·권한 부족·한도 도달·매핑 해제</td></tr>
+      <tr><td>입력 다이얼로그</td><td>라벨 변경·영역 추가·짧은 폼 (1~3 필드)</td></tr>
+      <tr><td>풀스크린 모달</td><td>시드 입력(S04·S09), 매칭 제안(S19), PDF 파싱 결과(S14), 모바일 S07/S17</td></tr>
+      <tr><td>일반 모달 (데스크톱)</td><td>코멘트 작성(T10), 관리자 [T2] 위험 동작</td></tr>
+      <tr><td>별도 페이지</td><td>PDF 업로드(S13), 양식 상세(S22), 감사 로그 상세(A22)</td></tr>
+    </tbody>
+  </table>
+
+  <h4>동작 표준</h4>
+  <ul class="bare">
+    <li><b>닫기</b>: X 버튼 + <kbd>Esc</kbd> + 바깥 클릭 (위험 동작은 바깥 클릭 비활성)</li>
+    <li><b>포커스 트랩</b>: 다이얼로그 안에서만 Tab 순환</li>
+    <li><b>포커스 복귀</b>: 닫은 후 트리거 요소로 복귀</li>
+    <li><b>모바일 적응</b>: 데스크톱 모달 → 모바일 풀스크린 자동 전환</li>
+  </ul>
+
+  <h4>안티 패턴 (사용 금지)</h4>
+  <div class="callout callout-warning">
+    <ul class="bare" style="margin-top: 4px;">
+      <li>❌ 다이얼로그 위에 다이얼로그 (중첩)</li>
+      <li>❌ 자동 닫힘 다이얼로그 (시간 경과)</li>
+      <li>❌ 닫기 방법 없는 모달 (점검·강제 안내 제외)</li>
+      <li>❌ 토스트 자리에 다이얼로그 (단순 확인용)</li>
+      <li>❌ 다이얼로그에 긴 폼 (4+ 필드) → 별도 페이지로</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== Tab 14: 온보딩 ===== -->
+<div class="tab-content" id="tab-onboarding">
+  <h1 class="section-title">온보딩 체크리스트</h1>
+  <p class="section-desc">신규 사용자의 첫 사용 경험. 학생·교사·관리자별 흐름과 체크리스트.</p>
+
+  <h3>학생 온보딩 흐름</h3>
+  <pre style="background: var(--bg-elevated); padding: 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.7;">S01 시작 화면
+  ↓ [Google로 시작하기]
+S02 OAuth 콜백 → 신규 사용자 판정
+  ↓
+S03 가입 환영 → [학생으로 시작] + 동의
+  ↓
+S04 시드 키워드 입력 (1~20개)
+  ↓ ML 추출 비동기 작업
+S05 학생 대시보드 (그래프 미리보기 표시)
+  ↓
+체크리스트 노출</pre>
+
+  <h3>학생 첫 사용 체크리스트</h3>
+  <table>
+    <thead><tr><th>#</th><th>항목</th><th>완료 조건</th><th>유형</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>✅ 가입 완료</td><td>(자동)</td><td><span class="badge badge-success">완료</span></td></tr>
+      <tr><td>2</td><td>⬜ 시드 키워드 입력하기</td><td>S04 완료</td><td><span class="badge badge-t2">필수</span></td></tr>
+      <tr><td>3</td><td>⬜ 첫 그래프 둘러보기</td><td>S06 진입 + 30초 체류</td><td><span class="badge badge-t2">필수</span></td></tr>
+      <tr><td>4</td><td>⬜ 첫 노드 추가해보기</td><td>S06에서 노드 추가</td><td><span class="badge badge-info">권장</span></td></tr>
+      <tr><td>5</td><td>⬜ PDF 업로드 (선택)</td><td>S13 완료 또는 [건너뛰기]</td><td><span class="badge badge-muted">선택</span></td></tr>
+      <tr><td>6</td><td>⬜ 음성 녹음 시도 (선택)</td><td>S15 진입 또는 [건너뛰기]</td><td><span class="badge badge-muted">선택</span></td></tr>
+      <tr><td>7</td><td>⬜ 양식 생성 시도 (선택)</td><td>S20 진입 또는 [건너뛰기]</td><td><span class="badge badge-muted">선택</span></td></tr>
+      <tr><td>8</td><td>⬜ 알림 설정 확인</td><td>S30 진입 또는 푸시 권한 응답</td><td><span class="badge badge-info">권장</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>교사 온보딩 흐름</h3>
+  <pre style="background: var(--bg-elevated); padding: 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.7;">S01 시작 화면
+  ↓ [Google로 시작하기]
+S02 OAuth 콜백 → 신규
+  ↓
+S03 가입 환영 → [교사로 신청] + 동의
+  ↓
+T01 교사 자격 검증 신청 → 증빙 첨부 + [신청 제출]
+  ↓
+T02 자격 검증 상태 (대기 중) → 관리자 승인 (1~3 영업일)
+  ↓ [알림 수신]
+T03 교사 대시보드 (첫 진입)
+  ↓
+체크리스트 노출</pre>
+
+  <h3>교사 첫 사용 체크리스트</h3>
+  <table>
+    <thead><tr><th>#</th><th>항목</th><th>완료 조건</th><th>유형</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>✅ 가입 완료</td><td>(자동)</td><td><span class="badge badge-success">완료</span></td></tr>
+      <tr><td>2</td><td>✅ 자격 검증 승인</td><td>(자동)</td><td><span class="badge badge-success">완료</span></td></tr>
+      <tr><td>3</td><td>⬜ 프로필 설정 (학교·과목)</td><td>S31</td><td><span class="badge badge-info">권장</span></td></tr>
+      <tr><td>4</td><td>⬜ 첫 학생 매핑 신청</td><td>T04 신청 완료</td><td><span class="badge badge-t2">필수</span></td></tr>
+      <tr><td>5</td><td>⬜ 학생 데이터 둘러보기</td><td>T07 진입 + 1분 체류</td><td><span class="badge badge-info">권장</span></td></tr>
+      <tr><td>6</td><td>⬜ 첫 코멘트 작성 (선택)</td><td>T10 작성 완료</td><td><span class="badge badge-muted">선택</span></td></tr>
+      <tr><td>7</td><td>⬜ 알림 설정 확인</td><td>S30 또는 푸시 권한 응답</td><td><span class="badge badge-info">권장</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>관리자 온보딩</h3>
+  <div class="callout">
+    별도 운영 매뉴얼로 위임. 보안팀이 직접 1:1 가이드. 본 IA에는 화면 흐름만 정의.
+  </div>
+  <pre style="background: var(--bg-elevated); padding: 16px; border-radius: var(--radius); font-size: 12px; line-height: 1.7;">[보안팀 별도 계정 발급]
+  ↓
+A00 관리자 로그인 → ID/PW + MFA 첫 설정
+  ↓
+A01 관리자 대시보드
+  ↓
+A31 본인 활동 이력
+   (자신의 행위가 모두 감사됨을 명확히 인지)</pre>
+
+  <h3>온보딩 카피 톤</h3>
+  <ul class="bare">
+    <li><b>환영</b>: "○○○님, 환영합니다"</li>
+    <li><b>첫 진입 안내</b>: "처음이시군요. 빠르게 둘러보실까요?"</li>
+    <li><b>각 단계</b>: 짧고 명확하게. "한 번에 모두 할 필요 없습니다"</li>
+    <li><b>선택 항목</b>: "지금 안 해도 괜찮아요" 또는 "나중에 언제든 가능합니다"</li>
+    <li><b>완료 시</b>: "준비 완료! 이제 시작해보세요"</li>
+  </ul>
+
+  <h3>운영 후 분석 지표 (v1.x)</h3>
+  <ul class="bare">
+    <li>단계별 완료율 (Funnel Drop-off)</li>
+    <li>평균 첫 시드 입력까지 시간</li>
+    <li>첫 PDF 업로드 vs 시드 입력 선호</li>
+    <li>자격 검증 신청 → 승인까지 평균 시간</li>
+    <li>신규 사용자 7일·30일 리텐션</li>
+  </ul>
+</div>
+
+<!-- ===== Tab 15: 정합성 ===== -->
+<div class="tab-content" id="tab-consistency">
+  <h1 class="section-title">정합성 검증</h1>
+  <p class="section-desc">v0.3 작성 시 부속 문서와의 정합성 검증 결과 + 자동 검증 설계 안.</p>
+
+  <h3>검증 결과 요약</h3>
+  <table>
+    <thead><tr><th>#</th><th>검증 항목</th><th>결과</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>C1</td><td>화면 × API 매핑 vs API 카탈로그 v0.5</td><td><span class="badge badge-success">✓ 정합</span></td><td>8장 매핑 표 검토 완료</td></tr>
+      <tr><td>C2</td><td>라우팅 URL vs API URL</td><td><span class="badge badge-success">✓ 정합</span></td><td>4.1·4.2.3 일관</td></tr>
+      <tr><td>C3</td><td>권한 컨텍스트 vs 권한 매트릭스 v0.3</td><td><span class="badge badge-success">✓ 정합</span></td><td>3장 인벤토리·15.1 일관</td></tr>
+      <tr><td>C4</td><td>자원 한도 UX vs 검증 정책 v0.2</td><td><span class="badge badge-success">✓ 정합</span></td><td>6.8·14.2 일관</td></tr>
+      <tr><td>C5</td><td>라벨·카피 vs 에러 정책 v0.2</td><td><span class="badge badge-success">✓ 정합</span></td><td>9장·14장 일관</td></tr>
+      <tr><td>C6</td><td>시스템 공지 priority vs NFR v0.2</td><td><span class="badge badge-success">✓ 정합</span></td><td>6.9 일관</td></tr>
+      <tr><td>C7</td><td>다중 역할 토글 vs 인증·세션 v0.2</td><td><span class="badge badge-success">✓ 정합</span></td><td>5.4·15.5 일관</td></tr>
+      <tr><td>C8</td><td>화면 ID vs 화면설계서</td><td><span class="badge badge-success">✓ 정합</span></td><td>76개 ID 모두 매칭</td></tr>
+    </tbody>
+  </table>
+
+  <h3>발견된 불일치</h3>
+  <div class="callout">
+    v0.2 작성 시 부속 문서를 충실히 참조하여 큰 불일치 없음. 미세 불일치는 본문에 즉시 반영됨.
+  </div>
+
+  <h3>후속 검증 트리거</h3>
+  <table>
+    <thead><tr><th>시점</th><th>검증 작업</th></tr></thead>
+    <tbody>
+      <tr><td>디자이너 와이어프레임 1차 완료</td><td>화면 분리·통합 변경 사항 반영</td></tr>
+      <tr><td>카피라이팅 검수 완료</td><td>라벨·카피 갱신</td></tr>
+      <tr><td>백엔드 OpenAPI 스펙 작성 후</td><td>C1·C2 자동 검증 (CI)</td></tr>
+      <tr><td>프론트엔드 라우팅 구현 후</td><td>C2 실제 URL 확인</td></tr>
+      <tr><td>운영 6개월 후</td><td>사용자 행동 데이터 기반 검증</td></tr>
+    </tbody>
+  </table>
+
+  <h3>자동 검증 (CI) 설계 안</h3>
+  <p>v1.0 마감 후 다음 자동 검증을 CI에 통합:</p>
+  <ol style="padding-left: 24px; margin: 12px 0;">
+    <li style="margin-bottom: 8px;"><b>IA 화면 인벤토리 vs 프론트엔드 라우트</b>: 모든 화면 ID에 라우트가 있는지, 모든 라우트가 IA에 있는지</li>
+    <li style="margin-bottom: 8px;"><b>IA 화면 × API 매핑 vs OpenAPI 스펙</b>: 모든 화면의 의존 API가 OpenAPI에 있는지, orphan API 검출</li>
+    <li style="margin-bottom: 8px;"><b>IA 권한 컨텍스트 vs 권한 매트릭스 JSON</b>: 화면별 권한 표기가 매트릭스와 일치하는지</li>
+    <li style="margin-bottom: 8px;"><b>IA 라벨·카피 vs i18n 키 정의</b>: 카피라이팅 단계에서 i18n 키 추출 후 매칭</li>
+  </ol>
+  <p class="meta-text">CI 구현은 백엔드·프론트엔드 팀과 협업하여 v1.0 진입 시점에 셋업.</p>
+</div>
+
+<!-- ===== Tab 16: OQ·다음 단계 ===== -->
+<div class="tab-content" id="tab-oq">
+  <h1 class="section-title">Open Questions · 다음 단계</h1>
+  <p class="section-desc">v0.1의 7개 OQ는 v0.2에서 모두 결정. v0.3에서 미작성 영역 8개 추가 완료. v1.0 진입은 외부 협업 대기.</p>
+
+  <h3>v0.2에서 결정 완료 (5개 OQ)</h3>
+  <table>
+    <thead><tr><th>#</th><th>OQ</th><th>결정 결과</th><th>본문 위치</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>다중 역할 알림 통합 표시</td><td>통합 노출 + 컨텍스트 배지 + 자동 전환 + 필터 칩</td><td>네비게이션 탭 5.4</td></tr>
+      <tr><td>2</td><td>딥링크 보안</td><td>토큰 검증 + <code>returnTo</code> 보존 + 권한 없으면 404 가장</td><td>사이트맵 탭 4.3</td></tr>
+      <tr><td>3</td><td>검색 5건 한도 → "더 보기"</td><td>그룹별 5건 + 그룹 전용 페이지 (cursor 20·max 100)</td><td>검색·분류 탭 10.1</td></tr>
+      <tr><td>6</td><td>검색 기본 정렬</td><td>관련도순 (운영 6개월 후 재검토)</td><td>검색·분류 탭 10.1</td></tr>
+      <tr><td>7</td><td>빈 상태 카피</td><td>카피라이팅 위임 + 원칙 명시</td><td>컴포넌트 탭 6.5</td></tr>
+    </tbody>
+  </table>
+
+  <h3>후속 작업으로 이연 (2개 OQ)</h3>
+  <table>
+    <thead><tr><th>#</th><th>OQ</th><th>처리</th><th>트리거</th></tr></thead>
+    <tbody>
+      <tr><td>4</td><td>모바일 vs 데스크톱 차이</td><td>반응형 탭으로 해결</td><td><span class="badge badge-success">v0.3 완료</span></td></tr>
+      <tr><td>5</td><td>다국어 라벨 매핑</td><td>v1.x 또는 v2.x 이연 (해외 진출 시)</td><td>비즈니스 의사결정</td></tr>
+    </tbody>
+  </table>
+
+  <h3>v0.3 진입 완료 (미작성 영역 8개)</h3>
+  <table>
+    <thead><tr><th>영역</th><th>위치</th><th>상태</th></tr></thead>
+    <tbody>
+      <tr><td>B1 반응형 정책</td><td>반응형 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B2 접근성 표준</td><td>접근성·i18n 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B3 i18n 준비도</td><td>접근성·i18n 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B4 로딩 상태 세분화</td><td>로딩·모달 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B5 에러 카피 매트릭스</td><td>에러·권한 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B6 권한 부족·정지 화면</td><td>에러·권한 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B7 모달·다이얼로그 기준</td><td>로딩·모달 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>B8 온보딩 체크리스트</td><td>온보딩 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+      <tr><td>C. 정합성 검증</td><td>정합성 탭</td><td><span class="badge badge-success">✓ 완료</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>v1.0 진입 작업 (외부 협업 후)</h3>
+  <p>본 IA가 v1.0으로 마감하기 위해 필요한 외부 작업:</p>
+  <table>
+    <thead><tr><th>작업</th><th>트리거</th><th>반영 위치</th></tr></thead>
+    <tbody>
+      <tr><td>디자이너 와이어프레임 1차 완료</td><td>디자이너 작업 후</td><td>화면 분리·통합·라벨 변경</td></tr>
+      <tr><td>카피라이팅 검수 결과</td><td>카피라이터 작업 후</td><td>9·12·14장 카피 정교화</td></tr>
+      <tr><td>사용자 테스트 (와이어프레임)</td><td>학생 5~10명 UT 후</td><td>메뉴 라벨·이동 경로</td></tr>
+      <tr><td>백엔드 OpenAPI 스펙</td><td>백엔드 개발 착수 시</td><td>화면 × API CI 자동 검증</td></tr>
+      <tr><td>프론트엔드 라우팅 구현</td><td>프론트 개발 후</td><td>라우팅 정합성 검증</td></tr>
+      <tr><td>관리자 운영 매뉴얼</td><td>운영 시작 전</td><td>[T2] 절차 분리</td></tr>
+    </tbody>
+  </table>
+
+  <h3>운영 후 재검토 (v1.1 또는 정기)</h3>
+  <table>
+    <thead><tr><th>항목</th><th>시점</th><th>트리거</th></tr></thead>
+    <tbody>
+      <tr><td>검색 결과 기본 정렬 재검토</td><td>운영 6개월 후</td><td>OQ 6</td></tr>
+      <tr><td>빈 상태 카피 사용자 반응</td><td>운영 3개월 후</td><td>카피 효과 측정</td></tr>
+      <tr><td>다국어 진입 검토</td><td>해외 진출 결정 시</td><td>OQ 5</td></tr>
+      <tr><td>온보딩 funnel 분석</td><td>운영 6개월 후</td><td>온보딩 탭 지표</td></tr>
+      <tr><td>접근성 자동 검증 도입</td><td>v1.0 출시 직후</td><td>axe·Lighthouse CI</td></tr>
+      <tr><td>RTL 언어 지원</td><td>v2.x</td><td>i18n 18.2.6</td></tr>
+    </tbody>
+  </table>
+
+  <h3>v1.0 마감 기준</h3>
+  <div class="callout">
+    다음 조건 모두 충족 시 IA v1.0 마감:
+    <ul class="bare" style="margin-top: 8px;">
+      <li>✅ 모든 OQ 결정 (v0.2 완료)</li>
+      <li>✅ 모든 미작성 영역 추가 (v0.3 완료)</li>
+      <li>✅ 부속 문서 정합성 검증 (v0.3 완료)</li>
+      <li>⏳ 디자이너 핸드오프 후 1차 갭 반영</li>
+      <li>⏳ 카피라이팅 검수 결과 반영</li>
+      <li>⏳ CI 정합성 검증 셋업</li>
+    </ul>
+    → 외부 협업 진행에 따라 v1.0 마감 시점 결정.
+  </div>
+
+  <h3>단축키</h3>
+  <table>
+    <thead><tr><th>키</th><th>동작</th></tr></thead>
+    <tbody>
+      <tr><td><span class="kbd">/</span></td><td>검색창에 포커스 (자동으로 화면 인벤토리 탭으로 이동)</td></tr>
+      <tr><td><span class="kbd">Esc</span></td><td>슬라이드 패널 닫기</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout" style="margin-top: 24px;">
+    본 문서는 IA의 단일 진실 원천. 화면 추가·삭제·이동 시 본 문서를 우선 갱신하고 역할별 화면설계서를 동기화한다.
+  </div>
+</div>
+
+</main>
+
+<!-- ===== Slide Panel ===== -->
+<div class="panel-backdrop" id="panelBackdrop"></div>
+<aside class="panel" id="screenPanel">
+  <div class="panel-header">
+    <div class="screen-id" id="panelId"></div>
+    <div class="screen-name" id="panelName" style="font-size: 20px; margin-top: 4px;"></div>
+    <div class="screen-meta" id="panelMeta" style="margin-top: 10px;"></div>
+    <button class="panel-close" id="panelClose">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<script>
+// ============================================================
+// Data: Screen Inventory
+// ============================================================
+const SCREENS = [
+  // ===== 학생 (S01~S32) =====
+  { id: "S01", name: "시작 화면", role: "student", group: "인증", route: "/", perm: "public", desc: "OAuth 시작점", api: [] },
+  { id: "S02", name: "OAuth 콜백", role: "student", group: "인증", route: "/auth/google/callback", perm: "public", desc: "Google 인증 후 JWT 발급", api: ["POST /v1/auth/login"] },
+  { id: "S03", name: "가입 환영", role: "student", group: "온보딩", route: "/onboarding", perm: "신규", desc: "역할 선택·동의", api: ["PATCH /v1/auth/me"] },
+  { id: "S04", name: "시드 키워드 입력", role: "student", group: "온보딩", route: "/onboarding/seed", perm: "self", desc: "1~20개 시드 입력 → 그래프 생성", api: ["POST /v1/students/me/graph:seed"] },
+  { id: "S05", name: "학생 대시보드", role: "student", group: "메인", route: "/dashboard", perm: "self", desc: "그래프 미리보기·최근 활동·코멘트·알림", api: ["GET /v1/students/me/graph:summary", "GET /v1/feed?limit=5", "GET /v1/comments?unread=true&limit=3"] },
+  { id: "S06", name: "그래프 메인", role: "student", group: "그래프", route: "/students/me/graph", perm: "self.student", desc: "전체 그래프 캔버스 + 도구", api: ["GET /v1/students/me/graph"] },
+  { id: "S07", name: "노드 상세", role: "student", group: "그래프", route: "/students/me/graph/nodes/:id", perm: "self.student / linked.teacher R", desc: "노드 정보·연결·편집", api: ["GET/PATCH/DELETE /v1/students/{id}/graph/nodes/{node_id}"] },
+  { id: "S08", name: "엣지 상세", role: "student", group: "그래프", route: "/students/me/graph/edges/:id", perm: "self.student / linked.teacher R", desc: "엣지 정보·관계 타입", api: ["GET/PATCH/DELETE /v1/students/{id}/graph/edges/{edge_id}"] },
+  { id: "S09", name: "시드 추가 입력", role: "student", group: "그래프", route: "/students/me/graph/seed", perm: "self.student", desc: "추가 시드 입력", api: ["POST /v1/students/me/graph:seed"] },
+  { id: "S10", name: "그래프 변경 이력", role: "student", group: "그래프", route: "/students/me/graph/history", perm: "self.student / linked.teacher R", desc: "타임라인 + 되돌리기", api: ["GET /v1/students/me/graph/history"] },
+  { id: "S11", name: "텍스트 영역 목록", role: "student", group: "텍스트", route: "/students/me/documents", perm: "self.student / linked.teacher R", desc: "8영역 카드", api: ["GET /v1/students/me/documents"] },
+  { id: "S12", name: "영역 상세·편집", role: "student", group: "텍스트", route: "/students/me/documents/:id", perm: "self.student / linked.teacher R", desc: "본문 편집 + 그래프 동기화", api: ["GET/PATCH /v1/students/{id}/documents/{id}"] },
+  { id: "S13", name: "PDF 업로드", role: "student", group: "텍스트", route: "/students/me/documents/import", perm: "self.student", desc: "≤50MB · 5 RPH", api: ["POST /v1/students/me/documents:import-pdf"] },
+  { id: "S14", name: "PDF 파싱 결과 검토", role: "student", group: "텍스트", route: "/students/me/documents/import/:job_id", perm: "self.student", desc: "추출 결과 + 노드 미리보기", api: ["GET /v1/jobs/{job_id}", "POST .../apply"] },
+  { id: "S15", name: "음성 세션 목록", role: "student", group: "음성", route: "/students/me/voice", perm: "self.student", desc: "활성·종료 세션 카드", api: ["GET /v1/students/me/voice-sessions"] },
+  { id: "S16", name: "녹음 중 (라이브)", role: "student", group: "음성", route: "/students/me/voice/:id/recording", perm: "self.student / participant", desc: "WS STT 라이브", api: ["WS /v1/voice-sessions/{id}/stream"] },
+  { id: "S17", name: "보고서 검토·승인", role: "student", group: "음성", route: "/students/me/voice/:id/report", perm: "self.student / participant", desc: "전사·키워드·구조화 검토", api: ["GET/PATCH /v1/voice-sessions/{id}/report"] },
+  { id: "S18", name: "참여자 관리", role: "student", group: "음성", route: "/students/me/voice/:id/participants", perm: "session.host", desc: "초대·수락·제거", api: ["GET/POST/DELETE /v1/voice-sessions/{id}/participants"] },
+  { id: "S19", name: "그래프 매칭 제안", role: "student", group: "음성", route: "/students/me/voice/:id/match", perm: "self.student", desc: "ML 매칭 채택·거부", api: ["GET /v1/voice-sessions/{id}/match-suggestions"] },
+  { id: "S20", name: "양식 템플릿 목록", role: "student", group: "양식", route: "/students/me/format/templates", perm: "self.student", desc: "private/shared/system", api: ["GET /v1/format-templates"] },
+  { id: "S21", name: "양식 결과물 목록", role: "student", group: "양식", route: "/students/me/format/outputs", perm: "self.student", desc: "1,000개 한도", api: ["GET /v1/format-outputs"] },
+  { id: "S22", name: "양식 결과물 상세", role: "student", group: "양식", route: "/students/me/format/outputs/:id", perm: "self.student", desc: "본문 + 사용 노드 + 재생성", api: ["GET/PATCH /v1/format-outputs/{id}"] },
+  { id: "S23", name: "가지치기 추천 검토", role: "student", group: "추천", route: "/students/me/recommendations", perm: "self.student", desc: "ML 추천 채택·거부", api: ["GET /v1/students/me/recommendations"] },
+  { id: "S24", name: "코멘트 목록·답글", role: "student", group: "사회", route: "/comments", perm: "self / commenter", desc: "받은 코멘트 + 답글", api: ["GET/POST /v1/comments"] },
+  { id: "S25", name: "알림", role: "student", group: "사회", route: "/notifications", perm: "self", desc: "FCM·인앱 + 시스템 공지", api: ["GET /v1/notifications"] },
+  { id: "S26", name: "피드", role: "student", group: "사회", route: "/feed", perm: "self", desc: "본인 활동 타임라인 (무한 보관)", api: ["GET /v1/feed"] },
+  { id: "S27", name: "통합 검색", role: "student", group: "도구", route: "/search", perm: "self.student", desc: "노드·문서·보고서·코멘트", api: ["POST /v1/search"] },
+  { id: "S28", name: "통계", role: "student", group: "도구", route: "/stats", perm: "self.student", desc: "본인 활동 통계", api: ["GET /v1/students/me/stats"] },
+  { id: "S29", name: "내보내기 작업", role: "student", group: "도구", route: "/exports", perm: "self", desc: "비동기 작업 큐 + 다운로드", api: ["GET/POST /v1/exports"] },
+  { id: "S30", name: "설정 메인", role: "student", group: "설정", route: "/settings", perm: "self", desc: "프로필·알림·디바이스·차단", api: [] },
+  { id: "S31", name: "계정 정보", role: "student", group: "설정", route: "/settings/account", perm: "self", desc: "이메일·역할·표시 이름 편집", api: ["GET/PATCH /v1/auth/me"] },
+  { id: "S32", name: "삭제 요청·철회", role: "student", group: "설정", route: "/settings/account/deletion", perm: "self", desc: "30일 유예 + crypto-shredding", api: ["POST /v1/auth/me:request-deletion"] },
+
+  // ===== 교사 (T01~T12) =====
+  { id: "T01", name: "교사 자격 검증 신청", role: "teacher", group: "자격", route: "/onboarding/verification", perm: "신규 교사", desc: "증빙 첨부 + 신청", api: ["POST /v1/auth/teacher-verifications"] },
+  { id: "T02", name: "교사 자격 검증 상태", role: "teacher", group: "자격", route: "/onboarding/verification/status", perm: "self", desc: "승인·거부 결과", api: ["GET /v1/auth/teacher-verifications/me"] },
+  { id: "T03", name: "교사 대시보드", role: "teacher", group: "메인", route: "/teachers/me/dashboard", perm: "self.teacher", desc: "담당 학생·미처리 코멘트·매핑", api: ["GET /v1/teachers/me/students:summary"] },
+  { id: "T04", name: "학생 매핑 신청", role: "teacher", group: "매핑", route: "/teachers/me/links/new", perm: "self.teacher", desc: "학생 검색 + 요청 발송", api: ["POST /v1/teachers/me/links"] },
+  { id: "T05", name: "매핑 신청 상태", role: "teacher", group: "매핑", route: "/teachers/me/links/pending", perm: "self.teacher", desc: "진행 중 신청 목록", api: ["GET /v1/teachers/me/links"] },
+  { id: "T06", name: "담당 학생 목록", role: "teacher", group: "담당", route: "/teachers/me/students", perm: "self.teacher", desc: "활성 매핑 학생", api: ["GET /v1/teachers/me/students"] },
+  { id: "T07", name: "학생 상세 (R)", role: "teacher", group: "담당", route: "/teachers/me/students/:id", perm: "linked.teacher R", desc: "한 학생 종합 R 뷰", api: ["GET /v1/students/{student_id}"] },
+  { id: "T08", name: "학생 그래프 R", role: "teacher", group: "그래프 R", route: "/teachers/me/students/:id/graph", perm: "linked.teacher R", desc: "그래프 R 모드", api: ["GET /v1/students/{student_id}/graph"] },
+  { id: "T09", name: "학생 노드 상세 R", role: "teacher", group: "그래프 R", route: "/teachers/me/students/:id/graph/nodes/:node_id", perm: "linked.teacher R", desc: "노드 R + 코멘트 진입", api: ["GET /v1/students/{student_id}/graph/nodes/{node_id}"] },
+  { id: "T10", name: "코멘트 작성", role: "teacher", group: "사회", route: "/teachers/me/comments/compose", perm: "linked.teacher W (코멘트만)", desc: "노드/문서/보고서/양식 대상", api: ["POST /v1/comments"] },
+  { id: "T11", name: "답글·큐", role: "teacher", group: "사회", route: "/teachers/me/comments", perm: "self.teacher", desc: "받은 답글 + 본인 코멘트", api: ["GET /v1/comments?role_filter=teacher_compose"] },
+  { id: "T12", name: "회의 호스트", role: "teacher", group: "음성", route: "/teachers/me/voice/...", perm: "session.host", desc: "S15~S19 재사용 + 호스트 추가 권한", api: ["POST /v1/voice-sessions"] },
+
+  // ===== 관리자 (A00~A32) =====
+  { id: "A00", name: "관리자 로그인", role: "admin", group: "인증", route: "/admin/login", perm: "public", desc: "ID/PW + MFA", api: ["POST /v1/admin/auth/login"], tier: null },
+  { id: "A01", name: "관리자 대시보드", role: "admin", group: "메인", route: "/admin/dashboard", perm: "T1+", desc: "시스템 상태·큐·investigation", api: [], tier: "T1+" },
+  { id: "A02", name: "사용자 목록", role: "admin", group: "A 사용자", route: "/admin/users", perm: "T1+", desc: "필터·검색·일괄 정지", api: ["GET /v1/admin/users"], tier: "T1+" },
+  { id: "A03", name: "사용자 상세", role: "admin", group: "A 사용자", route: "/admin/users/:id", perm: "T1+", desc: "계정 정보·통계·액션", api: ["GET /v1/admin/users/{id}"], tier: "T1+" },
+  { id: "A04", name: "계정 정지·해제", role: "admin", group: "A 사용자", route: "/admin/users/:id/suspend", perm: "T1+", desc: "사유 필수", api: ["POST /v1/admin/users/{id}:suspend"], tier: "T1+" },
+  { id: "A05", name: "강제 삭제", role: "admin", group: "A 사용자", route: "/admin/users/:id/delete", perm: "T2 only", desc: "admin.investigation", api: ["DELETE /v1/admin/users/{id} + X-Investigation-Reason"], tier: "T2" },
+  { id: "A06", name: "교사 자격 검증 큐", role: "admin", group: "A 사용자", route: "/admin/teacher-verifications", perm: "T1+", desc: "대기 신청 목록", api: ["GET /v1/admin/teacher-verifications"], tier: "T1+" },
+  { id: "A07", name: "교사 자격 상세 검토", role: "admin", group: "A 사용자", route: "/admin/teacher-verifications/:id", perm: "T1+", desc: "첨부 검토 + 승인/거부", api: ["POST .../:approve"], tier: "T1+" },
+  { id: "A08", name: "신고 큐", role: "admin", group: "A 사용자", route: "/admin/reports", perm: "T1+", desc: "신고 목록", api: ["GET /v1/admin/reports"], tier: "T1+" },
+  { id: "A09", name: "신고 상세·처리", role: "admin", group: "A 사용자", route: "/admin/reports/:id", perm: "T1+", desc: "처리 옵션", api: ["POST /v1/admin/reports/{id}:resolve"], tier: "T1+" },
+  { id: "A10", name: "신고된 코멘트 목록", role: "admin", group: "B 컨텐츠", route: "/admin/content/comments", perm: "T1+", desc: "신고 누적순", api: ["GET /v1/admin/content/comments"], tier: "T1+" },
+  { id: "A11", name: "코멘트 강제 삭제 확인", role: "admin", group: "B 컨텐츠", route: "/admin/content/comments/:id/delete", perm: "T1+", desc: "삭제 + 작성자 처리", api: ["DELETE /v1/admin/content/comments/{id}"], tier: "T1+" },
+  { id: "A12", name: "사용자 데이터 스냅샷", role: "admin", group: "B 컨텐츠", route: "/admin/content/users/:id/snapshot", perm: "T2 only", desc: "admin.investigation · 마스킹 해제", api: ["GET .../data-snapshot"], tier: "T2" },
+  { id: "A13", name: "시스템 헬스", role: "admin", group: "C 시스템", route: "/admin/system/health", perm: "T1+", desc: "실시간 모니터링", api: ["GET /v1/admin/system/health"], tier: "T1+" },
+  { id: "A14", name: "운영 메트릭", role: "admin", group: "C 시스템", route: "/admin/system/metrics", perm: "T1+", desc: "DAU·RPS·응답 시간", api: ["GET /v1/admin/system/metrics"], tier: "T1+" },
+  { id: "A15", name: "임베딩 모델 목록", role: "admin", group: "C 시스템", route: "/admin/system/embedding-models", perm: "T1+", desc: "등록 모델 관리", api: ["GET .../embedding-models"], tier: "T1+" },
+  { id: "A16", name: "임베딩 모델 교체", role: "admin", group: "C 시스템", route: "/admin/system/embedding-models/switch", perm: "T1+", desc: "배치 마이그레이션", api: ["POST .../switch"], tier: "T1+" },
+  { id: "A17", name: "시스템 공지 목록", role: "admin", group: "C 시스템", route: "/admin/system/announcements", perm: "T1+", desc: "공지 카드", api: ["GET .../announcements"], tier: "T1+" },
+  { id: "A18", name: "공지 발행·편집", role: "admin", group: "C 시스템", route: "/admin/system/announcements/edit", perm: "T1+", desc: "priority (general/urgent)", api: ["POST .../announcements"], tier: "T1+" },
+  { id: "A19", name: "JWKS 키 회전 승인", role: "admin", group: "C 시스템", route: "/admin/system/jwt-rotation", perm: "T2 only", desc: "반자동 회전 절차", api: ["POST .../jwt-rotation:approve"], tier: "T2" },
+  { id: "A20", name: "Redis fail-close 토글", role: "admin", group: "C 시스템", route: "/admin/system/failclose-toggle", perm: "T2 only", desc: "보안 사건 시 활성", api: ["POST .../failclose-toggle"], tier: "T2" },
+  { id: "A21", name: "감사 로그 검색", role: "admin", group: "D 감사", route: "/admin/audit-logs", perm: "T1+", desc: "필터·검색", api: ["GET /v1/admin/audit-logs"], tier: "T1+" },
+  { id: "A22", name: "감사 로그 상세", role: "admin", group: "D 감사", route: "/admin/audit-logs/:id", perm: "T1+", desc: "T1은 critical 마스킹", api: ["GET /v1/admin/audit-logs/{id}"], tier: "T1+" },
+  { id: "A23", name: "감사 로그 export", role: "admin", group: "D 감사", route: "/admin/audit-logs/export", perm: "T1+", desc: "CSV·JSON", api: ["POST .../audit-logs:export"], tier: "T1+" },
+  { id: "A24", name: "investigation 발동", role: "admin", group: "D 감사", route: "/admin/investigation/start", perm: "T2 only", desc: "사유 + MFA + 보안팀 통보", api: ["POST .../investigation:start"], tier: "T2" },
+  { id: "A25", name: "학기·과목 마스터", role: "admin", group: "E 마스터", route: "/admin/master/periods", perm: "T1+", desc: "학기·과목 CRUD", api: ["GET /v1/admin/master/periods"], tier: "T1+" },
+  { id: "A26", name: "양식 템플릿 마스터", role: "admin", group: "E 마스터", route: "/admin/master/format-templates", perm: "T1+", desc: "system 템플릿 관리", api: ["GET .../format-templates"], tier: "T1+" },
+  { id: "A27", name: "enum 마스터", role: "admin", group: "E 마스터", route: "/admin/master/enums", perm: "T1+", desc: "section_type/severity/priority", api: ["GET .../enums"], tier: "T1+" },
+  { id: "A28", name: "시스템 설정", role: "admin", group: "E 마스터", route: "/admin/master/system", perm: "T1+", desc: "Rate Limit·자원 한도", api: ["GET/PATCH .../system"], tier: "T1+" },
+  { id: "A29", name: "관리자 목록", role: "admin", group: "자체", route: "/admin/admins", perm: "T1+", desc: "Tier 1·Tier 2 표시", api: ["GET /v1/admin/admins"], tier: "T1+" },
+  { id: "A30", name: "관리자 tier 변경", role: "admin", group: "자체", route: "/admin/admins/:id/tier", perm: "T2 only", desc: "본인 상승 불가", api: ["PATCH .../tier"], tier: "T2" },
+  { id: "A31", name: "본인 활동 이력", role: "admin", group: "자체", route: "/admin/me/activity", perm: "T1+", desc: "자기 자신 audit", api: ["GET .../audit-logs?actor_user_id=me"], tier: "T1+" },
+  { id: "A32", name: "디버깅 신청", role: "admin", group: "도구", route: "/admin/debugging/request", perm: "T1+", desc: "5단계 절차 1단계", api: ["POST .../debugging:request"], tier: "T1+" }
+];
+
+// ============================================================
+// Tabs
+// ============================================================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+// ============================================================
+// Theme Toggle
+// ============================================================
+const themeToggle = document.getElementById('themeToggle');
+const savedTheme = localStorage.getItem('ia-theme') || 'light';
+document.documentElement.dataset.theme = savedTheme;
+themeToggle.addEventListener('click', () => {
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('ia-theme', next);
+});
+
+// ============================================================
+// Screen Inventory Rendering
+// ============================================================
+const screenGrid = document.getElementById('screenGrid');
+function roleBadgeClass(role) {
+  return role === 'student' ? 'badge-student' : role === 'teacher' ? 'badge-teacher' : 'badge-admin';
+}
+function roleLabel(role) {
+  return role === 'student' ? '학생' : role === 'teacher' ? '교사' : '관리자';
+}
+
+function renderScreens() {
+  screenGrid.innerHTML = SCREENS.map(s => `
+    <div class="screen-card" data-id="${s.id}" data-role="${s.role}" data-tier="${s.tier || ''}">
+      <div class="screen-id">${s.id} · ${s.group}</div>
+      <div class="screen-name">${s.name}</div>
+      <div class="screen-meta">
+        <span class="badge ${roleBadgeClass(s.role)}">${roleLabel(s.role)}</span>
+        ${s.tier === 'T2' ? '<span class="badge badge-t2">T2</span>' : ''}
+      </div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.screen-card').forEach(card => {
+    card.addEventListener('click', () => openPanel(card.dataset.id));
+  });
+}
+renderScreens();
+
+// ============================================================
+// Filters
+// ============================================================
+let filterRole = 'all', filterTier = 'all';
+document.querySelectorAll('[data-filter-role]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter-role]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterRole = btn.dataset.filterRole;
+    applyFilters();
+  });
+});
+document.querySelectorAll('[data-filter-tier]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter-tier]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterTier = btn.dataset.filterTier;
+    applyFilters();
+  });
+});
+
+function applyFilters() {
+  const q = document.getElementById('globalSearch').value.trim().toLowerCase();
+  document.querySelectorAll('.screen-card').forEach(card => {
+    const id = card.dataset.id.toLowerCase();
+    const role = card.dataset.role;
+    const tier = card.dataset.tier;
+    const name = card.querySelector('.screen-name').textContent.toLowerCase();
+    let visible = true;
+    if (filterRole !== 'all' && role !== filterRole) visible = false;
+    if (filterTier === 't2' && tier !== 'T2') visible = false;
+    if (q && !id.includes(q) && !name.includes(q)) visible = false;
+    card.classList.toggle('hidden', !visible);
+  });
+}
+
+document.getElementById('globalSearch').addEventListener('input', applyFilters);
+
+// ============================================================
+// Slide Panel
+// ============================================================
+const panel = document.getElementById('screenPanel');
+const backdrop = document.getElementById('panelBackdrop');
+const panelClose = document.getElementById('panelClose');
+panelClose.addEventListener('click', closePanel);
+backdrop.addEventListener('click', closePanel);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+function openPanel(id) {
+  const s = SCREENS.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('panelId').textContent = `${s.id} · ${s.group}`;
+  document.getElementById('panelName').textContent = s.name;
+  document.getElementById('panelMeta').innerHTML = `
+    <span class="badge ${roleBadgeClass(s.role)}">${roleLabel(s.role)}</span>
+    ${s.tier === 'T2' ? '<span class="badge badge-t2">T2 전용</span>' : ''}
+  `;
+
+  document.getElementById('panelBody').innerHTML = `
+    <div class="panel-section">
+      <h4>설명</h4>
+      <p style="font-size: 13px;">${s.desc}</p>
+    </div>
+    <div class="panel-section">
+      <h4>라우팅</h4>
+      <code style="display: block; padding: 8px 10px; word-break: break-all;">${s.route}</code>
+    </div>
+    <div class="panel-section">
+      <h4>권한 컨텍스트</h4>
+      <p style="font-size: 13px; font-family: var(--font-mono);">${s.perm}</p>
+    </div>
+    <div class="panel-section">
+      <h4>주요 API (${s.api.length})</h4>
+      ${s.api.length === 0 ? '<p class="meta-text" style="font-size: 12px;">API 호출 없음 (정적 또는 클라이언트 측)</p>' :
+        s.api.map(a => `<code style="display: block; margin-bottom: 6px; padding: 8px 10px; word-break: break-all; font-size: 11px;">${a}</code>`).join('')
+      }
+    </div>
+    <div class="panel-section">
+      <h4>참조 문서</h4>
+      <ul class="bare" style="font-size: 12px;">
+        <li>${s.role === 'admin' ? '관리자 화면설계서' : s.role === 'teacher' ? '교사 화면설계서' : '학생 화면설계서'} → ${s.id} 섹션</li>
+        <li>API 카탈로그 v0.5 (엔드포인트 상세)</li>
+        <li>권한 매트릭스 v0.3 (권한 검증)</li>
+      </ul>
+    </div>
+  `;
+
+  panel.classList.add('open');
+  backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePanel() {
+  panel.classList.remove('open');
+  backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Search jumps to inventory tab if query starts
+document.getElementById('globalSearch').addEventListener('focus', () => {
+  if (!document.querySelector('.tab[data-tab="inventory"]').classList.contains('active')) {
+    document.querySelector('.tab[data-tab="inventory"]').click();
+  }
+});
+
+// ============================================================
+// Collapsible
+// ============================================================
+document.querySelectorAll('.collapsible-trigger').forEach(trigger => {
+  trigger.addEventListener('click', () => {
+    trigger.parentElement.classList.toggle('open');
+  });
+});
+
+// Keyboard shortcut: / focuses search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('globalSearch').focus();
+  }
+});
+</script>
+
+</body>
+</html>

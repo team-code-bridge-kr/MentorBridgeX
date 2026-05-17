@@ -1,0 +1,27 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    api_debug: bool = True
+    api_secret_key: str = "dev-secret-change-in-production"
+
+    database_url: str = "postgresql+asyncpg://mentor:mentor@localhost:5432/mentorbridgex"
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "mentorbridgex"
+    redis_url: str = "redis://localhost:6379/0"
+
+    ml_adapter: str = "mock"
+    embedding_adapter: str = "mock"
+    offline_demo: bool = False
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
