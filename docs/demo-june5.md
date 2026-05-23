@@ -85,11 +85,27 @@ make harness
 
 `GET /v1/students/me/documents` → 목록 확인.
 
-### A6. PDF import (Mock)
+### A6. PDF import (PyMuPDF 실제 파싱)
 
-`POST /v1/students/me/documents/import-pdf` — 임의 PDF 파일 multipart.
+`POST /v1/students/me/documents/import-pdf` — 생기부 PDF multipart 업로드.
 
-→ `job_id` 수신 → `GET /v1/jobs/{job_id}` status `completed` → graph에 Document/Keyword 노드 증가.
+→ `job_id` 수신 → `GET /v1/jobs/{job_id}` status `completed`
+
+기대 `result` 예시:
+
+```json
+{
+  "extractor": "pymupdf+rule_tokens",
+  "page_count": 19,
+  "unique_token_count": 120,
+  "keywords": ["프로그래밍", "탐구", "..."],
+  "document_section_ids": ["..."]
+}
+```
+
+→ `GET /v1/students/me/graph` 에 Keyword 노드 + Document 노드 + `MENTIONED_IN` 엣지 확인.
+
+**담당 범위:** PDF→텍스트/토큰 추출은 **패키지(PyMuPDF)** + 규칙 기반. **핵심어 가중치(ML)** 는 팀장 트랙(`MockMLAdapter` → 실 ML).
 
 ### A7. 그래프 시각화
 

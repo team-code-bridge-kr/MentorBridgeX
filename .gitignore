@@ -39,3 +39,7 @@ guide/_extracted/
 
 # Docker volumes (local)
 data/
+
+# Local student PDF samples (PII — do not commit)
+student_file/
+.student_file

@@ -6,32 +6,117 @@
   <title>MentorBridgeX Graph Viewer (Dev)</title>
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; display: grid; grid-template-rows: auto 1fr; height: 100vh; }
-    header { padding: 12px 16px; border-bottom: 1px solid #e7e5e4; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    input, button { padding: 8px 10px; font-size: 14px; }
-    #network { width: 100%; height: 100%; background: #fafaf9; }
-    .meta { color: #57534e; font-size: 13px; }
+    :root {
+      --bg: #fafaf9;
+      --border: #e7e5e4;
+      --muted: #57534e;
+    }
+    body {
+      font-family: "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+      margin: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+      background: var(--bg);
+    }
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, button, select {
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    #network { width: 100%; height: 100%; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .legend .kw::before { background: #f97316; }
+    .legend .doc::before { background: #3b82f6; }
+    .legend .inq::before { background: #8b5cf6; }
+    .legend .other::before { background: #64748b; }
   </style>
 </head>
 <body>
   <header>
     <strong>Graph Viewer</strong>
     <input id="token" placeholder="Bearer access_token" style="min-width: 280px" />
-    <button id="load">그래프 불러오기</button>
+    <button id="load" type="button">그래프 불러오기</button>
+    <label class="meta">
+      <input id="physics" type="checkbox" checked /> 물리 시뮬레이션
+    </label>
     <span class="meta" id="status"></span>
+    <div class="legend" aria-label="범례">
+      <span class="kw">Keyword (PDF 빈도)</span>
+      <span class="doc">Document</span>
+      <span class="inq">Inquiry</span>
+      <span class="other">기타</span>
+    </div>
   </header>
   <div id="network"></div>
   <script>
+    const TYPE_STYLE = {
+      Keyword: { color: { background: '#fed7aa', border: '#f97316' }, shape: 'dot' },
+      Document: { color: { background: '#bfdbfe', border: '#3b82f6' }, shape: 'box' },
+      Inquiry: { color: { background: '#ddd6fe', border: '#8b5cf6' }, shape: 'diamond' },
+      Activity: { color: { background: '#bbf7d0', border: '#22c55e' }, shape: 'ellipse' },
+      Subject: { color: { background: '#fecaca', border: '#ef4444' }, shape: 'ellipse' },
+      Period: { color: { background: '#e2e8f0', border: '#64748b' }, shape: 'ellipse' },
+    };
+
+    function nodeSize(node) {
+      const refs = node.external_refs || {};
+      const freq = refs.frequency;
+      if (node.type === 'Keyword' && typeof freq === 'number') {
+        return Math.min(18 + Math.log2(freq + 1) * 6, 42);
+      }
+      return node.type === 'Document' ? 24 : 14;
+    }
+
+    function nodeTitle(node) {
+      const lines = [node.type, node.label];
+      if (node.description) lines.push(node.description);
+      const refs = node.external_refs || {};
+      if (refs.frequency != null) lines.push(`빈도: ${refs.frequency}`);
+      if (refs.weight != null) lines.push(`가중치(ML): ${refs.weight}`);
+      else if (refs.source === 'pdf_tokens') lines.push('가중치: 팀장 ML 연동 예정');
+      return lines.join('\n');
+    }
+
     const statusEl = document.getElementById('status');
     const tokenInput = document.getElementById('token');
     const saved = localStorage.getItem('mbx_token');
     if (saved) tokenInput.value = saved;
 
+    let network = null;
+
     document.getElementById('load').onclick = async () => {
       const token = tokenInput.value.trim();
-      if (!token) { statusEl.textContent = '토큰을 입력하세요 (/v1/auth/dev-login)'; return; }
+      if (!token) {
+        statusEl.textContent = '토큰을 입력하세요 (/v1/auth/dev-login)';
+        return;
+      }
       localStorage.setItem('mbx_token', token);
-      statusEl.textContent = '로딩 중...';
+      statusEl.textContent = '로딩 중…';
+
       const res = await fetch('/v1/students/me/graph', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -40,23 +125,37 @@
         return;
       }
       const data = await res.json();
-      const nodes = new vis.DataSet(data.nodes.map(n => ({
-        id: n.id,
-        label: n.label,
-        title: `${n.type}\n${n.description || ''}`
-      })));
+      const nodes = new vis.DataSet(data.nodes.map(n => {
+        const style = TYPE_STYLE[n.type] || TYPE_STYLE.Keyword;
+        return {
+          id: n.id,
+          label: n.label,
+          title: nodeTitle(n),
+          size: nodeSize(n),
+          font: { face: 'Apple SD Gothic Neo, sans-serif' },
+          ...style,
+        };
+      }));
       const edges = new vis.DataSet(data.edges.map(e => ({
         id: e.id,
         from: e.source_id,
         to: e.target_id,
         label: e.relation,
-        arrows: 'to'
+        arrows: 'to',
+        font: { align: 'middle', size: 10 },
+        color: { color: '#a8a29e' },
       })));
-      new vis.Network(document.getElementById('network'), { nodes, edges }, {
-        physics: { stabilization: true },
-        edges: { font: { align: 'middle' } }
-      });
-      statusEl.textContent = `노드 ${data.nodes.length} · 엣지 ${data.edges.length}`;
+
+      const physicsOn = document.getElementById('physics').checked;
+      const options = {
+        physics: physicsOn ? { stabilization: { iterations: 120 } } : false,
+        interaction: { hover: true, tooltipDelay: 80 },
+        edges: { smooth: { type: 'dynamic' } },
+      };
+
+      if (network) network.destroy();
+      network = new vis.Network(document.getElementById('network'), { nodes, edges }, options);
+      statusEl.textContent = `노드 ${data.nodes.length} · 엣지 ${data.edges.length} · UTF-8`;
     };
   </script>
 </body>
