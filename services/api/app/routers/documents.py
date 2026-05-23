@@ -53,5 +53,10 @@ async def import_pdf(
     user: UserRow | MemoryUser = Depends(get_current_user),
     session: AsyncSession | None = Depends(get_db_session),
 ) -> ImportPdfResponse:
-    job_id = await service.start_pdf_import(session, user.id, file.filename or "upload.pdf")
+    raw = await file.read()
+    if not raw:
+        raise AppError("PDF_EMPTY", "업로드된 PDF 파일이 비어 있습니다.", status_code=400)
+    job_id = await service.start_pdf_import(
+        session, user.id, file.filename or "upload.pdf", raw
+    )
     return ImportPdfResponse(job_id=job_id)

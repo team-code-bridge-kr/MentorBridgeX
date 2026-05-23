@@ -4,18 +4,18 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.factory import get_ml_adapter
 from app.db.factory import get_graph_store, is_offline_demo
 from app.db.memory import MemoryDocument, MemoryJob, get_memory_db
 from app.db.postgres import DocumentSectionRow, JobRow, utcnow
+from app.errors import AppError
+from app.parsers.pdf_extractor import ParsedPdf, parse_pdf_bytes
 from app.schemas.documents import DocumentCreateRequest, DocumentPatchRequest, DocumentSection, SectionType
-from app.schemas.graph import NodeType
+from app.schemas.graph import NodeType, RelationType
 
 
 class DocumentService:
     def __init__(self) -> None:
         self.graph = get_graph_store()
-        self.ml = get_ml_adapter()
 
     def _to_schema_from_row(self, row: DocumentSectionRow) -> DocumentSection:
         return DocumentSection(
@@ -123,10 +123,16 @@ class DocumentService:
         return self._to_schema_from_row(row)
 
     async def start_pdf_import(
-        self, session: AsyncSession | None, user_id: str, filename: str
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        filename: str,
+        file_bytes: bytes,
     ) -> str:
         now = await utcnow()
         job_id = str(uuid4())
+        payload = json.dumps({"filename": filename, "size_bytes": len(file_bytes)})
+
         if is_offline_demo():
             job = MemoryJob(
                 id=job_id,
@@ -134,46 +140,87 @@ class DocumentService:
                 job_type="pdf_import",
                 status="queued",
                 progress=0,
-                payload=json.dumps({"filename": filename}),
+                payload=payload,
                 result=None,
                 error=None,
                 created_at=now,
                 updated_at=now,
             )
             get_memory_db().jobs[job_id] = job
-            await self._complete_pdf_import_mock(session, user_id, job_id)
-            return job_id
+        else:
+            job = JobRow(
+                id=job_id,
+                user_id=user_id,
+                job_type="pdf_import",
+                status="queued",
+                progress=0,
+                payload=payload,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(job)
+            await session.commit()
 
-        job = JobRow(
-            id=job_id,
-            user_id=user_id,
-            job_type="pdf_import",
-            status="queued",
-            progress=0,
-            payload=json.dumps({"filename": filename}),
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(job)
-        await session.commit()
-        await self._complete_pdf_import_mock(session, user_id, job_id)
+        try:
+            parsed = parse_pdf_bytes(file_bytes)
+        except Exception as exc:  # noqa: BLE001 — surface parse errors on job
+            await self._fail_pdf_import(session, user_id, job_id, str(exc))
+            raise AppError(
+                "PDF_PARSE_FAILED",
+                "PDF에서 텍스트를 추출하지 못했습니다.",
+                status_code=422,
+                details={"reason": str(exc)},
+            ) from exc
+
+        if not parsed.full_text.strip():
+            await self._fail_pdf_import(session, user_id, job_id, "empty_text")
+            raise AppError(
+                "PDF_EMPTY",
+                "PDF에서 추출된 텍스트가 없습니다.",
+                status_code=422,
+            )
+
+        await self._complete_pdf_import(session, user_id, job_id, parsed)
         return job_id
 
-    async def _complete_pdf_import_mock(
-        self, session: AsyncSession | None, user_id: str, job_id: str
+    async def _fail_pdf_import(
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        job_id: str,
+        error: str,
     ) -> None:
         now = await utcnow()
-        mock_text = (
-            "화학 실험을 통해 산화·환원 반응의 특성을 탐구하였고, "
-            "실험 설계와 데이터 분석 역량을 기르았습니다."
-        )
+        if is_offline_demo():
+            job = get_memory_db().jobs[job_id]
+            job.status = "failed"
+            job.error = error
+            job.updated_at = now
+            return
 
+        result = await session.execute(select(JobRow).where(JobRow.id == job_id))
+        job = result.scalar_one()
+        job.status = "failed"
+        job.error = error
+        job.updated_at = now
+        await session.commit()
+
+    async def _persist_section(
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        *,
+        section_type: SectionType,
+        content: str,
+        now,
+    ) -> str:
+        section_id = str(uuid4())
         if is_offline_demo():
             section = MemoryDocument(
-                id=str(uuid4()),
+                id=section_id,
                 user_id=user_id,
-                section_type=SectionType.SUBJECT_SPECIFIC.value,
-                content=mock_text,
+                section_type=section_type.value,
+                content=content,
                 period_id=None,
                 subject_id=None,
                 version=1,
@@ -181,45 +228,95 @@ class DocumentService:
                 created_at=now,
                 updated_at=now,
             )
-            get_memory_db().documents[section.id] = section
-        else:
-            section = DocumentSectionRow(
-                id=str(uuid4()),
-                user_id=user_id,
-                section_type=SectionType.SUBJECT_SPECIFIC.value,
-                content=mock_text,
-                version=1,
-                source="pdf_parsed",
-                created_at=now,
-                updated_at=now,
-            )
-            session.add(section)
+            get_memory_db().documents[section_id] = section
+            return section_id
 
-        keywords = await self.ml.extract_keywords_from_text(user_id=user_id, text=mock_text)
-        await self.graph.create_node(
+        row = DocumentSectionRow(
+            id=section_id,
+            user_id=user_id,
+            section_type=section_type.value,
+            content=content,
+            version=1,
+            source="pdf_parsed",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(row)
+        return section_id
+
+    async def _complete_pdf_import(
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        job_id: str,
+        parsed: ParsedPdf,
+    ) -> None:
+        now = await utcnow()
+        section_ids: list[str] = []
+
+        for block in parsed.sections:
+            section_ids.append(
+                await self._persist_section(
+                    session,
+                    user_id,
+                    section_type=block.section_type,
+                    content=block.content,
+                    now=now,
+                )
+            )
+
+        doc_node = await self.graph.create_node(
             user_id,
             node_type=NodeType.DOCUMENT,
-            label="PDF 파싱: 세특",
-            external_refs={"document_section_id": section.id},
+            label=f"PDF import ({parsed.page_count}p)",
+            description=f"sections={len(parsed.sections)}",
+            external_refs={"document_section_ids": section_ids},
         )
-        for label, node_type in keywords:
-            await self.graph.create_node(user_id, node_type=node_type, label=label)
+
+        keyword_labels: list[str] = []
+        for label, freq in parsed.token_frequencies:
+            kw_node = await self.graph.create_node(
+                user_id,
+                node_type=NodeType.KEYWORD,
+                label=label,
+                description=f"pdf_freq={freq}",
+                external_refs={
+                    "source": "pdf_tokens",
+                    "frequency": freq,
+                    # ML weight reserved for team lead / future adapter
+                    "weight": None,
+                },
+            )
+            keyword_labels.append(label)
+            await self.graph.create_edge(
+                user_id,
+                source_id=kw_node.id,
+                target_id=doc_node.id,
+                relation=RelationType.MENTIONED_IN,
+            )
+
+        result_payload = {
+            "document_section_ids": section_ids,
+            "page_count": parsed.page_count,
+            "sections_parsed": len(parsed.sections),
+            "token_count": parsed.token_count,
+            "unique_token_count": parsed.unique_token_count,
+            "keywords": keyword_labels,
+            "extractor": "pymupdf+rule_tokens",
+        }
 
         if is_offline_demo():
             job = get_memory_db().jobs[job_id]
             job.status = "completed"
             job.progress = 100
-            job.result = json.dumps(
-                {"document_section_id": section.id, "keywords": [k[0] for k in keywords]}
-            )
+            job.result = json.dumps(result_payload, ensure_ascii=False)
             job.updated_at = now
-        else:
-            result = await session.execute(select(JobRow).where(JobRow.id == job_id))
-            job = result.scalar_one()
-            job.status = "completed"
-            job.progress = 100
-            job.result = json.dumps(
-                {"document_section_id": section.id, "keywords": [k[0] for k in keywords]}
-            )
-            job.updated_at = now
-            await session.commit()
+            return
+
+        result = await session.execute(select(JobRow).where(JobRow.id == job_id))
+        job = result.scalar_one()
+        job.status = "completed"
+        job.progress = 100
+        job.result = json.dumps(result_payload, ensure_ascii=False)
+        job.updated_at = now
+        await session.commit()
