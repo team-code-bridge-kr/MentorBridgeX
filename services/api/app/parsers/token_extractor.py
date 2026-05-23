@@ -160,6 +160,8 @@ def extract_token_frequencies(
     for token in extract_tokens(text):
         if len(token) < min_len or token in _STOPWORDS:
             continue
+        if token.isdigit():
+            continue
         counter[token] += 1
 
     ranked = sorted(counter.items(), key=lambda item: (-item[1], item[0]))

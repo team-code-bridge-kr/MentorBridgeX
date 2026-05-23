@@ -274,7 +274,9 @@ class DocumentService:
         )
 
         keyword_labels: list[str] = []
+        tokens_payload: list[dict[str, int | str]] = []
         for label, freq in parsed.token_frequencies:
+            tokens_payload.append({"label": label, "frequency": freq})
             kw_node = await self.graph.create_node(
                 user_id,
                 node_type=NodeType.KEYWORD,
@@ -299,8 +301,10 @@ class DocumentService:
             "document_section_ids": section_ids,
             "page_count": parsed.page_count,
             "sections_parsed": len(parsed.sections),
+            "section_titles": [s.title for s in parsed.sections],
             "token_count": parsed.token_count,
             "unique_token_count": parsed.unique_token_count,
+            "tokens": tokens_payload,
             "keywords": keyword_labels,
             "extractor": "pymupdf+rule_tokens",
         }
