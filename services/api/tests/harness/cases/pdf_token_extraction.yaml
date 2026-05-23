@@ -1,0 +1,24 @@
+cases:
+  - name: korean_activity_excerpt
+    fixture: sample_record_excerpt.txt
+    expect:
+      min_unique_tokens: 20
+      contains_tokens:
+        - "프로그래밍"
+        - "탐구"
+        - "분석"
+        - "발표"
+      min_token_occurrences:
+        프로그래밍: 2
+
+  - name: inline_utf8_text
+    text: |
+      화학 실험을 통해 산화·환원 반응을 탐구하였고, 실험 설계와 데이터 분석 역량을 기름.
+      친구들과 함께 프로젝트 발표를 진행함.
+    expect:
+      min_unique_tokens: 8
+      contains_tokens:
+        - "실험"
+        - "탐구"
+        - "프로젝트"
+        - "발표"
