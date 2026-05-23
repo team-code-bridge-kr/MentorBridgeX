@@ -97,11 +97,16 @@ make harness
 {
   "extractor": "pymupdf+rule_tokens",
   "page_count": 19,
-  "unique_token_count": 120,
-  "keywords": ["프로그래밍", "탐구", "..."],
+  "unique_token_count": 850,
+  "token_count": 4200,
+  "tokens": [{"label": "프로그래밍", "frequency": 12}, "..."],
+  "keywords": ["..."],
+  "section_titles": ["국어", "수학", "창의적체험활동상황"],
   "document_section_ids": ["..."]
 }
 ```
+
+→ `tokens` 배열에 **추출된 전체 unique 토큰**이 들어감 (상위 N개 제한 없음).
 
 → `GET /v1/students/me/graph` 에 Keyword 노드 + Document 노드 + `MENTIONED_IN` 엣지 확인.
 

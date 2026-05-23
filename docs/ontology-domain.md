@@ -8,7 +8,7 @@
 |----|------|----------------|
 | F1-01 | 시드 키워드 | `POST /v1/students/me/graph/seed` |
 | F1-02 | PDF 업로드 | `POST /v1/students/me/documents/import-pdf` |
-| F1-02b | PDF 텍스트·토큰 추출 | **PyMuPDF + 규칙 기반** (`app/parsers/`) — ML 아님 |
+| F1-02b | PDF 텍스트·**전체** 토큰 추출 | **PyMuPDF + 규칙 기반** (`app/parsers/`) — ML 아님, top-N 제한 없음 |
 | F1-03 | 그래프 자동 생성 | PDF job 완료 시 Mock ML → Neo4j |
 | F1-04 | 가지치기 추천 | `POST /v1/students/me/recommendations/branch` |
 | F1-05 | 노드/엣지 CRUD | `/v1/students/me/graph/nodes`, `edges` |

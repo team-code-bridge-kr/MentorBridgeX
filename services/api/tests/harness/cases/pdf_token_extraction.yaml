@@ -10,6 +10,7 @@ cases:
         - "발표"
       min_token_occurrences:
         프로그래밍: 2
+      min_sections: 2
 
   - name: inline_utf8_text
     text: |
@@ -22,3 +23,11 @@ cases:
         - "탐구"
         - "프로젝트"
         - "발표"
+
+  - name: full_token_list_no_truncation
+    text: |
+      국어: 프로그래밍 탐구 발표 분석 실험 데이터 프로젝트 협업 토론 독서 작성 연구
+      수학: 프로그래밍 탐구 발표 분석 실험 데이터 프로젝트 협업 토론 독서 작성 연구
+    expect:
+      min_unique_tokens: 10
+      expect_all_tokens_in_result: true

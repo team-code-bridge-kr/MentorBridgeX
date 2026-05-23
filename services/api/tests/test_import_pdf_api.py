@@ -50,6 +50,7 @@ async def test_import_pdf_end_to_end() -> None:
         assert isinstance(result, dict)
         assert result["extractor"] == "pymupdf+rule_tokens"
         assert result["unique_token_count"] >= 5
+        assert len(result["tokens"]) == result["unique_token_count"]
         assert "프로그래밍" in result["keywords"]
 
         graph = await client.get(
