@@ -1,0 +1,186 @@
+# ─────────────────────────────────────────────
+# 환경 변수 / 비밀
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+
+# ─────────────────────────────────────────────
+# Python / FastAPI (backend/)
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 가상환경
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# 테스트 / 커버리지
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+.nox/
+nosetests.xml
+
+# 린트 / 타입체커 캐시
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Alembic (마이그레이션 파일은 커밋, 환경별 ini는 무시)
+alembic.ini.local
+
+# ─────────────────────────────────────────────
+# Flutter / Dart (flutter/)
+# ─────────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+flutter/build/
+**/build/
+*.iml
+.metadata
+
+# Flutter 빌드 산출물
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+*.keystore
+
+# iOS
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/ios/.symlinks/
+
+# Windows
+**/windows/flutter/ephemeral/
+
+# 커버리지
+flutter/coverage/
+**/coverage/lcov.info
+
+# ─────────────────────────────────────────────
+# Daglo / gRPC 생성 파일 (필요 시 주석 해제)
+# ─────────────────────────────────────────────
+# speech_pb2.py
+# speech_pb2_grpc.py
+
+# 오디오 / 미디어 샘플 (대용량)
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.mp4
+*.mov
+!**/fixtures/**/*.wav
+!**/fixtures/**/*.mp3
+
+# ─────────────────────────────────────────────
+# IDE / 에디터
+# ─────────────────────────────────────────────
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ─────────────────────────────────────────────
+# OS
+# ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─────────────────────────────────────────────
+# 로그 / 임시 파일
+# ─────────────────────────────────────────────
+*.log
+logs/
+*.tmp
+*.bak
+*.cache
+tmp/
+temp/
+
+# ─────────────────────────────────────────────
+# Docker
+# ─────────────────────────────────────────────
+docker-compose.override.yml
+.docker/
+
+# ─────────────────────────────────────────────
+# 성능 / 테스트 결과
+# ─────────────────────────────────────────────
+perf-results*.csv
+outdated-python.txt
+outdated-flutter.txt
