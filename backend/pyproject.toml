@@ -27,7 +27,7 @@ extend-exclude = '''
 [tool.isort]
 profile = "black"
 line_length = 100
-skip = ["app/core/daglo/proto/speech_pb2.py", "app/core/daglo/proto/speech_pb2_grpc.py"]
+skip_glob = ["**/proto/speech_pb2*.py"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
