@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.core.daglo.grpc_client import STTPartial
@@ -75,7 +74,7 @@ def test_realtime_ws_returns_partials_and_final():
         _override_state(client, svc)
         with client.websocket_connect("/v1/stt/realtime") as ws:
             ws.send_bytes(b"\x00" * 8000)  # 0.25초 분량 PCM 가짜
-            ws.send_text("stop")            # 명시 종료 신호
+            ws.send_text("stop")  # 명시 종료 신호
 
             msg1 = ws.receive_json()
             msg2 = ws.receive_json()

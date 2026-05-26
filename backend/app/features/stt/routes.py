@@ -10,9 +10,22 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, Response, UploadFile, WebSocket
+import grpc
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Response,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 
 from app.core.daglo.exceptions import DagloError, DagloNotFoundError
 
@@ -100,14 +113,6 @@ async def sync_short_transcribe(
 #   - 권한:                  참고/permission_matrix.md:213-214
 #     (v0.1은 인증 미구현 — 향후 voice-sessions 도메인에서 통합)
 # ─────────────────────────────────────────────
-import asyncio
-from collections.abc import AsyncIterator
-
-import grpc
-
-from fastapi import WebSocketDisconnect
-
-
 async def _ws_audio_iter(ws: WebSocket) -> AsyncIterator[bytes]:
     """클라이언트→서버 바이너리 청크를 비동기 이터레이터로.
 
@@ -186,7 +191,7 @@ async def realtime_transcribe(ws: WebSocket) -> None:
         raise
     except WebSocketDisconnect:
         return
-    except Exception as e:  # noqa: BLE001 — 마지막 방어선
+    except Exception as e:
         try:
             await ws.send_json({"type": "error", "code": "internal", "message": str(e)})
         finally:

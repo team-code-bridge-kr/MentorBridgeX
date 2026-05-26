@@ -82,8 +82,13 @@ class SubmitResponse(BaseModel):
 
 
 AsyncStatus = Literal[
-    "requested", "processing", "transcribed", "completed", "file_error",
-    "input_error", "processing_error",
+    "requested",
+    "processing",
+    "transcribed",
+    "completed",
+    "file_error",
+    "input_error",
+    "processing_error",
 ]
 
 

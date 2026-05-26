@@ -35,7 +35,7 @@ class DagloHTTPClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def __aenter__(self) -> "DagloHTTPClient":
+    async def __aenter__(self) -> DagloHTTPClient:
         return self
 
     async def __aexit__(self, *exc: Any) -> None:

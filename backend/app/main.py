@@ -5,8 +5,8 @@ v0.1 범위: Daglo STT 통합 (라이브/비동기). NLP/TTS는 미채택.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.dependency_overrides[stt_routes.get_stt_service] = lambda: service
     app.state.daglo_client = client
-    app.state.stt_service = service     # WS 라우트가 사용 (Depends 불가)
+    app.state.stt_service = service  # WS 라우트가 사용 (Depends 불가)
     try:
         yield
     finally:
