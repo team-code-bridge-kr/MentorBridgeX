@@ -1,0 +1,2236 @@
+openapi: 3.0.0
+info:
+  title: Cloud API 문서
+  version: '1.0'
+  description: |-
+    API를 서비스를 사용하기 위해서는 JWT 토큰이 필요합니다.
+
+    ## API Rate Limits
+
+    <blockquote>
+
+    각 API Endpoint 별 20 requests/sec 의 Rate Limit이 적용됩니다.
+
+    이 허용치를 초과하는 요청량에 대해서는 HTTP 429 Too Many Request Error 응답이 나갈 수 있으며,
+
+    반복, 지속적으로 요청량을 초과하게 되는 경우, 비정상적인 이용으로 간주되어 요청이 차단될 수 있습니다.
+
+    </blockquote>
+  contact:
+    name: Customer Service
+    email: cs@daglo.ai
+  termsOfService: 'https://daglo.ai/terms'
+  license:
+    url: 'https://daglo.ai/license'
+    name: License
+paths:
+  /stt/v1/sync/transcripts:
+    x-permission: stt-sync
+    post:
+      x-descriptors:
+        - default: general
+          at: /sttConfig/model
+      x-features:
+        - at: /sttConfig/model
+          default: general
+      x-return-usage:
+        - name: audioDuration
+          at: /returnAudioDuration
+          regex: 'true'
+      summary: Transcribe short audio
+      description: 짧은 오디오를 텍스트로 변환합니다. 동기화 방식이 사용됩니다.
+      tags:
+        - STT
+        - Sync
+      operationId: post-stt-v1-sync-transcripts
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              x-tags:
+                - STT
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |-
+                    받아쓰기를 요청할 파일입니다.
+
+                    파일의 재생 시간이 30초를 초과할 수 없습니다.
+                sttConfig:
+                  type: object
+                  description: 동기 방식의 STT 요청에 대한 설정입니다.
+                  properties:
+                    model:
+                      type: string
+                      enum:
+                        - general
+                      description: |-
+                        받아쓰기에 사용할 모델 이름입니다.
+
+                        명시하지 않을 경우 general 이 사용됩니다.
+
+                        사용 가능한 모델은 다음과 같습니다.
+
+                        |**모델**|**설명**|
+                        |:---:|:---:|
+                        |`general`|일반적인 경우에 사용되는 모델입니다.|
+                    keywordBoost:
+                      type: object
+                      description: |-
+                        키워드 부스트를 위한 설정입니다.
+
+                        키워드 부스트를 활성화 하면 받아쓰기 결과에서 명시된 키워드들의 인식 확률이 향상됩니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 부스트를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        keywords:
+                          type: array
+                          description: |-
+                            강조할 키워드를 명시합니다. string의 배열 형태입니다.
+
+                            명시하지 않을 경우 키워드 부스트가 비활성화 됩니다.
+                          items:
+                            type: string
+                          example:
+                            - 다글로
+                        boost:
+                          type: integer
+                          description: |-
+                            키워드 부스트 정도를 설정합니다. 높을 수록 더 높은 확률로 키워드를 인식합니다.
+
+                            1 ~ 15 사이의 정수값입니다. 명시하지 않으면 5 입니다.
+                          minimum: 1
+                          maximum: 15
+                          default: 7
+                      x-tags:
+                        - STT
+                  x-tags:
+                    - STT
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - file
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  x-tags:
+                    - STT
+                  properties:
+                    file:
+                      type: string
+                      format: binary
+                      description: |-
+                        받아쓰기를 요청할 파일입니다.
+
+                        파일의 재생 시간이 30초를 초과할 수 없습니다.
+                    sttConfig:
+                      type: object
+                      description: 동기 방식의 STT 요청에 대한 설정입니다.
+                      properties:
+                        model:
+                          type: string
+                          enum:
+                            - general
+                          description: |-
+                            받아쓰기에 사용할 모델 이름입니다.
+
+                            명시하지 않을 경우 general 이 사용됩니다.
+
+                            사용 가능한 모델은 다음과 같습니다.
+
+                            |**모델**|**설명**|
+                            |:---:|:---:|
+                            |`general`|일반적인 경우에 사용되는 모델입니다.|
+                        keywordBoost:
+                          type: object
+                          description: |-
+                            키워드 부스트를 위한 설정입니다.
+
+                            키워드 부스트를 활성화 하면 받아쓰기 결과에서 명시된 키워드들의 인식 확률이 향상됩니다.
+                          properties:
+                            enable:
+                              type: boolean
+                              description: 키워드 부스트를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                            keywords:
+                              type: array
+                              description: |-
+                                강조할 키워드를 명시합니다. string의 배열 형태입니다.
+
+                                명시하지 않을 경우 키워드 부스트가 비활성화 됩니다.
+                              items:
+                                type: string
+                              example:
+                                - 다글로
+                            boost:
+                              type: integer
+                              description: |-
+                                키워드 부스트 정도를 설정합니다. 높을 수록 더 높은 확률로 키워드를 인식합니다.
+
+                                1 ~ 15 사이의 정수값입니다. 명시하지 않으면 5 입니다.
+                              minimum: 1
+                              maximum: 15
+                              default: 7
+                          x-tags:
+                            - STT
+                      x-tags:
+                        - STT
+                    custom:
+                      type: object
+                      description: |-
+                        응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                        사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                        요청을 자동화 하여 보낼 때 유용합니다.
+                      example:
+                        app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                      x-tags:
+                        - Common
+                  required:
+                    - file
+                - type: object
+                  properties:
+                    fileName:
+                      type: string
+                      description: 파일 이름입니다.
+                      x-tags:
+                        - Common
+              x-tags:
+                - STT
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sttResult:
+                    type: object
+                    properties:
+                      transcript:
+                        type: string
+                        description: 받아쓰기 결과 전체 Text.
+                  audioDuration:
+                    type: number
+                    format: float
+                    description: 초.
+                  elapsedTime:
+                    type: integer
+                    description: 밀리초.
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                x-tags:
+                  - STT
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  /stt/v1/async/transcripts:
+    x-permission: stt-async
+    post:
+      x-descriptors:
+        - default: ko-KR
+          at: /sttConfig/language
+      x-features:
+        - at: /sttConfig/language
+          default: ko-KR
+        - name: sentimentAnalysis
+          at: /nlpConfig/sentimentAnalysis/enable
+          regex: 'true'
+      x-wait-for-response: false
+      summary: Send long audio to transcribe
+      description: |-
+        오디오 파일을 텍스트로 변환합니다. 비동기화 방식이 사용됩니다. POST 요청으로 rid를 발급받은 후 GET 요청으로 진행상황 및 결과를 확인할 수 있습니다.
+
+        `multipart/form-data` 방식의 요청으로 파일을 직접 보낼 수 있고, `application/json` 방식의 요청으로 파일이 저장된 공개 URL을 넘길 수 있습니다.
+      tags:
+        - STT
+        - Async
+      operationId: post-stt-v1-async-transcripts
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |-
+                    받아쓰기를 요청할 파일입니다.
+
+                    파일 크기가 2GB를 넘지 않아야 하고, 파일 재생 시간이 4시간 이내여야 합니다.
+
+                    다음과 같은 형식의 파일을 업로드하여 받아쓰기 하실 수 있습니다.
+
+                    • 오디오 : `.3gp`, `.3gpp`, `.ac3`, `.aac`, `.aiff`, `.amr`, `.au`, `.flac`,
+                              `.m4a`, `.mp3`, `.mxf`, `.opus`,
+                              `.ra`, `.wav`, `.weba`
+
+                    • 비디오 : `.asx`, `.avi`, `.ogm`, `.ogv`, `.m4v`, `.mov`, `.mp4`, `.mpeg`,
+                              `.mpg`, `.wmv`
+
+                    확장자(형식)가 같더라도 실제 내용(인코딩)이 다를 경우 받아쓰기가 진행되지 않을 수 있습니다.
+                sttConfig:
+                  type: object
+                  description: 비동기 방식의 STT 요청을 위한 설정입니다.
+                  properties:
+                    model:
+                      type: string
+                      enum:
+                        - general
+                      description: |-
+                        받아쓰기에 사용할 모델 이름입니다.
+
+                        명시하지 않을 경우 `general` 이 사용됩니다.
+
+                        사용 가능한 모델은 다음과 같습니다.
+
+                        |**모델**|**설명**|
+                        |:---:|:---:|
+                        |`general`|일반적인 경우에 사용되는 모델입니다.|
+                    language:
+                      type: string
+                      enum:
+                        - ko-KR
+                        - en-US
+                        - mixed
+                        - ja-JP
+                        - cmn-Hans-CN
+                        - de-DE
+                        - fr-FR
+                        - es-ES
+                        - it-IT
+                        - nl-NL
+                        - sv-SE
+                        - hi-IN
+                        - ru-RU
+                        - vi-VN
+                        - th-TH
+                        - id-ID
+                        - fa-IR
+                        - cs-CZ
+                      description: |-
+                        받아쓰기 할 컨텐츠의 언어입니다.
+
+                        사용 가능한 값은 `ko-KR`, `en-US`, `mixed`, `ja-JP` 이며, 기본값은 `ko-KR` 입니다.
+
+                        (대소문자를 구분합니다)
+
+                        한국어와 영어가 섞여있는 컨텐츠의 경우, `mixed`를 사용하면 받아쓰기를 할 때 두 언어를 구분하여 받아쓰기를 시도합니다.
+                    keywordBoost:
+                      type: object
+                      description: |-
+                        키워드 부스트를 위한 설정입니다.
+
+                        키워드 부스트를 활성화 하면 받아쓰기 결과에서 명시된 키워드들의 인식 확률이 향상됩니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 부스트를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        keywords:
+                          type: array
+                          description: |-
+                            강조할 키워드를 명시합니다. string의 배열 형태입니다.
+
+                            명시하지 않을 경우 키워드 부스트가 비활성화 됩니다.
+                          items:
+                            type: string
+                          example:
+                            - 다글로
+                        boost:
+                          type: integer
+                          description: |-
+                            키워드 부스트 정도를 설정합니다. 높을 수록 더 높은 확률로 키워드를 인식합니다.
+
+                            1 ~ 15 사이의 정수값입니다. 명시하지 않으면 5 입니다.
+                          minimum: 1
+                          maximum: 15
+                          default: 7
+                      x-tags:
+                        - STT
+                    multiChannel:
+                      type: object
+                      description: |-
+                        멀티 채널 오디오에 대한 설정입니다.
+
+                        오디오의 채널이 여러개인 경우 각 채널의 음성을 따로 받아쓰기 합니다.
+                        2 개의 채널까지만 지원합니다.
+
+                        명시되지 않을 경우 비활성화 됩니다.
+                      properties:
+                        channelCount:
+                          type: integer
+                          description: |-
+                            오디오의 채널 수 입니다.
+
+                            1 보다 큰 값이 명시 되면 각 채널의 음성을 각각 받아쓰기 합니다.
+                          minimum: 1
+                          maximum: 2
+                      x-tags:
+                        - STT
+                    speakerDiarization:
+                      type: object
+                      description: |-
+                        화자 분리를 위한 설정입니다.
+
+                        오디오에 나타나는 화자들을 구분하여 받아쓰기를 합니다. 명시하지 않을 경우 비활성화 됩니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 화자 분리를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        speakerCountHint:
+                          type: integer
+                          description: 화자가 몇 명인지에 대한 힌트를 설정합니다. 화자 분리 성능이 개선될 수 있습니다.
+                          minimum: 2
+                      x-tags:
+                        - STT
+                  x-tags:
+                    - STT
+                nlpConfig:
+                  type: object
+                  description: 자연어 처리 설정을 위한 객체 입니다.
+                  properties:
+                    keywordExtraction:
+                      type: object
+                      description: |-
+                        키워드 추출 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트에서 키워드를 추룰합니다.
+                      x-tags:
+                        - NLP
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 추출을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        maxCount:
+                          type: integer
+                          description: |-
+                            추출 할 키워드의 최대 개수 입니다. 
+
+                            값이 클 경우 속도에 영향을 줄 수 있습니다.
+
+                            키워드가 많지 않을 경우 명시된 수 보다 적은 수의 키워드를 추출 할 수 있습니다.
+                          minimum: 1
+                          example: 10
+                    sentimentAnalysis:
+                      type: object
+                      description: |-
+                        텍스트 감정분석 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트를 분석하여 전반적인 감정을 반환합니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 텍스트 감정 분석을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                      x-tags:
+                        - NLP
+                  x-tags:
+                    - NLP
+                callback:
+                  type: object
+                  description: '비동기 요청의 진행 상태 및 결과를 콜백으로 전달 받고 싶을 때 사용합니다. '
+                  properties:
+                    url:
+                      type: string
+                      description: |-
+                        콜백을 전송받을 http(s) 를 포함한 URL 입니다.
+
+                        처리 중에는 진행상태를, 처리가 완료 된 뒤에는 결과 혹은 오류 상태를 `POST` 방식으로 해당 URL에 전송합니다.
+                    headers:
+                      type: object
+                      description: '콜백 URL로 전송할 때, 헤더에 포함시켜야 하는 값이 있다면 명시해줍니다.'
+                  x-tags:
+                    - Common
+                callbackUrl:
+                  type: string
+                  description: "**[\U0001F6AB DEPRECATED]** 콜백을 사용하기 위해서는 `callback` 필드를 참조하여 주시기 바랍니다. \n\n받아쓰기 진행상태 및 결과를 전송받을 http(s) 를 포함한 URL 입니다.\n\n받아쓰기가 진행 중에는 진행상태를, 받아쓰기가 완료 된 뒤에는 받아쓰기 결과를 POST 방식으로 해당 URL에 전송합니다.\n\nCallbackUrl로 요청되는 request body는 SttAsyncInitResponse와 동일합니다."
+                  x-tags:
+                    - Common
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - file
+              x-tags:
+                - STT
+          application/json:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: object
+                  description: |-
+                    음성 파일에 대한 설정입니다.
+
+                    파일 크기가 2GB를 넘지 않아야 하고, 파일 재생 시간이 4시간 이내여야 합니다.
+
+                    다음과 같은 형식의 파일을 업로드하여 받아쓰기 하실 수 있습니다. 
+
+                    • 오디오 : `.3gp`, `.3gpp`, `.ac3`, `.aac`, `.aiff`, `.amr`, `.au`, `.flac`, 
+                              `.m4a`, `.mp3`, `.mxf`, `.opus`, 
+                              `.ra`, `.wav`, `.weba`
+
+                    • 비디오 : `.asx`, `.avi`, `.ogm`, `.ogv`, `.m4v`, `.mov`, `.mp4`, `.mpeg`, 
+                              `.mpg`, `.wmv`
+
+                    확장자(형식)가 같더라도 실제 내용(인코딩)이 다를 경우 받아쓰기가 진행되지 않을 수 있습니다.
+                  properties:
+                    source:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          description: 받아쓰기를 요청할 파일의 URL 입니다. 해당 URL에 접근이 가능해야 합니다.
+                      required:
+                        - url
+                  required:
+                    - source
+                sttConfig:
+                  type: object
+                  description: 비동기 방식의 STT 요청을 위한 설정입니다.
+                  properties:
+                    model:
+                      type: string
+                      enum:
+                        - general
+                      description: |-
+                        받아쓰기에 사용할 모델 이름입니다.
+
+                        명시하지 않을 경우 `general` 이 사용됩니다.
+
+                        사용 가능한 모델은 다음과 같습니다.
+
+                        |**모델**|**설명**|
+                        |:---:|:---:|
+                        |`general`|일반적인 경우에 사용되는 모델입니다.|
+                    language:
+                      type: string
+                      enum:
+                        - ko-KR
+                        - en-US
+                        - mixed
+                        - ja-JP
+                        - cmn-Hans-CN
+                        - de-DE
+                        - fr-FR
+                        - es-ES
+                        - it-IT
+                        - nl-NL
+                        - sv-SE
+                        - hi-IN
+                        - ru-RU
+                        - vi-VN
+                        - th-TH
+                        - id-ID
+                        - fa-IR
+                        - cs-CZ
+                      description: |-
+                        받아쓰기 할 컨텐츠의 언어입니다.
+
+                        사용 가능한 값은 `ko-KR`, `en-US`, `mixed`, `ja-JP` 이며, 기본값은 `ko-KR` 입니다.
+
+                        (대소문자를 구분합니다)
+
+                        한국어와 영어가 섞여있는 컨텐츠의 경우, `mixed`를 사용하면 받아쓰기를 할 때 두 언어를 구분하여 받아쓰기를 시도합니다.
+                    keywordBoost:
+                      type: object
+                      description: |-
+                        키워드 부스트를 위한 설정입니다.
+
+                        키워드 부스트를 활성화 하면 받아쓰기 결과에서 명시된 키워드들의 인식 확률이 향상됩니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 부스트를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        keywords:
+                          type: array
+                          description: |-
+                            강조할 키워드를 명시합니다. string의 배열 형태입니다.
+
+                            명시하지 않을 경우 키워드 부스트가 비활성화 됩니다.
+                          items:
+                            type: string
+                          example:
+                            - 다글로
+                        boost:
+                          type: integer
+                          description: |-
+                            키워드 부스트 정도를 설정합니다. 높을 수록 더 높은 확률로 키워드를 인식합니다.
+
+                            1 ~ 15 사이의 정수값입니다. 명시하지 않으면 5 입니다.
+                          minimum: 1
+                          maximum: 15
+                          default: 7
+                      x-tags:
+                        - STT
+                    multiChannel:
+                      type: object
+                      description: |-
+                        멀티 채널 오디오에 대한 설정입니다.
+
+                        오디오의 채널이 여러개인 경우 각 채널의 음성을 따로 받아쓰기 합니다.
+                        2 개의 채널까지만 지원합니다.
+
+                        명시되지 않을 경우 비활성화 됩니다.
+                      properties:
+                        channelCount:
+                          type: integer
+                          description: |-
+                            오디오의 채널 수 입니다.
+
+                            1 보다 큰 값이 명시 되면 각 채널의 음성을 각각 받아쓰기 합니다.
+                          minimum: 1
+                          maximum: 2
+                      x-tags:
+                        - STT
+                    speakerDiarization:
+                      type: object
+                      description: |-
+                        화자 분리를 위한 설정입니다.
+
+                        오디오에 나타나는 화자들을 구분하여 받아쓰기를 합니다. 명시하지 않을 경우 비활성화 됩니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 화자 분리를 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        speakerCountHint:
+                          type: integer
+                          description: 화자가 몇 명인지에 대한 힌트를 설정합니다. 화자 분리 성능이 개선될 수 있습니다.
+                          minimum: 2
+                      x-tags:
+                        - STT
+                  x-tags:
+                    - STT
+                nlpConfig:
+                  type: object
+                  description: 자연어 처리 설정을 위한 객체 입니다.
+                  properties:
+                    keywordExtraction:
+                      type: object
+                      description: |-
+                        키워드 추출 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트에서 키워드를 추룰합니다.
+                      x-tags:
+                        - NLP
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 추출을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        maxCount:
+                          type: integer
+                          description: |-
+                            추출 할 키워드의 최대 개수 입니다. 
+
+                            값이 클 경우 속도에 영향을 줄 수 있습니다.
+
+                            키워드가 많지 않을 경우 명시된 수 보다 적은 수의 키워드를 추출 할 수 있습니다.
+                          minimum: 1
+                          example: 10
+                    sentimentAnalysis:
+                      type: object
+                      description: |-
+                        텍스트 감정분석 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트를 분석하여 전반적인 감정을 반환합니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 텍스트 감정 분석을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                      x-tags:
+                        - NLP
+                  x-tags:
+                    - NLP
+                callback:
+                  type: object
+                  description: '비동기 요청의 진행 상태 및 결과를 콜백으로 전달 받고 싶을 때 사용합니다. '
+                  properties:
+                    url:
+                      type: string
+                      description: |-
+                        콜백을 전송받을 http(s) 를 포함한 URL 입니다.
+
+                        처리 중에는 진행상태를, 처리가 완료 된 뒤에는 결과 혹은 오류 상태를 `POST` 방식으로 해당 URL에 전송합니다.
+                    headers:
+                      type: object
+                      description: '콜백 URL로 전송할 때, 헤더에 포함시켜야 하는 값이 있다면 명시해줍니다.'
+                  x-tags:
+                    - Common
+                callbackUrl:
+                  type: string
+                  description: "**[\U0001F6AB DEPRECATED]** 콜백을 사용하기 위해서는 `callback` 필드를 참조하여 주시기 바랍니다. \n\n받아쓰기 진행상태 및 결과를 전송받을 http(s) 를 포함한 URL 입니다.\n\n받아쓰기가 진행 중에는 진행상태를, 받아쓰기가 완료 된 뒤에는 받아쓰기 결과를 POST 방식으로 해당 URL에 전송합니다.\n\nCallbackUrl로 요청되는 request body는 SttAsyncInitResponse와 동일합니다."
+                  x-tags:
+                    - Common
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - audio
+              x-tags:
+                - STT
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rid:
+                    type: string
+                    description: 요청 ID 입니다.
+                    example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                  fileName:
+                    type: string
+                    description: 파일 이름입니다.
+                    x-tags:
+                      - Common
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                x-tags:
+                  - STT
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: 너무 많은 요청을 처리하고 있어 일시적으로 응답이 불가능한 상태입니다. 잠시 후 다시 시도해주세요.
+  '/stt/v1/async/transcripts/{rid}':
+    x-permission: stt-async
+    parameters:
+      - name: rid
+        in: path
+        required: true
+        schema:
+          type: string
+          description: 요청 ID 입니다.
+          example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+          x-tags:
+            - Common
+        description: Request ID.
+    get:
+      summary: Get long audio transcription
+      description: 비동기화 방식으로 요청한 받아쓰기의 진행상황 및 결과를 확인합니다.
+      tags:
+        - STT
+        - Async
+      operationId: get-stt-v1-async-transctips-rid
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rid:
+                    type: string
+                    description: 요청 ID 입니다.
+                    example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                  status:
+                    type: string
+                    description: |-
+                      받아쓰기 요청의 상태값 입니다.
+
+                      `ai_requested`: 요청이 시작되었습니다.
+
+                      `uploaded`: 파일 업로드가 완료되었습니다.
+
+                      `file_processing`: 파일을 전처리 중 입니다.
+
+                      `transcribing`: 받아쓰기 중 입니다.
+
+                      `post_processing`: 후처리 중 입니다.
+
+                      `transcribed`: 받아쓰기가 완료되었습니다.
+
+                      `input_error`: 사용자 요청 값에 오류가 있습니다. 확인 후 다시 요청해 주세요.
+
+                      `transcript_error`: 받아쓰기 중 오류가 발생하였습니다. 잠시 기다렸다가 다시 요청해 주세요.
+
+                      `file_error`: 파일에 오류가 있습니다. 파일 확인 후 다시 요청해 주세요.
+                    enum:
+                      - ai_requested
+                      - uploaded
+                      - file_processing
+                      - transcribing
+                      - post_processing
+                      - transcribed
+                      - input_error
+                      - transcript_error
+                      - file_error
+                    example: transcribed
+                    x-tags:
+                      - STT
+                  progress:
+                    type: integer
+                    description: 받아쓰기 처리중인 경우 현재 진행률을 나타냅니다.
+                    example: 100
+                  sttResults:
+                    type: array
+                    items:
+                      type: object
+                      description: 받아쓰기 결과입니다.
+                      properties:
+                        transcript:
+                          type: string
+                          description: 받아쓰기 결과의 전체 텍스트 입니다.
+                        words:
+                          type: array
+                          description: 각 단어별 받아쓰기 결과를 나타냅니다.
+                          items:
+                            type: object
+                            properties:
+                              word:
+                                type: string
+                                description: 받아쓰기 한 단어 입니다.
+                              startTime:
+                                description: 해당 단어가 음성파일에서 시작한 시간입니다.
+                                type: object
+                                properties:
+                                  seconds:
+                                    type: string
+                                    description: 초.
+                                  nanos:
+                                    type: integer
+                                    format: int64
+                                    description: 나노초.
+                                x-tags:
+                                  - STT
+                              endTime:
+                                description: 해당 단어가 음성파일에서 끝난 시간입니다.
+                                type: object
+                                properties:
+                                  seconds:
+                                    type: string
+                                    description: 초.
+                                  nanos:
+                                    type: integer
+                                    format: int64
+                                    description: 나노초.
+                                x-tags:
+                                  - STT
+                              hasKeyword:
+                                type: boolean
+                                description: 해당 단어가 키워드 추출에 의해 선택 된 키워드 인지를 나타냅니다.
+                              speaker:
+                                type: string
+                                description: 화자 ID 입니다.
+                            example:
+                              word: 안녕하세요
+                              startTime:
+                                seconds: '0'
+                                nanos: 0
+                              endTime:
+                                seconds: '7'
+                                nanos: 700000000
+                              hasKeyword: true
+                              speaker: '1'
+                            x-tags:
+                              - STT
+                        keywords:
+                          type: array
+                          description: |-
+                            (Optional) 음성 내용을 바탕으로 추출된 주요 키워드의 목록입니다.
+
+                            **STT 요청시, 키워드 추출을 기능을 활성화한 경우에만 응답 본문에 포함됩니다.**
+
+                            키워드 추출을 활성화했지만 키워드가 추출되지 않을 경우 빈 리스트를 반환합니다.
+                          items:
+                            type: string
+                      required:
+                        - transcript
+                      x-tags:
+                        - STT
+                  message:
+                    type: string
+                    description: 오류 메시지 등의 추가정보를 표시합니다.
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                x-tags:
+                  - STT
+            text/plain:
+              schema:
+                type: string
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '404':
+          description: Not Found.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  '/stt/v1/async/transcripts/{rid}/{format}':
+    x-permission: stt-async
+    parameters:
+      - name: rid
+        in: path
+        required: true
+        schema:
+          type: string
+          description: 요청 ID 입니다.
+          example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+          x-tags:
+            - Common
+        description: Request ID.
+      - name: format
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            - srt
+        description: Transcript format.
+    get:
+      summary: Get long audio transcription as a file
+      description: 비동기화 방식으로 요청한 받아쓰기의 결과를 주어진 포맷으로 제공합니다. 가능한 포맷은 `srt` 입니다. 받아쓰기가 아직 완료되지 않았을 경우 202 응답코드를 반환합니다.
+      tags:
+        - STT
+        - Async
+      operationId: get-stt-v1-async-transctips-rid-format
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+        '202':
+          description: 요청은 수락되었으나 이전 작업이 아직 완료되지 않았습니다.
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '404':
+          description: Not Found.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: 너무 많은 요청을 처리하고 있어 일시적으로 응답이 불가능한 상태입니다. 잠시 후 다시 시도해주세요.
+  /nlp/v1/sync/summaries:
+    x-permission: nlp-sync-summary
+    post:
+      x-descriptors:
+        - default: summary
+        - default: dialogue
+          at: /nlpConfig/summary/model
+      x-features:
+        - name: keywordExtraction
+          at: /nlpConfig/keywordExtraction/enable
+          regex: 'true'
+      summary: Summarize short dialogue
+      description: 대화 형태의 텍스트를 요약합니다. 동기화 방식이 사용됩니다.
+      tags:
+        - NLP
+        - Sync
+      operationId: post-nlp-v1-sync-summaries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              x-tags:
+                - NLP
+              properties:
+                text:
+                  oneOf:
+                    - type: array
+                      description: DialogueUtterance 객체의 배열입니다.
+                      items:
+                        type: object
+                        description: 발화 정보를 전달하기 위한 객체입니다. 화자 정보 및 화자의 발화 정보를 담고 있습니다.
+                        properties:
+                          speaker:
+                            type: string
+                            description: 화자의 이름 또는 ID 입니다.
+                            example: 상담원
+                          text:
+                            type: string
+                            description: 화자의 발화 내용입니다.
+                            example: 안녕하세요. 상담원 ㅇㅇㅇ입니다. 무엇을 도와드릴까요?
+                        x-tags:
+                          - NLP
+                      x-tags:
+                        - NLP
+                    - type: string
+                      description: 문자열 형태의 텍스트입니다.
+                      x-tags:
+                        - Common
+                nlpConfig:
+                  type: object
+                  description: 텍스트 요약 설정입니다.
+                  properties:
+                    summary:
+                      type: object
+                      description: |-
+                        텍스트 요약 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트를 요약한 결과를 반환합니다.
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 텍스트 요약을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        model:
+                          type: string
+                          enum:
+                            - dialogue
+                          description: |-
+                            텍스트 요약을 위해 사용할 모델을 이름입니다.
+
+                            명시하지 않을 경우 dialogue가 사용됩니다.
+
+                            사용 가능한 모델은 다음과 같습니다.
+
+                            |모델|설명|
+                            |:---:|:---:|
+                            |dialogue|대화를 요약하는 모델입니다.|
+                        outputSizeOption:
+                          type: string
+                          enum:
+                            - small
+                            - medium
+                            - large
+                          description: |-
+                            요약 결과의 분량을 결정하는 설정입니다.
+
+                            `small`, `medium`, `large` 중 하나를 사용 할 수 있습니다.
+
+                            `maxCharsPerParagraph` 값이 주어질 경우 `outputSizeOption`은 무시됩니다.
+                        maxCharsPerParagraph:
+                          type: integer
+                          description: |-
+                            한 문단을 구성 할 수 있는 최대 글자 개수 입니다. 이 값보다 적은 글자 수를 이용하여 하나의 문단을 구성합니다.
+
+                            `maxCharsPerParagraph`의 값에 따라 결과 요약 문자의 수가 달라집니다.
+
+                            `maxCharsPerParagraph` 값이 주어질 경우 `outputSizeOption`은 무시됩니다.
+                          example: 6000
+                      x-tags:
+                        - NLP
+                    keywordExtraction:
+                      type: object
+                      description: |-
+                        키워드 추출 설정을 위한 객체입니다.
+
+                        이 설정을 사용하면 텍스트에서 키워드를 추룰합니다.
+                      x-tags:
+                        - NLP
+                      properties:
+                        enable:
+                          type: boolean
+                          description: 키워드 추출을 활성화 하기 위해서는 반드시 `true`로 설정해야 합니다.
+                        maxCount:
+                          type: integer
+                          description: |-
+                            추출 할 키워드의 최대 개수 입니다. 
+
+                            값이 클 경우 속도에 영향을 줄 수 있습니다.
+
+                            키워드가 많지 않을 경우 명시된 수 보다 적은 수의 키워드를 추출 할 수 있습니다.
+                          minimum: 1
+                          example: 10
+                        extractAdjectives:
+                          type: boolean
+                          x-stoplight:
+                            id: s6xtt4dnp0ksv
+                          description: |-
+                            형용사 키워드를 추출여부입니다.
+
+                            true 일 경우 형용사 키워드를 추가로 추출합니다.
+                            enable의 값이 true 일 경우에 활성화 됩니다.
+
+                            추출 할 키워드의 수는 maxCount 값에 의해 결정됩니다.
+                  x-tags:
+                    - NLP
+                returnElapsedTime:
+                  type: boolean
+                  description: |
+                    계산 소요 시간 반환 여부입니다. `true` 일 경우 response body에 elapsedTime이 추가됩니다.
+                  x-tags:
+                    - Common
+                  default: false
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - text
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      summaries:
+                        type: array
+                        description: |-
+                          각 문단에 대한 요약을 문자열의 배열로 반환합니다.
+
+                          설정은`NlpConfigSummary`를 참고하세요.
+                        items:
+                          type: string
+                    x-tags:
+                      - NLP
+                  - type: object
+                    x-tags:
+                      - NLP
+                    properties:
+                      keywords:
+                        type: array
+                        description: |-
+                          키워드 추출의 결과입니다.
+
+                          추출한 키워드 들을 문자열의 배열 형태로 반환합니다.
+
+                          설정은 `NlpConfigKeywordExtraction`을 참고하세요.
+                        items:
+                          type: string
+                      keywordsAdjectives:
+                        type: array
+                        x-stoplight:
+                          id: 8ylmdlkpr8sra
+                        description: 추출한 형용사 키워드 들을 문자열 배열로 반환합니다.
+                        items:
+                          x-stoplight:
+                            id: zri0oiv2w203k
+                          type: string
+                x-tags:
+                  - NLP
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  /nlp/v1/async/minutes:
+    x-permission: nlp-async-minutes
+    post:
+      x-descriptors:
+        - default: minutes
+      summary: Request meeting minutes
+      description: 텍스트를 회의록으로 변환합니다.
+      tags:
+        - NLP
+        - Async
+      operationId: post-nlp-v1-async-minutes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  description: 요약할 문서 입니다.
+                callback:
+                  type: object
+                  description: '비동기 요청의 진행 상태 및 결과를 콜백으로 전달 받고 싶을 때 사용합니다. '
+                  properties:
+                    url:
+                      type: string
+                      description: |-
+                        콜백을 전송받을 http(s) 를 포함한 URL 입니다.
+
+                        처리 중에는 진행상태를, 처리가 완료 된 뒤에는 결과 혹은 오류 상태를 `POST` 방식으로 해당 URL에 전송합니다.
+                    headers:
+                      type: object
+                      description: '콜백 URL로 전송할 때, 헤더에 포함시켜야 하는 값이 있다면 명시해줍니다.'
+                  x-tags:
+                    - Common
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - text
+              x-tags:
+                - NLP
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rid:
+                    type: string
+                    description: 요청 ID 입니다.
+                    example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                x-tags:
+                  - NLP
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  '/nlp/v1/async/minutes/{rid}':
+    x-permission: nlp-async-minutes
+    parameters:
+      - name: rid
+        in: path
+        required: true
+        schema:
+          type: string
+          description: 요청 ID 입니다.
+          example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+          x-tags:
+            - Common
+        description: Request ID.
+    get:
+      summary: Get meeting minutes
+      description: 비동기화 방식으로 요청한 요약의 진행상황 및 결과를 확인합니다.
+      tags:
+        - NLP
+        - Async
+      operationId: get-nlp-v1-async-minutes-rid
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rid:
+                    type: string
+                    description: 요청 ID 입니다.
+                    example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                  status:
+                    type: string
+                    description: |-
+                      요약 상태값 입니다.
+
+                      `requested`: 요청이 시작되었습니다.
+
+                      `processing`: 요약중 입니다.
+
+                      `processed`: 요약 완료되었습니다.
+
+                      `input_error`: 사용자 요청 값에 오류가 있습니다. 확인 후 다시 요청해 주세요.
+
+                      `processing_error`: 요약중 오류가 발생하였습니다. 잠시 기다렸다가 다시 요청해 주세요.
+                    enum:
+                      - requested
+                      - processing
+                      - processed
+                      - input_error
+                      - processing_error
+                    example: processed
+                    x-tags:
+                      - NLP
+                  progress:
+                    type: integer
+                    description: 받아쓰기 처리중인 경우 현재 진행률을 나타냅니다.
+                    example: 100
+                  title:
+                    type: string
+                    description: 원본 텍스트의 내용을 기반으로 생성된 제목입니다.
+                  minutes:
+                    type: array
+                    description: 주어진 문서를 세 부분으로 나눠 요약한 내용입니다.
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                          description: 요약된 각 부분의 소제목입니다.
+                        bullets:
+                          type: array
+                          description: 글머리 기호로 요약된 내용입니다. 최대 5개까지 요약이 생성됩니다.
+                          items:
+                            type: object
+                            properties:
+                              text:
+                                type: string
+                                description: 요약 문장입니다.
+                              isImportant:
+                                type: boolean
+                                description: 요약 부분 중 해당 문장이 핵심적인 내용일 경우에 True로 표시됩니다. 기본값은 False입니다.
+                                default: false
+                  message:
+                    type: string
+                    description: 오류 메시지 등의 추가정보를 표시합니다.
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                x-tags:
+                  - NLP
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '404':
+          description: Not Found.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  /nlp/v1/sync/paragraphs:
+    x-permission: nlp-sync-paragraph
+    post:
+      x-descriptors:
+        - default: paragraph
+      summary: Split text into paragraphs
+      description: 주어진 문장들의 내용을 분석하여 내용이 비슷한 문장들 끼리 묶어 문단으로 분리합니다. 전체 문장을 배열 형태로 주면 각 문단의 시작 문장을 인덱스 형태로 반환합니다.
+      tags:
+        - NLP
+        - Sync
+      operationId: post-nlp-v1-sync-paragraphs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              x-tags:
+                - NLP
+              properties:
+                sentences:
+                  type: array
+                  description: 문단으로 분리할 문장들을 텍스트 배열 형태로 명시합니다. 하나의 문장은 하나의 배열 요소가 되어야 합니다. 한국어와 영어를 사용가능합니다.
+                  items:
+                    type: string
+                charsPerParagraph:
+                  type: integer
+                  description: '한 문단을 구성하는 글자 수에 대한 힌트입니다. 문단을 분리할 때 참고가 되며, 반드시 지켜지는 값은 아닙니다.'
+                  example: 2500
+                returnElapsedTime:
+                  type: boolean
+                  description: |
+                    계산 소요 시간 반환 여부입니다. `true` 일 경우 response body에 elapsedTime이 추가됩니다.
+                  x-tags:
+                    - Common
+                  default: false
+                custom:
+                  type: object
+                  description: |-
+                    응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                    사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                    요청을 자동화 하여 보낼 때 유용합니다.
+                  example:
+                    app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                  x-tags:
+                    - Common
+              required:
+                - sentences
+      responses:
+        '200':
+          description: Example response
+          content:
+            application/json:
+              schema:
+                type: object
+                x-tags:
+                  - NLP
+                properties:
+                  startIndexes:
+                    type: array
+                    description: 각 문단의 첫번째 문장의 인덱스로 구성된 배열입니다. 인덱스는 0부터 시작합니다. 분리된 문단의 개수와 배열의 크기는 동일합니다.
+                    items:
+                      type: integer
+                  elapsedTime:
+                    type: integer
+                    description: 밀리초.
+                  custom:
+                    type: object
+                    description: |-
+                      응답에 포함하여 받고 싶은 사용자 객체를 명시합니다.
+
+                      사용자가 요청에 custom 객체를 명시한 경우 동일한 값이 응답에 명시되어 반환됩니다.
+
+                      요청을 자동화 하여 보낼 때 유용합니다.
+                    example:
+                      app_id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    x-tags:
+                      - Common
+                required:
+                  - sentences
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+  /tts/v1/sync/audios:
+    x-permission: tts-sync
+    post:
+      x-descriptors:
+        - default: default
+      summary: Synthesize short speech
+      description: 텍스트를 음성으로 변환합니다. 동기화 방식이 사용됩니다.
+      tags:
+        - TTS
+        - Sync
+      operationId: post-tts-v1-sync-audios
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 주어진 텍스트를 음성으로 변환합니다.
+              properties:
+                text:
+                  type: string
+                  description: 문자열 형태의 텍스트입니다.
+                  x-tags:
+                    - Common
+              required:
+                - text
+              x-tags:
+                - TTS
+      responses:
+        '200':
+          description: Example response
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '204':
+          description: No Content. 요청은 성공하였으나 반환한 결과가 없습니다. 받아쓰기의 경우 받아쓰기는 완료되었으나 결과가 비어있습니다.
+        '400':
+          description: Bad Request. 요청 형식이 잘못 되었습니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '403':
+          description: Forbidden. 허용되지 않은 접근입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '413':
+          description: Payload Too Large. 요청이 너무 큽니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '415':
+          description: Unsupported Media Type.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '429':
+          description: Too Many Requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '500':
+          description: Internal Server Error. 서버 오류입니다.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+        '503':
+          description: Service Unavailable.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 에러 발생 시 응답입니다.
+                properties:
+                  error:
+                    type: string
+                x-tags:
+                  - Common
+components:
+  schemas: {}
+  parameters: {}
+  responses: {}
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+tags:
+  - name: STT
+  - name: NLP
+  - name: TTS
+  - name: Sync
+  - name: Async
+security:
+  - BearerAuth: []

@@ -184,3 +184,22 @@ docker-compose.override.yml
 perf-results*.csv
 outdated-python.txt
 outdated-flutter.txt
+
+# ─────────────────────────────────────────────
+# 내부 기획 문서 (외부 공개 금지)
+# ─────────────────────────────────────────────
+참고/
+references/
+*.hwp
+*.hwpx
+
+# ─────────────────────────────────────────────
+# Daglo API 검증 임시 산출물 (루트에 남는 테스트 파일)
+# ─────────────────────────────────────────────
+chat_body.json
+chat_response.json
+minutes_body.json
+minutes_get_response.json
+resp*.json
+*_body.json
+*_response.json

@@ -1,8 +1,43 @@
-# Daglo API 가이드 (완전판)
+# ⚠️ LEGACY — 2024년 가이드 (구버전, 참고용)
+
+> ## 🚨 이 문서는 더 이상 최신 API를 반영하지 않습니다
+>
+> **원본 작성**: 2024-09-02 (Daglo 공식 가이드 v1.0)
+> **로컬 보관**: 2026-05-26 (Claude Code 통합 작업 시 추가)
+> **상태**: 🔴 **구버전** — 2026-05 시점의 공식 OpenAPI 스펙과 다수 불일치
+>
+> ### 📌 최신 정보는 다음을 사용하세요
+> - **공식 레퍼런스**: [`daglo_api_reference.md`](daglo_api_reference.md) — OpenAPI 스펙 기반 SSOT
+> - **공식 스펙 원본**: [`daglo_openapi.prod.yaml`](daglo_openapi.prod.yaml)
+> - **온라인 문서**: <https://apis.daglo.ai/docs>
+>
+> ### ⚠️ 이 문서의 알려진 오류
+> | 항목 | 가이드 (이 문서) | 실제 (2026-05) |
+> |---|---|---|
+> | **#9 Chat Completion** (`/nlp/v1/sync/chat/completions`) | 사용 가능으로 기술 | ❌ **DEPRECATED** — 요청 시 503 timeout |
+> | **신규 `/nlp/v1/sync/summaries`** (요약) | 없음 | ✅ 사용 가능 (Chat의 실질적 대체) |
+> | **신규 `/nlp/v1/sync/paragraphs`** (단락 분리) | 없음 | ✅ 사용 가능 |
+> | **신규 `GET /stt/v1/async/transcripts/{rid}/{format}`** | 없음 | ✅ 결과 파일 다운로드 |
+> | **STT Sync 응답의 `rid` 필드** | 있음 | ❌ 실제 응답엔 없음 |
+> | **Rate Limit** | 미명시 | ✅ 엔드포인트별 20 req/sec |
+>
+> ### ✅ 이 문서가 여전히 유용한 부분
+> - **gRPC `StreamingRecognize` Python 클라이언트 예제** (REST OpenAPI 스펙엔 없음)
+> - **한국어 기능 설명** (각 기능의 사용 사례, 한계점 등)
+> - **부가기능(화자분리/감정/키워드) 한국어 가이드**
+>
+> ---
+>
+> 아래 원본 내용은 **참고용으로만** 보존합니다. 구현 시엔 반드시 위 최신 문서를 함께 확인하세요.
+
+---
+
+# Daglo API 가이드 (완전판) — 2024년 원본
 
 > VSCode Claude(Claude Code) 작업용 참고 문서
 > 출처: daglo API 가이드 공식 문서 (apis.daglo.ai)
-> 작성일: 2026-05-26
+> https://developers.daglo.ai/guide/
+> 원본 작성일: 2024-09-02
 
 ---
 
