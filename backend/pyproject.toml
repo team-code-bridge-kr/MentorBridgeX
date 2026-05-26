@@ -1,0 +1,37 @@
+[project]
+name = "mentorbridgex-backend"
+version = "0.1.0"
+description = "MentorBridgeX FastAPI backend — Daglo STT integration (v0.1)"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "app/core/daglo/proto/speech_pb2.py",
+    "app/core/daglo/proto/speech_pb2_grpc.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "RUF"]
+# N802/N815: Daglo API 응답 필드명(mixedCase)을 그대로 매핑하려는 의도적 선택
+ignore = ["E501", "N802", "N815"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+^/app/core/daglo/proto/speech_pb2(_grpc)?\.py$
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["app/core/daglo/proto/speech_pb2.py", "app/core/daglo/proto/speech_pb2_grpc.py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: requires live Daglo API (skipped in CI by default)",
+]
