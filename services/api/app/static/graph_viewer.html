@@ -19,6 +19,11 @@
       height: 100vh;
       background: var(--bg);
     }
+    main {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      min-height: 0;
+    }
     header {
       padding: 12px 16px;
       border-bottom: 1px solid var(--border);
@@ -32,6 +37,29 @@
       font-size: 14px;
     }
     #network { width: 100%; height: 100%; background: #f6f6f6; }
+    aside {
+      border-left: 1px solid var(--border);
+      background: #fff;
+      overflow: auto;
+      padding: 8px;
+    }
+    .side-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 4px 0 8px;
+    }
+    .node-list-item {
+      width: 100%;
+      text-align: left;
+      font-size: 12px;
+      padding: 6px 8px;
+      border: 1px solid #e7e5e4;
+      border-radius: 6px;
+      background: #fff;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .node-list-item:hover { background: #fafaf9; }
     .meta { color: var(--muted); font-size: 13px; }
     .legend {
       display: flex;
@@ -76,7 +104,13 @@
       <span class="other">기타</span>
     </div>
   </header>
-  <div id="network"></div>
+  <main>
+    <div id="network"></div>
+    <aside>
+      <div class="side-title">노드 목록(상위 80)</div>
+      <div id="nodeList"></div>
+    </aside>
+  </main>
   <script>
     const TYPE_STYLE = {
       Keyword: { color: { background: '#fed7aa', border: '#f97316' }, shape: 'dot' },
@@ -108,6 +142,7 @@
 
     const statusEl = document.getElementById('status');
     const tokenInput = document.getElementById('token');
+    const nodeListEl = document.getElementById('nodeList');
     const saved = localStorage.getItem('mbx_token');
     if (saved) tokenInput.value = saved;
 
@@ -197,8 +232,9 @@
           id: n.id,
           label: n.label,
           title: nodeTitle(n),
-          size: nodeSize(n),
+          size: Math.max(18, nodeSize(n)),
           font: { face: 'Apple SD Gothic Neo, sans-serif' },
+          borderWidth: 2,
           ...style,
           x: n.x,
           y: n.y,
@@ -225,6 +261,7 @@
           : false,
         layout: { improvedLayout: true, randomSeed: 42 },
         interaction: { hover: true, tooltipDelay: 80 },
+        nodes: { shapeProperties: { borderDashes: false } },
         edges: { smooth: { type: 'dynamic' } },
       };
 
@@ -245,6 +282,21 @@
         `표시 노드 ${filtered.nodes.length}/${data.nodes.length} · ` +
         `표시 엣지 ${filtered.edges.length}/${data.edges.length} · ` +
         `키워드 ${filtered.pickedKeywordCount}/${filtered.totalKeywordCount}`;
+
+      const byFreq = [...filtered.nodes].sort((a, b) => keywordFreq(b) - keywordFreq(a)).slice(0, 80);
+      nodeListEl.innerHTML = '';
+      byFreq.forEach(n => {
+        const btn = document.createElement('button');
+        btn.className = 'node-list-item';
+        const freq = keywordFreq(n);
+        btn.textContent = `[${n.type}] ${n.label}${freq ? ` (${freq})` : ''}`;
+        btn.onclick = () => {
+          if (!network) return;
+          network.selectNodes([n.id]);
+          network.focus(n.id, { scale: 1.1, animation: { duration: 250 } });
+        };
+        nodeListEl.appendChild(btn);
+      });
     };
 
     document.getElementById('resetView').onclick = () => {
