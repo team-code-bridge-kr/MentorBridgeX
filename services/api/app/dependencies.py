@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import Depends, Header
+from fastapi import Depends, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,7 @@ from app.db.postgres import UserRow, get_session, get_user_by_email, utcnow
 from app.errors import AppError
 
 ALGORITHM = "HS256"
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def create_access_token(user_id: str, email: str) -> str:
@@ -32,12 +34,12 @@ async def get_db_session() -> AsyncGenerator[AsyncSession | None, None]:
 
 
 async def get_current_user(
-    authorization: Annotated[str | None, Header()] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)] = None,
     session: AsyncSession | None = Depends(get_db_session),
 ) -> UserRow | MemoryUser:
-    if not authorization or not authorization.startswith("Bearer "):
+    if not credentials or not credentials.credentials:
         raise AppError("AUTH_MISSING_TOKEN", "인증 토큰이 필요합니다.", status_code=401)
-    token = authorization.removeprefix("Bearer ").strip()
+    token = credentials.credentials.strip()
     settings = get_settings()
     try:
         payload = jwt.decode(token, settings.api_secret_key, algorithms=[ALGORITHM])

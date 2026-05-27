@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -48,12 +49,21 @@ def _to_datetime(value: Any) -> datetime:
 
 
 def _parse_node(record: dict[str, Any]) -> GraphNode:
+    refs_raw = record.get("external_refs_json")
+    refs: dict[str, Any] = {}
+    if isinstance(refs_raw, str) and refs_raw.strip():
+        try:
+            parsed = json.loads(refs_raw)
+            if isinstance(parsed, dict):
+                refs = parsed
+        except json.JSONDecodeError:
+            refs = {}
     return GraphNode(
         id=record["node_id"],
         type=NodeType(record["type"]),
         label=record["label"],
         description=record.get("description"),
-        external_refs=record.get("external_refs") or {},
+        external_refs=refs,
         created_at=_to_datetime(record.get("created_at")),
         updated_at=_to_datetime(record.get("updated_at")),
     )
@@ -77,7 +87,8 @@ class Neo4jGraphStore:
                 """
                 MATCH (n:Node {user_id: $user_id})
                 RETURN n.node_id AS node_id, n.type AS type, n.label AS label,
-                       n.description AS description, n.external_refs AS external_refs,
+                       n.description AS description,
+                       n.external_refs_json AS external_refs_json,
                        n.created_at AS created_at, n.updated_at AS updated_at
                 ORDER BY n.created_at
                 """,
@@ -114,7 +125,7 @@ class Neo4jGraphStore:
                 """
                 CREATE (n:Node {
                     node_id: $node_id, user_id: $user_id, type: $type, label: $label,
-                    description: $description, external_refs: $external_refs,
+                    description: $description, external_refs_json: $external_refs_json,
                     created_at: datetime($created_at), updated_at: datetime($updated_at)
                 })
                 """,
@@ -123,7 +134,7 @@ class Neo4jGraphStore:
                 type=node_type.value,
                 label=label,
                 description=description,
-                external_refs=external_refs or {},
+                external_refs_json=json.dumps(external_refs or {}, ensure_ascii=False),
                 created_at=now.isoformat(),
                 updated_at=now.isoformat(),
             )
@@ -150,7 +161,8 @@ class Neo4jGraphStore:
                     n.label = coalesce($label, n.label),
                     n.description = coalesce($description, n.description)
                 RETURN n.node_id AS node_id, n.type AS type, n.label AS label,
-                       n.description AS description, n.external_refs AS external_refs,
+                       n.description AS description,
+                       n.external_refs_json AS external_refs_json,
                        n.created_at AS created_at, n.updated_at AS updated_at
                 """,
                 user_id=user_id,
