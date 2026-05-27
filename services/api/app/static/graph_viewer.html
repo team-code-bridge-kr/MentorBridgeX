@@ -23,6 +23,7 @@
       display: grid;
       grid-template-columns: 1fr 260px;
       min-height: 0;
+      height: 100%;
     }
     header {
       padding: 12px 16px;
@@ -36,7 +37,12 @@
       padding: 8px 10px;
       font-size: 14px;
     }
-    #network { width: 100%; height: 100%; background: #f6f6f6; }
+    #network {
+      width: 100%;
+      height: 100%;
+      min-height: 560px;
+      background: #f6f6f6;
+    }
     aside {
       border-left: 1px solid var(--border);
       background: #fff;
@@ -267,15 +273,19 @@
 
       if (network) network.destroy();
       network = new vis.Network(document.getElementById('network'), { nodes, edges }, options);
+      network.setSize('100%', '100%');
+      network.redraw();
       network.once('stabilized', () => {
         network.fit({ animation: { duration: 300 } });
         network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
       });
       setTimeout(() => {
+        network.redraw();
         network.fit({ animation: false });
         network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
       }, 250);
       setTimeout(() => {
+        network.redraw();
         network.fit({ animation: false });
       }, 700);
       statusEl.textContent =
