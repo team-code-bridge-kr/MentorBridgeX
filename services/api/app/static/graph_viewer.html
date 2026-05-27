@@ -31,7 +31,7 @@
       padding: 8px 10px;
       font-size: 14px;
     }
-    #network { width: 100%; height: 100%; }
+    #network { width: 100%; height: 100%; background: #f6f6f6; }
     .meta { color: var(--muted); font-size: 13px; }
     .legend {
       display: flex;
@@ -64,8 +64,9 @@
       <input id="maxKeywords" type="number" min="50" step="50" value="300" style="width: 90px" />
     </label>
     <button id="load" type="button">그래프 불러오기</button>
+    <button id="resetView" type="button">뷰 리셋</button>
     <label class="meta">
-      <input id="physics" type="checkbox" checked /> 물리 시뮬레이션
+      <input id="physics" type="checkbox" /> 물리 시뮬레이션
     </label>
     <span class="meta" id="status"></span>
     <div class="legend" aria-label="범례">
@@ -229,12 +230,27 @@
 
       if (network) network.destroy();
       network = new vis.Network(document.getElementById('network'), { nodes, edges }, options);
-      network.once('stabilized', () => network.fit({ animation: { duration: 300 } }));
-      setTimeout(() => network.fit({ animation: false }), 200);
+      network.once('stabilized', () => {
+        network.fit({ animation: { duration: 300 } });
+        network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
+      });
+      setTimeout(() => {
+        network.fit({ animation: false });
+        network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
+      }, 250);
+      setTimeout(() => {
+        network.fit({ animation: false });
+      }, 700);
       statusEl.textContent =
         `표시 노드 ${filtered.nodes.length}/${data.nodes.length} · ` +
         `표시 엣지 ${filtered.edges.length}/${data.edges.length} · ` +
         `키워드 ${filtered.pickedKeywordCount}/${filtered.totalKeywordCount}`;
+    };
+
+    document.getElementById('resetView').onclick = () => {
+      if (!network) return;
+      network.fit({ animation: { duration: 200 } });
+      network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
     };
   </script>
 </body>
