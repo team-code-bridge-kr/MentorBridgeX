@@ -59,6 +59,10 @@
   <header>
     <strong>Graph Viewer</strong>
     <input id="token" placeholder="Bearer access_token" style="min-width: 280px" />
+    <label class="meta">
+      키워드 상한
+      <input id="maxKeywords" type="number" min="50" step="50" value="300" style="width: 90px" />
+    </label>
     <button id="load" type="button">그래프 불러오기</button>
     <label class="meta">
       <input id="physics" type="checkbox" checked /> 물리 시뮬레이션
@@ -108,13 +112,37 @@
 
     let network = null;
 
+    function normalizeToken(raw) {
+      const t = raw.trim();
+      return t.toLowerCase().startsWith('bearer ') ? t.slice(7).trim() : t;
+    }
+
+    function keywordFreq(node) {
+      const refs = node.external_refs || {};
+      const freq = Number(refs.frequency);
+      return Number.isFinite(freq) ? freq : 0;
+    }
+
+    function filterGraph(data, maxKeywords) {
+      const keywords = data.nodes.filter(n => n.type === 'Keyword');
+      const fixed = data.nodes.filter(n => n.type !== 'Keyword');
+
+      keywords.sort((a, b) => keywordFreq(b) - keywordFreq(a));
+      const pickedKeywords = keywords.slice(0, maxKeywords);
+      const keep = new Set([...fixed, ...pickedKeywords].map(n => n.id));
+
+      const nodes = data.nodes.filter(n => keep.has(n.id));
+      const edges = data.edges.filter(e => keep.has(e.source_id) && keep.has(e.target_id));
+      return { nodes, edges, pickedKeywordCount: pickedKeywords.length, totalKeywordCount: keywords.length };
+    }
+
     document.getElementById('load').onclick = async () => {
-      const token = tokenInput.value.trim();
+      const token = normalizeToken(tokenInput.value);
       if (!token) {
         statusEl.textContent = '토큰을 입력하세요 (/v1/auth/dev-login)';
         return;
       }
-      localStorage.setItem('mbx_token', token);
+      localStorage.setItem('mbx_token', tokenInput.value.trim());
       statusEl.textContent = '로딩 중…';
 
       const res = await fetch('/v1/students/me/graph', {
@@ -125,7 +153,10 @@
         return;
       }
       const data = await res.json();
-      const nodes = new vis.DataSet(data.nodes.map(n => {
+      const maxKeywords = Number(document.getElementById('maxKeywords').value || 300);
+      const filtered = filterGraph(data, maxKeywords);
+
+      const nodes = new vis.DataSet(filtered.nodes.map(n => {
         const style = TYPE_STYLE[n.type] || TYPE_STYLE.Keyword;
         return {
           id: n.id,
@@ -136,7 +167,7 @@
           ...style,
         };
       }));
-      const edges = new vis.DataSet(data.edges.map(e => ({
+      const edges = new vis.DataSet(filtered.edges.map(e => ({
         id: e.id,
         from: e.source_id,
         to: e.target_id,
@@ -155,7 +186,10 @@
 
       if (network) network.destroy();
       network = new vis.Network(document.getElementById('network'), { nodes, edges }, options);
-      statusEl.textContent = `노드 ${data.nodes.length} · 엣지 ${data.edges.length} · UTF-8`;
+      statusEl.textContent =
+        `표시 노드 ${filtered.nodes.length}/${data.nodes.length} · ` +
+        `표시 엣지 ${filtered.edges.length}/${data.edges.length} · ` +
+        `키워드 ${filtered.pickedKeywordCount}/${filtered.totalKeywordCount}`;
     };
   </script>
 </body>
