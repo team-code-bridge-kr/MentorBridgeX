@@ -113,15 +113,47 @@ jobs:
         run: flutter build apk --release
         # TODO: 서명 설정 추가 필요 (keystore secrets)
 
-      - name: Build Windows Release
-        runs-on: windows-latest
-        run: flutter build windows --release
-        continue-on-error: true
-
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ github.event.release.tag_name }}
           path: |
             flutter/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 90
+
+  # ─────────────────────────────────────────────
+  # 4. Flutter Windows 릴리즈 빌드 (태그 push 시)
+  #    Windows runner가 필요하므로 별도 job으로 분리
+  # ─────────────────────────────────────────────
+  build-flutter-windows:
+    name: Flutter Windows Release Build
+    runs-on: windows-latest
+    if: github.event_name == 'release'
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: flutter
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-${{ github.event.release.tag_name }}
+          path: |
+            flutter/build/windows/x64/runner/Release/
           retention-days: 90
