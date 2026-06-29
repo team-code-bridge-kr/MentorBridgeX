@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MentorBridgeX · 음성 녹음 → STT 분석</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #1a1d24; --line: #2a2e38;
+    --fg: #e7e9ee; --muted: #9aa1ad; --accent: #5b8cff; --danger: #ff5b6e;
+    --ok: #38d39f; --warn: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, "Segoe UI", "Malgun Gothic", sans-serif;
+    background: var(--bg); color: var(--fg); line-height: 1.6;
+    display: flex; justify-content: center; padding: 32px 16px;
+  }
+  .wrap { width: 100%; max-width: 720px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  .step-title { font-size: 13px; color: var(--accent); font-weight: 600; margin: 0 0 12px; letter-spacing: .3px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button {
+    border: 0; border-radius: 10px; padding: 11px 18px; font-size: 14px; font-weight: 600;
+    cursor: pointer; color: #fff; background: var(--accent); transition: opacity .15s;
+  }
+  button:hover { opacity: .88; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.rec { background: var(--danger); }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+  .timer { font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 700; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); margin-right: 8px; vertical-align: middle; }
+  .blink { animation: blink 1s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+  audio { width: 100%; margin-top: 12px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.sync { background: rgba(56,211,159,.15); color: var(--ok); }
+  .badge.async { background: rgba(255,180,84,.15); color: var(--warn); }
+  label { font-size: 13px; color: var(--muted); }
+  input[type=text] {
+    background: #0f1115; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--fg); padding: 9px 11px; font-size: 13px; width: 100%; margin-top: 6px;
+  }
+  pre {
+    background: #0f1115; border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px; overflow: auto; font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
+    color: var(--muted); max-height: 320px;
+  }
+  .result-text { font-size: 16px; color: var(--fg); }
+  .hidden { display: none; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎙️ MentorBridgeX · 음성 녹음 → STT 분석</h1>
+  <p class="sub">마이크로 녹음 → 16kHz mono WAV 생성 → 길이에 따라 sync/async 자동 분기.</p>
+
+  <!-- 설정 -->
+  <div class="card">
+    <p class="step-title">⚙️ 백엔드 주소</p>
+    <input id="apiBase" type="text" value="http://127.0.0.1:8000" />
+    <p class="hint">FastAPI 서버 주소. 기본값은 로컬 개발 서버.</p>
+  </div>
+
+  <!-- 1. 녹음 -->
+  <div class="card">
+    <p class="step-title">1️⃣ 녹음하기</p>
+    <label>마이크 장치</label>
+    <select id="micSelect" style="width:100%; margin:6px 0 14px; background:#0f1115; border:1px solid var(--line); border-radius:8px; color:var(--fg); padding:9px 11px; font-size:13px;">
+      <option value="">기본 장치</option>
+    </select>
+    <label>입력 레벨 (말해보세요 — 막대가 움직여야 정상)</label>
+    <div style="height:14px; background:#0f1115; border:1px solid var(--line); border-radius:8px; overflow:hidden; margin:6px 0 16px;">
+      <div id="levelBar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--ok),var(--warn),var(--danger)); transition:width .05s;"></div>
+    </div>
+    <div class="row" style="justify-content: space-between;">
+      <div class="timer"><span id="recIndicator" class="hidden"><span class="dot blink"></span></span><span id="timer">00:00</span></div>
+      <div class="row">
+        <button id="recBtn" class="rec">● 녹음 시작</button>
+        <button id="stopBtn" class="ghost" disabled>■ 정지</button>
+      </div>
+    </div>
+    <audio id="player" controls class="hidden"></audio>
+    <div id="recMeta" class="meta hidden"></div>
+  </div>
+
+  <!-- 2. 분석 -->
+  <div class="card">
+    <p class="step-title">2️⃣ 분석하기</p>
+    <p class="hint" style="margin-top:0;">30초 이하 → <span class="badge sync">sync</span> 즉시 변환 · 초과 → <span class="badge async">async</span> (공개 URL 필요)</p>
+    <div class="row" style="margin-top:12px;">
+      <button id="analyzeBtn" disabled>🔍 분석하기</button>
+      <button id="downloadBtn" class="ghost hidden">⬇ WAV 다운로드</button>
+    </div>
+    <div id="analyzeMeta" class="meta"></div>
+  </div>
+
+  <!-- 3. 결과 -->
+  <div class="card">
+    <p class="step-title">3️⃣ 결과 도출</p>
+    <div id="resultBox" class="result-text" style="color: var(--muted);">아직 분석 전입니다.</div>
+    <pre id="rawBox" class="hidden"></pre>
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────────
+// 상태
+// ────────────────────────────────────────────────────────────
+const SYNC_LIMIT_SEC = 30;          // Daglo sync 제한
+const TARGET_SAMPLE_RATE = 16000;   // Daglo realtime/STT 권장: 16kHz mono
+
+let mediaStream = null, mediaRecorder = null, recordedBlobs = [];
+let timerId = null, startedAt = 0;
+let wavBlob = null, durationSec = 0;
+let meterCtx = null, meterRaf = null;
+
+const $ = (id) => document.getElementById(id);
+const apiBase = () => $('apiBase').value.replace(/\/+$/, '');
+
+// ────────────────────────────────────────────────────────────
+// 녹음 (MediaRecorder로 캡처 → 정지 시 디코딩 → 16kHz mono WAV로 변환)
+// ScriptProcessorNode가 일부 환경에서 무음 버퍼를 주는 문제를 피하기 위해
+// 캡처는 MediaRecorder(webm/opus)로, 변환은 decodeAudioData로 처리.
+// ────────────────────────────────────────────────────────────
+function pickMimeType() {
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+  for (const t of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return ''; // 브라우저 기본값
+}
+
+async function listMics() {
+  try {
+    // 라벨을 보려면 한 번 권한이 필요 — 임시 스트림으로 트리거
+    const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+    tmp.getTracks().forEach((t) => t.stop());
+  } catch (e) { /* 권한 거부 시 라벨 없이 진행 */ }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const mics = devices.filter((d) => d.kind === 'audioinput');
+  const sel = $('micSelect');
+  sel.innerHTML = '<option value="">기본 장치</option>';
+  mics.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = m.deviceId;
+    opt.textContent = m.label || `마이크 ${i + 1}`;
+    sel.appendChild(opt);
+  });
+}
+
+function startMeter(stream) {
+  meterCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = meterCtx.createMediaStreamSource(stream);
+  const analyser = meterCtx.createAnalyser();
+  analyser.fftSize = 512;
+  src.connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  const tick = () => {
+    analyser.getByteTimeDomainData(data);
+    let peak = 0;
+    for (let i = 0; i < data.length; i++) { const v = Math.abs(data[i] - 128) / 128; if (v > peak) peak = v; }
+    $('levelBar').style.width = Math.min(100, peak * 140).toFixed(0) + '%';
+    meterRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stopMeter() {
+  if (meterRaf) cancelAnimationFrame(meterRaf);
+  if (meterCtx) meterCtx.close();
+  meterCtx = null; meterRaf = null;
+  $('levelBar').style.width = '0%';
+}
+
+async function startRecording() {
+  const deviceId = $('micSelect').value;
+  const audioConstraints = { channelCount: 1, echoCancellation: true, noiseSuppression: true };
+  if (deviceId) audioConstraints.deviceId = { exact: deviceId };
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+  } catch (e) {
+    alert('마이크 권한이 필요합니다: ' + e.message);
+    return;
+  }
+  startMeter(mediaStream);
+
+  recordedBlobs = [];
+  const mimeType = pickMimeType();
+  mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
+  mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedBlobs.push(e.data); };
+  mediaRecorder.onstop = finalizeRecording;
+  mediaRecorder.start(100); // 100ms마다 청크 flush
+
+  startedAt = Date.now();
+  timerId = setInterval(updateTimer, 200);
+
+  $('recBtn').disabled = true;
+  $('stopBtn').disabled = false;
+  $('recIndicator').classList.remove('hidden');
+  $('analyzeBtn').disabled = true;
+  $('player').classList.add('hidden');
+  $('downloadBtn').classList.add('hidden');
+  $('recMeta').classList.add('hidden');
+}
+
+function stopRecording() {
+  clearInterval(timerId);
+  stopMeter();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (mediaStream) mediaStream.getTracks().forEach((t) => t.stop());
+  $('stopBtn').disabled = true;
+  $('recIndicator').classList.add('hidden');
+  $('recMeta').innerHTML = '<span class="spinner"></span>WAV 변환 중…';
+  $('recMeta').classList.remove('hidden');
+}
+
+async function finalizeRecording() {
+  // 캡처된 webm/opus → ArrayBuffer → 디코딩 → 다운샘플 → 16-bit WAV
+  const captured = new Blob(recordedBlobs, { type: recordedBlobs[0]?.type || 'audio/webm' });
+  const arrayBuf = await captured.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let decoded;
+  try {
+    decoded = await ctx.decodeAudioData(arrayBuf);
+  } catch (e) {
+    ctx.close();
+    $('recMeta').innerHTML = `<span style="color:var(--danger)">디코딩 실패: ${e.message}</span>`;
+    return;
+  }
+
+  const mono = decoded.getChannelData(0); // 첫 채널만 사용
+  const down = downsample(mono, decoded.sampleRate, TARGET_SAMPLE_RATE);
+  wavBlob = encodeWav(down, TARGET_SAMPLE_RATE);
+  durationSec = down.length / TARGET_SAMPLE_RATE;
+  ctx.close();
+
+  const url = URL.createObjectURL(wavBlob);
+  $('player').src = url;
+  $('player').classList.remove('hidden');
+  $('recBtn').disabled = false;
+  $('analyzeBtn').disabled = false;
+  $('downloadBtn').classList.remove('hidden');
+
+  // 녹음 내용 진단: 실제 음량(peak)을 측정해 마이크 무음 여부 판별
+  let peak = 0;
+  for (let i = 0; i < down.length; i++) { const a = Math.abs(down[i]); if (a > peak) peak = a; }
+  const peakLabel = peak < 0.01
+    ? `<span style="color:var(--danger)">최대 음량 ${peak.toFixed(4)} ⚠️ 거의 무음 — 마이크 입력 확인 필요</span>`
+    : `<span style="color:var(--ok)">최대 음량 ${peak.toFixed(3)} ✅ 소리 잡힘</span>`;
+
+  const kb = (wavBlob.size / 1024).toFixed(1);
+  const routing = durationSec <= SYNC_LIMIT_SEC
+    ? '<span class="badge sync">sync</span> 경로 (≤30초)'
+    : '<span class="badge async">async</span> 경로 (>30초, 공개 URL 필요)';
+  $('recMeta').innerHTML = `길이 ${durationSec.toFixed(1)}초 · ${kb} KB · WAV 16kHz mono · 예상 ${routing}<br>${peakLabel}`;
+}
+
+function updateTimer() {
+  const sec = (Date.now() - startedAt) / 1000;
+  const m = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s = String(Math.floor(sec % 60)).padStart(2, '0');
+  $('timer').textContent = `${m}:${s}`;
+}
+
+// ────────────────────────────────────────────────────────────
+// PCM 유틸
+// ────────────────────────────────────────────────────────────
+function mergeChunks(chunks, total) {
+  const out = new Float32Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
+function downsample(buffer, fromRate, toRate) {
+  if (toRate >= fromRate) return buffer;
+  const ratio = fromRate / toRate;
+  const outLen = Math.floor(buffer.length / ratio);
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const start = Math.floor(i * ratio);
+    const end = Math.min(Math.floor((i + 1) * ratio), buffer.length);
+    let sum = 0, n = 0;
+    for (let j = start; j < end; j++) { sum += buffer[j]; n++; }
+    out[i] = n ? sum / n : 0; // 평균(간단한 anti-alias)
+  }
+  return out;
+}
+
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);          // PCM chunk size
+  view.setUint16(20, 1, true);           // PCM
+  view.setUint16(22, 1, true);           // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true);           // block align
+  view.setUint16(34, 16, true);          // bits per sample
+  writeStr(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+
+  let off = 44;
+  for (let i = 0; i < samples.length; i++, off += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+// ────────────────────────────────────────────────────────────
+// 분석 (길이 따라 sync/async 자동 분기)
+// ────────────────────────────────────────────────────────────
+async function analyze() {
+  if (!wavBlob) return;
+  $('analyzeBtn').disabled = true;
+  $('resultBox').style.color = 'var(--muted)';
+  $('rawBox').classList.add('hidden');
+
+  if (durationSec <= SYNC_LIMIT_SEC) {
+    await analyzeSync();
+  } else {
+    await analyzeAsync();
+  }
+  $('analyzeBtn').disabled = false;
+}
+
+async function analyzeSync() {
+  $('analyzeMeta').innerHTML = '<span class="spinner"></span>sync 변환 중… (POST /v1/stt/sync)';
+  $('resultBox').textContent = '변환 중…';
+  try {
+    const form = new FormData();
+    form.append('file', wavBlob, 'recording.wav');
+    const res = await fetch(`${apiBase()}/v1/stt/sync`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    showResult(data.transcript || '(빈 결과)', data);
+    $('analyzeMeta').innerHTML = '✅ sync 완료';
+  } catch (e) {
+    showError('sync 변환 실패', e);
+  }
+}
+
+async function analyzeAsync() {
+  // async는 Daglo가 다운로드할 공개 audio_url이 필요.
+  // 백엔드에 파일 업로드 입구가 아직 없으므로, 공개 URL을 사용자가 제공해야 함.
+  $('analyzeMeta').innerHTML =
+    '⚠️ 30초 초과 — async 경로는 Daglo가 접근 가능한 <b>공개 audio_url</b>이 필요합니다.';
+  $('resultBox').style.color = 'var(--warn)';
+  $('resultBox').innerHTML =
+    'WAV를 다운로드한 뒤 공개 스토리지(S3 등)에 올리고 URL을 입력해 주세요.<br>' +
+    '<input id="audioUrl" type="text" placeholder="https://.../recording.wav" />' +
+    '<div style="margin-top:10px"><button id="submitAsyncBtn">async 제출</button></div>' +
+    '<p class="hint">※ 백엔드에 S3 업로드 엔드포인트가 추가되면 이 단계는 자동화됩니다.</p>';
+  $('submitAsyncBtn').onclick = submitAsync;
+}
+
+async function submitAsync() {
+  const url = $('audioUrl').value.trim();
+  if (!url) { alert('audio_url을 입력하세요.'); return; }
+  $('analyzeMeta').innerHTML = '<span class="spinner"></span>async 제출 중…';
+  try {
+    const res = await fetch(`${apiBase()}/v1/stt/async`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audio_url: url, keyword_extraction: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    $('analyzeMeta').innerHTML = `📨 제출 완료 · rid=<code>${data.rid}</code> · 폴링 시작…`;
+    pollAsync(data.rid);
+  } catch (e) {
+    showError('async 제출 실패', e);
+  }
+}
+
+async function pollAsync(rid, attempt = 0) {
+  const TERMINAL = ['transcribed', 'completed', 'file_error', 'input_error', 'processing_error'];
+  try {
+    const res = await fetch(`${apiBase()}/v1/stt/async/${rid}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    $('analyzeMeta').innerHTML =
+      `<span class="spinner"></span>${data.status} · ${data.progress ?? 0}% (시도 ${attempt + 1})`;
+    if (TERMINAL.includes(data.status)) {
+      if (data.status === 'transcribed' || data.status === 'completed') {
+        const t = (data.sttResults && data.sttResults[0] && data.sttResults[0].transcript) || '(빈 결과)';
+        showResult(t, data);
+        $('analyzeMeta').innerHTML = '✅ async 완료';
+      } else {
+        showError('async 실패: ' + data.status, new Error(data.message || ''));
+      }
+      return;
+    }
+    const delay = Math.min(3000 * Math.pow(1.5, attempt), 30000); // 지수 백오프
+    setTimeout(() => pollAsync(rid, attempt + 1), delay);
+  } catch (e) {
+    showError('폴링 실패', e);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 결과 표시
+// ────────────────────────────────────────────────────────────
+function showResult(text, raw) {
+  $('resultBox').style.color = 'var(--fg)';
+  $('resultBox').textContent = text;
+  $('rawBox').textContent = JSON.stringify(raw, null, 2);
+  $('rawBox').classList.remove('hidden');
+}
+
+function showError(label, e) {
+  $('resultBox').style.color = 'var(--danger)';
+  $('resultBox').textContent = `❌ ${label}`;
+  $('rawBox').textContent = String(e.message || e);
+  $('rawBox').classList.remove('hidden');
+  $('analyzeMeta').innerHTML = '';
+}
+
+// ────────────────────────────────────────────────────────────
+// 바인딩
+// ────────────────────────────────────────────────────────────
+$('recBtn').onclick = startRecording;
+$('stopBtn').onclick = stopRecording;
+listMics(); // 로드 시 마이크 목록 채우기
+navigator.mediaDevices.addEventListener?.('devicechange', listMics);
+$('analyzeBtn').onclick = analyze;
+$('downloadBtn').onclick = () => {
+  if (!wavBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(wavBlob);
+  a.download = 'recording.wav';
+  a.click();
+};
+</script>
+</body>
+</html>
