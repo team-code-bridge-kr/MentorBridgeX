@@ -110,6 +110,37 @@
     <div id="resultBox" class="result-text" style="color: var(--muted);">아직 분석 전입니다.</div>
     <pre id="rawBox" class="hidden"></pre>
   </div>
+
+  <!-- 4. 실시간 STT (WebSocket) -->
+  <div class="card">
+    <p class="step-title">📡 실시간 STT (WebSocket · /v1/stt/realtime)</p>
+    <p class="hint" style="margin-top:0;">마이크 PCM을 실시간 전송 → partial(타이핑 중)/final(확정) 자막 수신. 위 1번의 마이크 장치 선택을 함께 사용합니다.</p>
+    <div class="row" style="margin:12px 0;">
+      <span>
+        <label>언어</label><br>
+        <select id="rtLang" style="background:#0f1115;border:1px solid var(--line);border-radius:8px;color:var(--fg);padding:9px 11px;font-size:13px;margin-top:4px;">
+          <option value="ko-KR">ko-KR (한국어)</option>
+          <option value="en-US">en-US (영어)</option>
+          <option value="mixed">mixed (혼합)</option>
+        </select>
+      </span>
+      <span style="margin-left:8px;">
+        <label><input type="checkbox" id="rtInterim" checked /> 부분 결과(interim) 받기</label>
+      </span>
+    </div>
+    <div class="row">
+      <button id="rtStartBtn" class="rec">● 실시간 시작</button>
+      <button id="rtStopBtn" class="ghost" disabled>■ 정지</button>
+      <span id="rtStatus" class="meta" style="margin-left:8px;">연결 안 됨</span>
+    </div>
+    <div style="margin-top:16px;">
+      <label>실시간 자막</label>
+      <div id="rtFinal" style="margin-top:6px; min-height:40px; padding:12px; background:#0f1115; border:1px solid var(--line); border-radius:10px; font-size:15px;">
+        <span id="rtPartial" style="color:var(--muted); font-style:italic;"></span>
+      </div>
+    </div>
+    <pre id="rtLog" class="hidden"></pre>
+  </div>
 </div>
 
 <script>
@@ -434,8 +465,162 @@ function showError(label, e) {
 }
 
 // ────────────────────────────────────────────────────────────
+// 실시간 STT (WebSocket) — AudioWorklet으로 PCM 캡처 → 16k mono LINEAR16 전송
+// ────────────────────────────────────────────────────────────
+let rtWS = null, rtCtx = null, rtStream = null, rtNode = null;
+let rtPcmBuf = [], rtPcmLen = 0, rtSrcRate = 48000;
+let rtFinals = [];
+
+function wsBase() {
+  // http(s)://host → ws(s)://host
+  return apiBase().replace(/^http/, 'ws');
+}
+
+const RT_WORKLET = `
+class PCMWorklet extends AudioWorkletProcessor {
+  process(inputs) {
+    const ch = inputs[0] && inputs[0][0];
+    if (ch) this.port.postMessage(ch.slice(0)); // Float32 프레임 복사 전송
+    return true;
+  }
+}
+registerProcessor('pcm-worklet', PCMWorklet);
+`;
+
+function floatToInt16LE(float32) {
+  const buf = new ArrayBuffer(float32.length * 2);
+  const view = new DataView(buf);
+  for (let i = 0; i < float32.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32[i]));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buf;
+}
+
+function rtSetStatus(txt, color) {
+  $('rtStatus').innerHTML = txt;
+  $('rtStatus').style.color = color || 'var(--muted)';
+}
+
+function rtAppendLog(obj) {
+  $('rtLog').classList.remove('hidden');
+  $('rtLog').textContent += (typeof obj === 'string' ? obj : JSON.stringify(obj)) + '\n';
+  $('rtLog').scrollTop = $('rtLog').scrollHeight;
+}
+
+async function startRealtime() {
+  const deviceId = $('micSelect').value;
+  const audioConstraints = { channelCount: 1, echoCancellation: true, noiseSuppression: true };
+  if (deviceId) audioConstraints.deviceId = { exact: deviceId };
+  try {
+    rtStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+  } catch (e) {
+    alert('마이크 권한이 필요합니다: ' + e.message);
+    return;
+  }
+
+  rtFinals = []; rtPcmBuf = []; rtPcmLen = 0;
+  $('rtFinal').innerHTML = '<span id="rtPartial" style="color:var(--muted); font-style:italic;"></span>';
+  $('rtLog').textContent = ''; $('rtLog').classList.add('hidden');
+
+  const lang = $('rtLang').value;
+  const interim = $('rtInterim').checked;
+  const url = `${wsBase()}/v1/stt/realtime?lang=${encodeURIComponent(lang)}&interim=${interim}`;
+
+  rtSetStatus('<span class="spinner"></span>연결 중…', 'var(--warn)');
+  rtWS = new WebSocket(url);
+  rtWS.binaryType = 'arraybuffer';
+
+  rtWS.onopen = async () => {
+    rtSetStatus('🟢 연결됨 · 말해보세요', 'var(--ok)');
+    $('rtStartBtn').disabled = true;
+    $('rtStopBtn').disabled = false;
+    startMeter(rtStream); // 입력 레벨 동시 표시
+    await startPcmPump();
+  };
+
+  rtWS.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    rtAppendLog(msg);
+    if (msg.type === 'partial') {
+      const p = document.getElementById('rtPartial');
+      if (p) p.textContent = msg.transcript || '';
+    } else if (msg.type === 'final') {
+      rtFinals.push(msg.transcript || '');
+      renderRtFinal();
+    } else if (msg.type === 'error') {
+      rtSetStatus(`🔴 오류: ${msg.code} ${msg.message || ''}`, 'var(--danger)');
+    } else if (msg.type === 'done') {
+      rtSetStatus('✅ 종료(done)', 'var(--muted)');
+    }
+  };
+
+  rtWS.onerror = () => rtSetStatus('🔴 WebSocket 오류', 'var(--danger)');
+  rtWS.onclose = () => { cleanupRealtimeAudio(); $('rtStartBtn').disabled = false; $('rtStopBtn').disabled = true; };
+}
+
+function renderRtFinal() {
+  const finalsHtml = rtFinals.map((t) => `<div>${escapeHtml(t)}</div>`).join('');
+  $('rtFinal').innerHTML = finalsHtml +
+    '<span id="rtPartial" style="color:var(--muted); font-style:italic;"></span>';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+async function startPcmPump() {
+  rtCtx = new (window.AudioContext || window.webkitAudioContext)();
+  rtSrcRate = rtCtx.sampleRate;
+  const blobUrl = URL.createObjectURL(new Blob([RT_WORKLET], { type: 'application/javascript' }));
+  await rtCtx.audioWorklet.addModule(blobUrl);
+  const src = rtCtx.createMediaStreamSource(rtStream);
+  rtNode = new AudioWorkletNode(rtCtx, 'pcm-worklet');
+  const sink = rtCtx.createGain(); sink.gain.value = 0; // 무음 sink (그래프 유지용)
+
+  const CHUNK_SAMPLES = Math.floor(rtSrcRate * 0.25); // ~250ms
+  rtNode.port.onmessage = (e) => {
+    if (!rtWS || rtWS.readyState !== WebSocket.OPEN) return;
+    rtPcmBuf.push(e.data); rtPcmLen += e.data.length;
+    if (rtPcmLen >= CHUNK_SAMPLES) {
+      const merged = mergeChunks(rtPcmBuf, rtPcmLen);
+      rtPcmBuf = []; rtPcmLen = 0;
+      const down = downsample(merged, rtSrcRate, TARGET_SAMPLE_RATE);
+      rtWS.send(floatToInt16LE(down));
+    }
+  };
+  src.connect(rtNode);
+  rtNode.connect(sink);
+  sink.connect(rtCtx.destination);
+}
+
+function cleanupRealtimeAudio() {
+  stopMeter();
+  if (rtNode) { try { rtNode.disconnect(); } catch {} rtNode = null; }
+  if (rtCtx) { try { rtCtx.close(); } catch {} rtCtx = null; }
+  if (rtStream) { rtStream.getTracks().forEach((t) => t.stop()); rtStream = null; }
+}
+
+function stopRealtime() {
+  // 남은 버퍼 flush 후 stop 신호
+  if (rtWS && rtWS.readyState === WebSocket.OPEN) {
+    if (rtPcmLen > 0) {
+      const merged = mergeChunks(rtPcmBuf, rtPcmLen);
+      rtPcmBuf = []; rtPcmLen = 0;
+      rtWS.send(floatToInt16LE(downsample(merged, rtSrcRate, TARGET_SAMPLE_RATE)));
+    }
+    rtWS.send('stop');
+  }
+  cleanupRealtimeAudio();
+  rtSetStatus('정지 요청됨…', 'var(--muted)');
+}
+
+// ────────────────────────────────────────────────────────────
 // 바인딩
 // ────────────────────────────────────────────────────────────
+$('rtStartBtn').onclick = startRealtime;
+$('rtStopBtn').onclick = stopRealtime;
 $('recBtn').onclick = startRecording;
 $('stopBtn').onclick = stopRecording;
 listMics(); // 로드 시 마이크 목록 채우기
