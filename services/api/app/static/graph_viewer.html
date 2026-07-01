@@ -3,317 +3,664 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MentorBridgeX Graph Viewer (Dev)</title>
+  <title>MentorBridgeX Graph Viewer</title>
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
     :root {
-      --bg: #fafaf9;
-      --border: #e7e5e4;
-      --muted: #57534e;
+      --bg: #f8fafc; --border: #e2e8f0; --muted: #64748b;
+      --panel: #ffffff; --accent: #3b82f6;
     }
+    * { box-sizing: border-box; }
     body {
       font-family: "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
-      margin: 0;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      height: 100vh;
-      background: var(--bg);
-    }
-    main {
-      display: grid;
-      grid-template-columns: 1fr 260px;
-      min-height: 0;
-      height: 100%;
+      margin: 0; display: grid; grid-template-rows: auto 1fr;
+      height: 100vh; overflow: hidden; background: var(--bg); font-size: 13px;
     }
     header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
+      padding: 8px 14px; border-bottom: 1px solid var(--border);
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+      background: var(--panel);
     }
-    input, button, select {
-      padding: 8px 10px;
-      font-size: 14px;
+    header strong { font-size: 14px; margin-right: 4px; }
+    header input[type="text"], header input:not([type]) {
+      padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
     }
-    #network {
-      width: 100%;
-      height: 100%;
-      min-height: 560px;
-      background: #f6f6f6;
+    header input[type="number"] {
+      padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;
     }
-    aside {
-      border-left: 1px solid var(--border);
-      background: #fff;
-      overflow: auto;
-      padding: 8px;
+    header button {
+      padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--panel); cursor: pointer; font-size: 13px;
     }
-    .side-title {
-      font-size: 12px;
-      color: var(--muted);
-      margin: 4px 0 8px;
-    }
-    .node-list-item {
-      width: 100%;
-      text-align: left;
-      font-size: 12px;
-      padding: 6px 8px;
-      border: 1px solid #e7e5e4;
-      border-radius: 6px;
-      background: #fff;
-      margin-bottom: 6px;
-      cursor: pointer;
-    }
-    .node-list-item:hover { background: #fafaf9; }
-    .meta { color: var(--muted); font-size: 13px; }
-    .legend {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    header button:hover { background: #f1f5f9; }
+    header button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    header button.primary:hover { background: #2563eb; }
+    .meta { color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    #statusBar { color: var(--muted); font-size: 12px; flex: 1; min-width: 200px; }
+    .legend { display: flex; gap: 8px; flex-wrap: wrap; }
+    .legend span { display: flex; align-items: center; gap: 3px; color: var(--muted); }
     .legend span::before {
-      content: "";
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-right: 4px;
-      vertical-align: middle;
+      content: ""; display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; flex-shrink: 0;
     }
-    .legend .kw::before { background: #f97316; }
-    .legend .doc::before { background: #3b82f6; }
-    .legend .inq::before { background: #8b5cf6; }
-    .legend .other::before { background: #64748b; }
+    .l-kw::before   { background: #f97316; }
+    .l-doc::before  { background: #3b82f6; }
+    .l-inq::before  { background: #8b5cf6; }
+    .l-act::before  { background: #22c55e; }
+    .l-subj::before { background: #ef4444; }
+    .l-per::before  { background: #64748b; }
+
+    main { display: grid; grid-template-columns: 1fr 290px; min-height: 0; height: 100%; overflow: hidden; }
+    #network { width: 100%; height: 100%; min-height: 0; background: #f1f5f9; }
+
+    aside {
+      border-left: 1px solid var(--border); background: var(--panel);
+      overflow-y: auto; display: flex; flex-direction: column; gap: 0;
+    }
+    .panel-block {
+      border-bottom: 1px solid var(--border); padding: 10px 12px;
+    }
+    .panel-title {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
+    }
+    .panel-block input, .panel-block textarea, .panel-block select {
+      width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; font-family: inherit; margin-bottom: 5px; resize: vertical;
+    }
+    .panel-block button {
+      width: 100%; padding: 6px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--panel); cursor: pointer; font-size: 12px; margin-bottom: 4px;
+    }
+    .panel-block button:hover { background: #f1f5f9; }
+    .panel-block button.danger { border-color: #fca5a5; color: #dc2626; }
+    .panel-block button.danger:hover { background: #fef2f2; }
+    .panel-block button.success { border-color: #86efac; color: #16a34a; background: #f0fdf4; }
+    .result-item {
+      padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px;
+      margin-bottom: 4px; cursor: pointer; font-size: 12px;
+    }
+    .result-item:hover { background: #f8fafc; }
+    .result-item .score { color: var(--muted); font-size: 11px; }
+    .node-list-item {
+      width: 100%; text-align: left; padding: 4px 7px;
+      border: 1px solid var(--border); border-radius: 5px;
+      background: var(--panel); margin-bottom: 4px; cursor: pointer; font-size: 12px;
+    }
+    .node-list-item:hover { background: #f8fafc; }
+    .node-list-item.selected { background: #eff6ff; border-color: var(--accent); }
+    #selectedInfo { font-size: 12px; line-height: 1.7; color: #1e293b; }
+    #selectedInfo .info-label { color: var(--muted); font-size: 11px; }
+    .sync-result { font-size: 12px; color: #1e293b; background: #f8fafc;
+      border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; margin-top: 5px; }
   </style>
 </head>
 <body>
-  <header>
-    <strong>Graph Viewer</strong>
-    <input id="token" placeholder="Bearer access_token" style="min-width: 280px" />
-    <label class="meta">
-      키워드 상한
-      <input id="maxKeywords" type="number" min="50" step="50" value="300" style="width: 90px" />
-    </label>
-    <button id="load" type="button">그래프 불러오기</button>
-    <button id="resetView" type="button">뷰 리셋</button>
-    <label class="meta">
-      <input id="physics" type="checkbox" /> 물리 시뮬레이션
-    </label>
-    <span class="meta" id="status"></span>
-    <div class="legend" aria-label="범례">
-      <span class="kw">Keyword (PDF 빈도)</span>
-      <span class="doc">Document</span>
-      <span class="inq">Inquiry</span>
-      <span class="other">기타</span>
+<header>
+  <strong>MBX Graph</strong>
+  <input id="token" placeholder="access_token" style="min-width:240px" />
+  <button id="load" class="primary">그래프 불러오기</button>
+  <button id="resetView">뷰 리셋</button>
+  <span class="meta">
+    키워드 상한 <input id="maxKeywords" type="number" min="10" step="10" value="100" style="width:60px" />
+  </span>
+  <span class="meta">
+    최소 빈도 <input id="minFreq" type="number" min="1" step="1" value="2" style="width:50px" />
+  </span>
+  <label class="meta"><input id="physics" type="checkbox" /> 물리</label>
+  <label class="meta"><input id="hideDoc" type="checkbox" checked /> Doc 숨김</label>
+  <label class="meta"><input id="hideMentionedIn" type="checkbox" checked /> MENTIONED_IN 숨김</label>
+  <label class="meta"><input id="hideEdgeLabel" type="checkbox" checked /> 엣지 라벨 숨김</label>
+  <label class="meta"><input id="clusterMode" type="checkbox" checked /> 섹션 클러스터</label>
+  <span id="statusBar"></span>
+  <div class="legend">
+    <span class="l-kw">Keyword</span><span class="l-subj">Subject</span>
+    <span class="l-inq">Inquiry</span><span class="l-act">Activity</span>
+    <span class="l-doc">Document</span><span class="l-per">Period</span>
+  </div>
+</header>
+<main>
+  <div id="network"></div>
+  <aside>
+
+    <!-- 검색 (F1-12) -->
+    <div class="panel-block">
+      <div class="panel-title">🔍 의미 검색</div>
+      <input id="searchQ" type="text" placeholder="예: 탐구, AI, 음운..." />
+      <button id="searchBtn">검색</button>
+      <div id="searchResults"></div>
     </div>
-  </header>
-  <main>
-    <div id="network"></div>
-    <aside>
-      <div class="side-title">노드 목록(상위 80)</div>
+
+    <!-- 선택된 노드 정보 + 편집 -->
+    <div class="panel-block" id="selectedPanel" style="display:none">
+      <div class="panel-title">선택된 노드</div>
+      <div id="selectedInfo"></div>
+      <button id="graphToTextBtn" class="success" style="margin-top:6px">텍스트 삽입 문장 제안 (LLM)</button>
+      <button id="deleteNodeBtn" class="danger">노드 삭제</button>
+      <div id="graphToTextResult"></div>
+    </div>
+
+    <!-- 노드 추가 (F1-05) -->
+    <div class="panel-block">
+      <div class="panel-title">+ 노드 추가</div>
+      <input id="newLabel" type="text" placeholder="라벨 (예: 딥러닝)" />
+      <select id="newType">
+        <option value="Keyword">Keyword</option>
+        <option value="Inquiry">Inquiry</option>
+        <option value="Activity">Activity</option>
+        <option value="Subject">Subject</option>
+        <option value="Period">Period</option>
+      </select>
+      <input id="newSection" type="text" placeholder="섹션 이름 (선택, 예: 수학)" />
+      <button id="addNodeBtn">추가</button>
+    </div>
+
+    <!-- 텍스트 → 그래프 동기화 (F1-06) -->
+    <div class="panel-block">
+      <div class="panel-title">📄 텍스트 → 그래프 동기화</div>
+      <input id="syncSection" type="text" placeholder="섹션 이름 (예: 수학)" />
+      <textarea id="syncText" rows="4" placeholder="수정된 세특 텍스트를 붙여넣기..."></textarea>
+      <button id="syncBtn">동기화 실행</button>
+      <div id="syncResult"></div>
+    </div>
+
+    <!-- 노드 목록 -->
+    <div class="panel-block" style="flex:1">
+      <div class="panel-title">노드 목록 (상위 80)</div>
       <div id="nodeList"></div>
-    </aside>
-  </main>
-  <script>
-    const TYPE_STYLE = {
-      Keyword: { color: { background: '#fed7aa', border: '#f97316' }, shape: 'dot' },
-      Document: { color: { background: '#bfdbfe', border: '#3b82f6' }, shape: 'box' },
-      Inquiry: { color: { background: '#ddd6fe', border: '#8b5cf6' }, shape: 'diamond' },
-      Activity: { color: { background: '#bbf7d0', border: '#22c55e' }, shape: 'ellipse' },
-      Subject: { color: { background: '#fecaca', border: '#ef4444' }, shape: 'ellipse' },
-      Period: { color: { background: '#e2e8f0', border: '#64748b' }, shape: 'ellipse' },
-    };
+    </div>
 
-    function nodeSize(node) {
-      const refs = node.external_refs || {};
-      const freq = refs.frequency;
-      if (node.type === 'Keyword' && typeof freq === 'number') {
-        return Math.min(18 + Math.log2(freq + 1) * 6, 42);
-      }
-      return node.type === 'Document' ? 24 : 14;
-    }
+  </aside>
+</main>
+<script>
+// ══════════════════════════════════════════════════════════
+// 상수
+// ══════════════════════════════════════════════════════════
+const TYPE_STYLE = {
+  Keyword:  { color: { background: '#fed7aa', border: '#f97316' }, shape: 'dot' },
+  Document: { color: { background: '#bfdbfe', border: '#3b82f6' }, shape: 'box' },
+  Inquiry:  { color: { background: '#ddd6fe', border: '#8b5cf6' }, shape: 'diamond' },
+  Activity: { color: { background: '#bbf7d0', border: '#22c55e' }, shape: 'ellipse' },
+  Subject:  { color: { background: '#fecaca', border: '#ef4444' }, shape: 'ellipse' },
+  Period:   { color: { background: '#e2e8f0', border: '#64748b' }, shape: 'ellipse' },
+};
+const EDGE_COLOR = {
+  RELATES_TO:   '#cbd5e1', INFLUENCES: '#f97316', EVOLVED_FROM: '#8b5cf6',
+  EVIDENCED_BY: '#22c55e', CONTRADICTS: '#ef4444', MENTIONED_IN: '#bfdbfe', BELONGS_TO: '#fcd34d',
+};
+const SECTION_BG_COLORS = [
+  'rgba(251,191,36,.10)',  'rgba(34,197,94,.10)',  'rgba(139,92,246,.10)',
+  'rgba(59,130,246,.10)',  'rgba(239,68,68,.10)',  'rgba(6,182,212,.10)',
+  'rgba(249,115,22,.10)',  'rgba(16,185,129,.10)', 'rgba(236,72,153,.10)',
+  'rgba(100,116,139,.10)',
+];
+const SECTION_BORDER_COLORS = [
+  '#fbbf24','#22c55e','#8b5cf6','#3b82f6','#ef4444',
+  '#06b6d4','#f97316','#10b981','#ec4899','#64748b',
+];
 
-    function nodeTitle(node) {
-      const lines = [node.type, node.label];
-      if (node.description) lines.push(node.description);
-      const refs = node.external_refs || {};
-      if (refs.frequency != null) lines.push(`빈도: ${refs.frequency}`);
-      if (refs.weight != null) lines.push(`가중치(ML): ${refs.weight}`);
-      else if (refs.source === 'pdf_tokens') lines.push('가중치: 팀장 ML 연동 예정');
-      return lines.join('\n');
-    }
+// ══════════════════════════════════════════════════════════
+// 전역 상태
+// ══════════════════════════════════════════════════════════
+let network = null, visNodes = null, visEdges = null;
+let knownEdgeIds = new Set(), knownNodeIds = new Set();
+let pollTimer = null, noNewCount = 0;
+let currentToken = '', currentFilters = {}, currentData = null;
+let selectedNodeId = null;
+let sectionMeta = {};
 
-    const statusEl = document.getElementById('status');
-    const tokenInput = document.getElementById('token');
-    const nodeListEl = document.getElementById('nodeList');
-    const saved = localStorage.getItem('mbx_token');
-    if (saved) tokenInput.value = saved;
+const statusEl   = document.getElementById('statusBar');
+const tokenInput = document.getElementById('token');
+const nodeListEl = document.getElementById('nodeList');
+const saved = localStorage.getItem('mbx_token');
+if (saved) tokenInput.value = saved;
 
-    let network = null;
+// ══════════════════════════════════════════════════════════
+// 유틸
+// ══════════════════════════════════════════════════════════
+function normalizeToken(raw) {
+  const t = raw.trim();
+  return t.toLowerCase().startsWith('bearer ') ? t.slice(7).trim() : t;
+}
+function authHeaders() { return { Authorization: `Bearer ${currentToken}`, 'Content-Type': 'application/json' }; }
+function keywordFreq(node) {
+  const f = Number((node.external_refs || {}).frequency);
+  return Number.isFinite(f) ? f : 0;
+}
+function nodeSection(node) {
+  const m = (node.description || '').match(/section=(.+)/);
+  return m ? m[1].trim() : (node.type === 'Document' ? '__doc__' : '__other__');
+}
+function nodeSize(node) {
+  const refs = node.external_refs || {};
+  const freq  = typeof refs.frequency       === 'number' ? refs.frequency       : 1;
+  const score = typeof refs.embedding_score === 'number' ? refs.embedding_score : 0.5;
+  if (node.type === 'Document') return 18;
+  if (node.type === 'Subject')  return 15;
+  if (node.type === 'Inquiry' || node.type === 'Activity') return 12;
+  const imp = freq * 0.6 + score * 10 * 0.4;
+  return Math.min(7 + Math.log2(imp + 1) * 3.2, 16);
+}
+function nodeTitle(node) {
+  const refs = node.external_refs || {};
+  const lines = [`[${node.type}] ${node.label}`];
+  if (node.description) lines.push(node.description);
+  if (refs.frequency      != null) lines.push(`빈도: ${refs.frequency}`);
+  if (refs.embedding_score != null) lines.push(`임베딩: ${refs.embedding_score}`);
+  return lines.join('\n');
+}
+function formatNode(n) {
+  const style = TYPE_STYLE[n.type] || TYPE_STYLE.Keyword;
+  const sz = nodeSize(n);
+  return {
+    id: n.id, label: n.label, title: nodeTitle(n), size: sz,
+    font: { face: 'Apple SD Gothic Neo, sans-serif', size: Math.max(9, Math.min(sz * 0.85, 11)), bold: n.type !== 'Keyword' },
+    borderWidth: n.type === 'Keyword' ? 1.5 : 2.5, ...style,
+    ...(n.x != null ? { x: n.x, y: n.y } : {}),
+  };
+}
+function formatEdge(e, hideLabel) {
+  return {
+    id: e.id, from: e.source_id, to: e.target_id,
+    label: hideLabel ? '' : e.relation, title: e.relation, arrows: 'to',
+    font: { align: 'middle', size: 9, color: '#94a3b8' },
+    color: { color: EDGE_COLOR[e.relation] || '#94a3b8', opacity: 0.75 },
+    width: e.relation === 'RELATES_TO' ? 1 : 2,
+    dashes: e.relation === 'RELATES_TO',
+  };
+}
 
-    function normalizeToken(raw) {
-      const t = raw.trim();
-      return t.toLowerCase().startsWith('bearer ') ? t.slice(7).trim() : t;
-    }
+// ══════════════════════════════════════════════════════════
+// 필터
+// ══════════════════════════════════════════════════════════
+function filterGraph(data, { maxKeywords, minFreq, hideDoc, hideMentionedIn }) {
+  const keywords = data.nodes.filter(n => {
+    if (n.type !== 'Keyword') return false;
+    const f = keywordFreq(n);
+    return f === 0 || f >= minFreq;
+  });
+  const nonKeywords = data.nodes.filter(n => n.type !== 'Keyword');
+  keywords.sort((a, b) => keywordFreq(b) - keywordFreq(a));
+  const picked = keywords.slice(0, maxKeywords);
+  let candidates = [...nonKeywords, ...picked];
+  if (hideDoc) candidates = candidates.filter(n => n.type !== 'Document');
+  const keep = new Set(candidates.map(n => n.id));
+  const nodes = data.nodes.filter(n => keep.has(n.id));
+  let edges = data.edges.filter(e => keep.has(e.source_id) && keep.has(e.target_id));
+  if (hideMentionedIn) edges = edges.filter(e => e.relation !== 'MENTIONED_IN');
+  return { nodes, edges, keep, pickedCount: picked.length, totalCount: keywords.length };
+}
 
-    function keywordFreq(node) {
-      const refs = node.external_refs || {};
-      const freq = Number(refs.frequency);
-      return Number.isFinite(freq) ? freq : 0;
-    }
+// ══════════════════════════════════════════════════════════
+// 섹션 클러스터 레이아웃
+// ══════════════════════════════════════════════════════════
+function withSectionClusterPositions(nodes, edges) {
+  const secMap = {};
+  nodes.forEach(n => {
+    const sec = nodeSection(n);
+    if (!secMap[sec]) secMap[sec] = [];
+    secMap[sec].push(n);
+  });
 
-    function filterGraph(data, maxKeywords) {
-      const keywords = data.nodes.filter(n => n.type === 'Keyword');
-      const fixed = data.nodes.filter(n => n.type !== 'Keyword');
+  const sections = Object.keys(secMap).sort((a, b) => secMap[b].length - secMap[a].length);
+  const cols = Math.ceil(Math.sqrt(sections.length));
+  const rows = Math.ceil(sections.length / cols);
+  const CELL_W = 680, CELL_H = 580;
+  const offsetX = -(cols - 1) * CELL_W / 2;
+  const offsetY = -(rows - 1) * CELL_H / 2;
 
-      keywords.sort((a, b) => keywordFreq(b) - keywordFreq(a));
-      const pickedKeywords = keywords.slice(0, maxKeywords);
-      const keep = new Set([...fixed, ...pickedKeywords].map(n => n.id));
+  const seeded = [];
+  sectionMeta = {};
 
-      const nodes = data.nodes.filter(n => keep.has(n.id));
-      const edges = data.edges.filter(e => keep.has(e.source_id) && keep.has(e.target_id));
-      return { nodes, edges, pickedKeywordCount: pickedKeywords.length, totalKeywordCount: keywords.length };
-    }
+  sections.forEach((sec, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cx = offsetX + col * CELL_W;
+    const cy = offsetY + row * CELL_H;
+    const colorIdx = idx % SECTION_BG_COLORS.length;
 
-    function withSeedPositions(nodes) {
-      const docs = nodes.filter(n => n.type === 'Document');
-      const keywords = nodes.filter(n => n.type === 'Keyword');
-      const others = nodes.filter(n => n.type !== 'Document' && n.type !== 'Keyword');
+    const groupNodes = secMap[sec];
+    groupNodes.sort((a, b) => keywordFreq(b) - keywordFreq(a));
 
-      const seeded = [];
-      const centerGap = 180;
-      docs.forEach((n, i) => {
-        seeded.push({ ...n, x: i * centerGap, y: 0 });
-      });
+    const hub = groupNodes.find(n => n.type === 'Subject') || null;
+    const rest = groupNodes.filter(n => n !== hub);
 
-      const ringRadius = Math.max(320, keywords.length * 1.6);
-      keywords.forEach((n, i) => {
-        const angle = (2 * Math.PI * i) / Math.max(1, keywords.length);
-        seeded.push({
-          ...n,
-          x: Math.round(Math.cos(angle) * ringRadius),
-          y: Math.round(Math.sin(angle) * ringRadius),
-        });
-      });
+    const subR = Math.max(90, rest.length * 11);
 
-      const outerRadius = ringRadius + 260;
-      others.forEach((n, i) => {
-        const angle = (2 * Math.PI * i) / Math.max(1, others.length);
-        seeded.push({
-          ...n,
-          x: Math.round(Math.cos(angle) * outerRadius),
-          y: Math.round(Math.sin(angle) * outerRadius),
-        });
-      });
-      return seeded;
-    }
+    sectionMeta[sec] = { cx, cy, radius: subR + 55, colorIdx };
 
-    document.getElementById('load').onclick = async () => {
-      const token = normalizeToken(tokenInput.value);
-      if (!token) {
-        statusEl.textContent = '토큰을 입력하세요 (/v1/auth/dev-login)';
-        return;
-      }
-      localStorage.setItem('mbx_token', tokenInput.value.trim());
-      statusEl.textContent = '로딩 중…';
+    if (hub) seeded.push({ ...hub, x: cx, y: cy });
 
-      const res = await fetch('/v1/students/me/graph', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        statusEl.textContent = `오류 ${res.status}`;
-        return;
-      }
-      const data = await res.json();
-      const maxKeywords = Number(document.getElementById('maxKeywords').value || 300);
-      const filtered = filterGraph(data, maxKeywords);
-      const seededNodes = withSeedPositions(filtered.nodes);
+    rest.forEach((n, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(1, rest.length) - Math.PI / 2;
+      seeded.push({ ...n, x: Math.round(cx + Math.cos(angle) * subR), y: Math.round(cy + Math.sin(angle) * subR) });
+    });
+  });
 
-      const nodes = new vis.DataSet(seededNodes.map(n => {
-        const style = TYPE_STYLE[n.type] || TYPE_STYLE.Keyword;
-        return {
-          id: n.id,
-          label: n.label,
-          title: nodeTitle(n),
-          size: Math.max(18, nodeSize(n)),
-          font: { face: 'Apple SD Gothic Neo, sans-serif' },
-          borderWidth: 2,
-          ...style,
-          x: n.x,
-          y: n.y,
-        };
-      }));
-      const edges = new vis.DataSet(filtered.edges.map(e => ({
-        id: e.id,
-        from: e.source_id,
-        to: e.target_id,
-        label: e.relation,
-        arrows: 'to',
-        font: { align: 'middle', size: 10 },
-        color: { color: '#a8a29e' },
-      })));
+  return seeded;
+}
 
-      const physicsOn = document.getElementById('physics').checked;
-      const options = {
-        physics: physicsOn
-          ? {
-              stabilization: { enabled: true, iterations: 80, fit: true },
-              solver: 'forceAtlas2Based',
-              forceAtlas2Based: { gravitationalConstant: -40, centralGravity: 0.01 },
-            }
-          : false,
-        layout: { improvedLayout: true, randomSeed: 42 },
-        interaction: { hover: true, tooltipDelay: 80 },
-        nodes: { shapeProperties: { borderDashes: false } },
-        edges: { smooth: { type: 'dynamic' } },
-      };
+// 링 레이아웃 (클러스터 비활성 시)
+function withRingPositions(nodes, edges) {
+  const degree = {};
+  nodes.forEach(n => { degree[n.id] = 0; });
+  edges.forEach(e => { if (degree[e.source_id] != null) degree[e.source_id]++; if (degree[e.target_id] != null) degree[e.target_id]++; });
+  const docs = nodes.filter(n => n.type === 'Document');
+  const kws  = nodes.filter(n => n.type === 'Keyword').sort((a, b) => (degree[b.id]||0)-(degree[a.id]||0));
+  const oth  = nodes.filter(n => n.type !== 'Document' && n.type !== 'Keyword').sort((a, b) => (degree[b.id]||0)-(degree[a.id]||0));
+  const seeded = [];
+  docs.forEach((n, i) => seeded.push({ ...n, x: i * 180, y: 0 }));
+  const R = Math.max(500, kws.length * 6.4);
+  kws.forEach((n, i) => {
+    const a = (2 * Math.PI * i) / Math.max(1, kws.length) - Math.PI / 2;
+    seeded.push({ ...n, x: Math.round(Math.cos(a) * R), y: Math.round(Math.sin(a) * R) });
+  });
+  const Ro = R + 340;
+  oth.forEach((n, i) => {
+    const a = (2 * Math.PI * i) / Math.max(1, oth.length) - Math.PI / 2;
+    seeded.push({ ...n, x: Math.round(Math.cos(a) * Ro), y: Math.round(Math.sin(a) * Ro) });
+  });
+  return seeded;
+}
 
-      if (network) network.destroy();
-      network = new vis.Network(document.getElementById('network'), { nodes, edges }, options);
-      network.setSize('100%', '100%');
-      network.redraw();
-      network.once('stabilized', () => {
-        network.fit({ animation: { duration: 300 } });
-        network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
-      });
-      setTimeout(() => {
-        network.redraw();
-        network.fit({ animation: false });
-        network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
-      }, 250);
-      setTimeout(() => {
-        network.redraw();
-        network.fit({ animation: false });
-      }, 700);
-      statusEl.textContent =
-        `표시 노드 ${filtered.nodes.length}/${data.nodes.length} · ` +
-        `표시 엣지 ${filtered.edges.length}/${data.edges.length} · ` +
-        `키워드 ${filtered.pickedKeywordCount}/${filtered.totalKeywordCount}`;
+// ══════════════════════════════════════════════════════════
+// 섹션 배경 그리기
+// ══════════════════════════════════════════════════════════
+function drawSectionBackgrounds(ctx) {
+  if (!document.getElementById('clusterMode').checked) return;
+  Object.entries(sectionMeta).forEach(([sec, { cx, cy, radius, colorIdx }]) => {
+    if (sec === '__doc__' || sec === '__other__') return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = SECTION_BG_COLORS[colorIdx];
+    ctx.fill();
+    ctx.strokeStyle = SECTION_BORDER_COLORS[colorIdx];
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = SECTION_BORDER_COLORS[colorIdx];
+    ctx.font = 'bold 13px "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.75;
+    ctx.fillText(sec, cx, cy - radius + 18);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+}
 
-      const byFreq = [...filtered.nodes].sort((a, b) => keywordFreq(b) - keywordFreq(a)).slice(0, 80);
-      nodeListEl.innerHTML = '';
-      byFreq.forEach(n => {
-        const btn = document.createElement('button');
-        btn.className = 'node-list-item';
-        const freq = keywordFreq(n);
-        btn.textContent = `[${n.type}] ${n.label}${freq ? ` (${freq})` : ''}`;
-        btn.onclick = () => {
-          if (!network) return;
-          network.selectNodes([n.id]);
-          network.focus(n.id, { scale: 1.1, animation: { duration: 250 } });
-        };
-        nodeListEl.appendChild(btn);
-      });
-    };
+// ══════════════════════════════════════════════════════════
+// 렌더
+// ══════════════════════════════════════════════════════════
+function renderGraph(data, filters) {
+  const filtered = filterGraph(data, filters);
+  const clusterOn = document.getElementById('clusterMode').checked;
+  const seeded = clusterOn
+    ? withSectionClusterPositions(filtered.nodes, filtered.edges)
+    : withRingPositions(filtered.nodes, filtered.edges);
+  const hideLabel = document.getElementById('hideEdgeLabel').checked;
 
-    document.getElementById('resetView').onclick = () => {
+  visNodes = new vis.DataSet(seeded.map(formatNode));
+  visEdges = new vis.DataSet(filtered.edges.map(e => formatEdge(e, hideLabel)));
+  knownEdgeIds = new Set(filtered.edges.map(e => e.id));
+  knownNodeIds = new Set(filtered.nodes.map(n => n.id));
+
+  const physicsOn = document.getElementById('physics').checked;
+  const options = {
+    physics: physicsOn ? {
+      solver: 'barnesHut',
+      barnesHut: { gravitationalConstant: -3000, centralGravity: 0.05,
+        springLength: 200, springConstant: 0.02, damping: 0.5, avoidOverlap: 1 },
+      stabilization: { enabled: true, iterations: 150, fit: true, hidden: true },
+    } : false,
+    layout: { improvedLayout: false },
+    interaction: { hover: true, tooltipDelay: 80 },
+    edges: { smooth: { type: 'continuous' } },
+  };
+
+  if (network) network.destroy();
+  const netEl = document.getElementById('network');
+  const headerH = document.querySelector('header').offsetHeight || 60;
+  netEl.style.height = (window.innerHeight - headerH) + 'px';
+  network = new vis.Network(netEl, { nodes: visNodes, edges: visEdges }, options);
+
+  network.on('beforeDrawing', drawSectionBackgrounds);
+
+  network.on('click', params => {
+    if (params.nodes.length > 0) showSelectedNode(params.nodes[0], data.nodes);
+    else hideSelectedPanel();
+  });
+
+  if (physicsOn) {
+    statusEl.textContent = '레이아웃 계산 중…';
+    network.once('stabilized', () => {
+      network.fit({ animation: { duration: 300 } });
+      updateStatus(filtered, data);
+    });
+  } else {
+    setTimeout(() => { network.redraw(); network.fit({ animation: false }); }, 200);
+    updateStatus(filtered, data);
+  }
+
+  renderNodeList(filtered.nodes);
+  return filtered;
+}
+
+function updateStatus(filtered, data) {
+  statusEl.textContent =
+    `노드 ${filtered.nodes.length}/${data.nodes.length} · ` +
+    `엣지 ${filtered.edges.length}/${data.edges.length} · ` +
+    `키워드 ${filtered.pickedCount}/${filtered.totalCount}`;
+}
+
+function renderNodeList(nodes) {
+  const sorted = [...nodes].sort((a, b) => keywordFreq(b) - keywordFreq(a)).slice(0, 80);
+  nodeListEl.innerHTML = '';
+  sorted.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'node-list-item';
+    btn.id = `nl-${n.id}`;
+    const freq = keywordFreq(n);
+    btn.textContent = `[${n.type[0]}] ${n.label}${freq ? ` (${freq})` : ''}`;
+    btn.onclick = () => {
       if (!network) return;
-      network.fit({ animation: { duration: 200 } });
-      network.moveTo({ position: { x: 0, y: 0 }, scale: 0.8, animation: false });
+      network.selectNodes([n.id]);
+      network.focus(n.id, { scale: 1.4, animation: { duration: 300 } });
+      showSelectedNode(n.id, currentData?.nodes || []);
     };
-  </script>
+    nodeListEl.appendChild(btn);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// 선택 노드 패널
+// ══════════════════════════════════════════════════════════
+function showSelectedNode(nodeId, allNodes) {
+  selectedNodeId = nodeId;
+  const node = allNodes.find(n => n.id === nodeId) || visNodes?.get(nodeId);
+  if (!node) return;
+  const refs = node.external_refs || {};
+  document.getElementById('selectedPanel').style.display = '';
+  document.getElementById('selectedInfo').innerHTML = `
+    <div><span class="info-label">라벨</span><br/><strong>${node.label}</strong></div>
+    <div><span class="info-label">타입</span> ${node.type}</div>
+    ${node.description ? `<div><span class="info-label">섹션</span> ${node.description}</div>` : ''}
+    ${refs.frequency != null ? `<div><span class="info-label">빈도</span> ${refs.frequency}</div>` : ''}
+    ${refs.embedding_score != null ? `<div><span class="info-label">임베딩 유사도</span> ${refs.embedding_score}</div>` : ''}
+    <div><span class="info-label">ID</span> <small>${node.id}</small></div>
+  `;
+  document.getElementById('graphToTextResult').innerHTML = '';
+  document.querySelectorAll('.node-list-item').forEach(b => b.classList.remove('selected'));
+  const nlBtn = document.getElementById(`nl-${nodeId}`);
+  if (nlBtn) nlBtn.classList.add('selected');
+}
+function hideSelectedPanel() {
+  selectedNodeId = null;
+  document.getElementById('selectedPanel').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// Phase 2 폴링
+// ══════════════════════════════════════════════════════════
+function startPolling(token, filters) {
+  stopPolling(); noNewCount = 0;
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/v1/students/me/graph', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { if (res.status === 401) { stopPolling(); statusEl.textContent = '세션 만료'; } return; }
+      const data = await res.json();
+      const hideLabel = document.getElementById('hideEdgeLabel').checked;
+      const { keep } = filterGraph(data, filters);
+      const newEdges = data.edges.filter(e =>
+        !knownEdgeIds.has(e.id) && keep.has(e.source_id) && keep.has(e.target_id) &&
+        !(filters.hideMentionedIn && e.relation === 'MENTIONED_IN'));
+      if (newEdges.length > 0) {
+        visEdges.add(newEdges.map(e => formatEdge(e, hideLabel)));
+        newEdges.forEach(e => knownEdgeIds.add(e.id));
+        noNewCount = 0;
+        statusEl.textContent += ` · +${newEdges.length}개 관계 추가됨`;
+      } else {
+        noNewCount++;
+        if (noNewCount >= 3) { stopPolling(); }
+      }
+    } catch (_) {}
+  }, 3000);
+}
+function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+window.addEventListener('resize', () => {
+  if (!network) return;
+  const headerH = document.querySelector('header').offsetHeight || 60;
+  document.getElementById('network').style.height = (window.innerHeight - headerH) + 'px';
+  network.redraw();
+});
+
+// ══════════════════════════════════════════════════════════
+// 이벤트 핸들러
+// ══════════════════════════════════════════════════════════
+
+document.getElementById('load').onclick = async () => {
+  stopPolling();
+  const token = normalizeToken(tokenInput.value);
+  if (!token) { statusEl.textContent = '토큰을 입력하세요'; return; }
+  localStorage.setItem('mbx_token', tokenInput.value.trim());
+  currentToken = token;
+  statusEl.textContent = '로딩 중…';
+  const res = await fetch('/v1/students/me/graph', { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) { statusEl.textContent = `오류 ${res.status}`; return; }
+  currentData = await res.json();
+  currentFilters = {
+    maxKeywords: Number(document.getElementById('maxKeywords').value || 100),
+    minFreq:     Number(document.getElementById('minFreq').value || 2),
+    hideDoc:     document.getElementById('hideDoc').checked,
+    hideMentionedIn: document.getElementById('hideMentionedIn').checked,
+  };
+  renderGraph(currentData, currentFilters);
+  startPolling(token, currentFilters);
+};
+
+document.getElementById('resetView').onclick = () => { if (network) network.fit({ animation: { duration: 200 } }); };
+
+// 의미 검색 (F1-12)
+document.getElementById('searchBtn').onclick = async () => {
+  const q = document.getElementById('searchQ').value.trim();
+  if (!q || !currentToken) return;
+  const res = await fetch(`/v1/students/me/graph/search?q=${encodeURIComponent(q)}&top_k=10`,
+    { headers: { Authorization: `Bearer ${currentToken}` } });
+  if (!res.ok) return;
+  const results = await res.json();
+  const el = document.getElementById('searchResults');
+  el.innerHTML = '';
+  results.forEach(({ node, score }) => {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+    div.innerHTML = `<strong>${node.label}</strong> <span class="score">[${node.type}] ${(score*100).toFixed(0)}%</span>`;
+    div.onclick = () => {
+      if (!network || !visNodes?.get(node.id)) return;
+      network.selectNodes([node.id]);
+      network.focus(node.id, { scale: 1.4, animation: { duration: 300 } });
+      showSelectedNode(node.id, currentData?.nodes || []);
+    };
+    el.appendChild(div);
+  });
+  if (!results.length) el.innerHTML = '<div style="color:var(--muted);font-size:12px">결과 없음</div>';
+};
+document.getElementById('searchQ').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('searchBtn').click();
+});
+
+// 노드 추가 (F1-05)
+document.getElementById('addNodeBtn').onclick = async () => {
+  const label   = document.getElementById('newLabel').value.trim();
+  const type    = document.getElementById('newType').value;
+  const section = document.getElementById('newSection').value.trim();
+  if (!label || !currentToken) return;
+  const body = { label, type, description: section ? `section=${section}` : null, external_refs: {} };
+  const res = await fetch('/v1/students/me/graph/nodes', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+  });
+  if (!res.ok) { alert(`추가 실패: ${res.status}`); return; }
+  const node = await res.json();
+  visNodes?.add(formatNode({ ...node, x: 0, y: 0 }));
+  currentData?.nodes.push(node);
+  document.getElementById('newLabel').value = '';
+  statusEl.textContent = `노드 추가됨: ${node.label}`;
+};
+
+// 노드 삭제 (F1-05)
+document.getElementById('deleteNodeBtn').onclick = async () => {
+  if (!selectedNodeId || !currentToken) return;
+  if (!confirm('이 노드를 삭제할까요?')) return;
+  const res = await fetch(`/v1/students/me/graph/nodes/${selectedNodeId}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${currentToken}` }
+  });
+  if (!res.ok && res.status !== 204) { alert(`삭제 실패: ${res.status}`); return; }
+  visNodes?.remove(selectedNodeId);
+  if (currentData) currentData.nodes = currentData.nodes.filter(n => n.id !== selectedNodeId);
+  hideSelectedPanel();
+  statusEl.textContent = '노드 삭제됨';
+};
+
+// 그래프 → 텍스트 제안 (F1-06)
+document.getElementById('graphToTextBtn').onclick = async () => {
+  if (!selectedNodeId || !currentToken) return;
+  const node = currentData?.nodes.find(n => n.id === selectedNodeId);
+  const secTitle = node ? (nodeSection(node) === '__other__' ? '' : nodeSection(node)) : '';
+  const body = { node_id: selectedNodeId, section_title: secTitle, section_text: '' };
+  const resultEl = document.getElementById('graphToTextResult');
+  resultEl.innerHTML = '<div style="color:var(--muted)">요청 중…</div>';
+  const res = await fetch('/v1/students/me/graph/sync/graph-to-text', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+  });
+  if (!res.ok) { resultEl.innerHTML = `<div style="color:red">오류 ${res.status}</div>`; return; }
+  const data = await res.json();
+  resultEl.innerHTML = `<div class="sync-result"><strong>삽입 제안문:</strong><br/>${data.suggested_sentence}<br/><br/><em>${data.insert_hint}</em></div>`;
+};
+
+// 텍스트 → 그래프 동기화 (F1-06)
+document.getElementById('syncBtn').onclick = async () => {
+  const section = document.getElementById('syncSection').value.trim();
+  const text    = document.getElementById('syncText').value.trim();
+  if (!section || !text || !currentToken) return;
+  const resultEl = document.getElementById('syncResult');
+  resultEl.innerHTML = '<div style="color:var(--muted)">동기화 중…</div>';
+  const res = await fetch('/v1/students/me/graph/sync/text-to-graph', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ section_title: section, text })
+  });
+  if (!res.ok) { resultEl.innerHTML = `<div style="color:red">오류 ${res.status}</div>`; return; }
+  const data = await res.json();
+  if (data.added_count > 0) {
+    data.added_nodes.forEach(n => {
+      visNodes?.add(formatNode({ ...n, x: 0, y: 0 }));
+      currentData?.nodes.push(n);
+    });
+    resultEl.innerHTML = `<div class="sync-result">+${data.added_count}개 노드 추가됨</div>`;
+    statusEl.textContent = `텍스트→그래프 동기화: +${data.added_count}개`;
+  } else {
+    resultEl.innerHTML = '<div class="sync-result">추가된 노드 없음 (이미 모두 존재)</div>';
+  }
+};
+</script>
 </body>
 </html>
