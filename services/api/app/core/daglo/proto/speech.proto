@@ -1,0 +1,42 @@
+// Daglo Speech gRPC API — Realtime STT (StreamingRecognize)
+// 출처: docs/daglo_api_guide_LEGACY_2024.md:295-334 (Daglo 2024-09 공식 가이드)
+// 인증: 메타데이터 "authorization: Bearer <DAGLO_API_TOKEN>"
+// 오디오 포맷: LINEAR16, 16kHz, mono (필수)
+
+syntax = "proto3";
+
+package dagloapis.speech.v1;
+
+service Speech {
+  rpc StreamingRecognize(stream StreamingRecognizeRequest)
+      returns (stream StreamingRecognizeResponse) {}
+}
+
+// 첫 메시지는 반드시 config를 포함하고 audio_content는 비워야 함.
+// 이후 메시지는 audio_content만 포함.
+message StreamingRecognizeRequest {
+  oneof streaming_request {
+    RecognitionConfig config = 1;
+    // LINEAR16, 16000Hz, mono PCM
+    bytes audio_content = 2;
+  }
+}
+
+message RecognitionConfig {
+  // BCP-47: ko-KR, en-US, mixed (default: ko-KR)
+  string language_code = 1;
+
+  // true: partial(is_final=false) 결과도 push
+  bool interim_results = 2;
+}
+
+message StreamingRecognizeResponse {
+  StreamingRecognitionResult result = 1;
+  float total_duration = 2;
+}
+
+message StreamingRecognitionResult {
+  string transcript = 1;
+  bool is_final = 2;
+  string language_code = 3;
+}

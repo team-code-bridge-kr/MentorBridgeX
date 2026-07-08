@@ -38,6 +38,8 @@ make -C ../.. api-offline
 ```
 
 - **Swagger**: http://localhost:8000/docs  
+- **Graph viewer**: http://localhost:8000/dev/graph-viewer  
+- **STT tester**: http://localhost:8000/dev/stt-recorder (`DAGLO_API_TOKEN` 설정 시)  
 - **6/5 demo script**: [docs/demo-june5.md](docs/demo-june5.md)
 
 ## Tests

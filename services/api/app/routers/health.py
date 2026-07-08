@@ -34,3 +34,9 @@ async def health() -> dict:
         "neo4j": neo4j_ok,
         "redis": await ping_redis(),
     }
+
+
+@router.get("/healthz", include_in_schema=False)
+async def healthz() -> dict:
+    """Daglo STT 브랜치 호환 — FastAPI 프로세스 생존 확인만."""
+    return {"status": "ok"}

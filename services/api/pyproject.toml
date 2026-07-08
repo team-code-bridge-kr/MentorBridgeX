@@ -19,6 +19,8 @@ dependencies = [
     "httpx>=0.28.0",
     "email-validator>=2.2.0",
     "pymupdf>=1.24.0",
+    "grpcio>=1.66.0",
+    "protobuf>=5.28.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +38,11 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+    "app/core/daglo/proto/speech_pb2.py",
+    "app/core/daglo/proto/speech_pb2_grpc.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+ignore = ["N802", "N815"]

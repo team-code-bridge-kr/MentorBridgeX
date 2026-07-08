@@ -23,7 +23,7 @@
 | Domain | Owner track | Tags in Swagger |
 |--------|-------------|-----------------|
 | Ontology / 생기부 | 온톨로지 담당 | `ontology-*` |
-| Voice / STT | 음성 담당 | `voice-planned` (스텁) |
+| Voice / STT | 음성 담당 | `STT` (Daglo, `DAGLO_API_TOKEN` 필요) |
 | Auth (dev) | 공통 | `auth` |
 
 ## Conventions

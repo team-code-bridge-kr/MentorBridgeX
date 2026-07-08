@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     embedding_adapter: str = "mock"
     offline_demo: bool = False
 
+    # Daglo STT (optional — empty disables live client init)
+    daglo_api_token: str = ""
+    daglo_base_url: str = "https://apis.daglo.ai"
+    daglo_timeout_seconds: float = 30.0
+
 
 @lru_cache
 def get_settings() -> Settings:

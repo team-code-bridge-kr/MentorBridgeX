@@ -7,34 +7,57 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
+from app.core.daglo.client import DagloHTTPClient
+from app.core.daglo.grpc_client import DagloGRPCClient
 from app.db.factory import is_offline_demo
 from app.db.neo4j import close_neo4j, init_neo4j
 from app.db.postgres import init_postgres
 from app.db.redis_client import close_redis
 from app.errors import AppError, app_error_handler, unhandled_error_handler, validation_error_handler
-from app.routers import auth, documents, graph, health, jobs, recommendations, voice
+from app.features.stt import routes as stt_routes
+from app.features.stt.provider import DagloSTTProvider
+from app.features.stt.service import STTService
+from app.routers import auth, documents, graph, health, jobs, recommendations, sync, voice
 from fastapi.exceptions import RequestValidationError
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
-    if is_offline_demo():
-        yield
-        return
-    await init_postgres()
-    await init_neo4j()
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    daglo_client: DagloHTTPClient | None = None
+
+    if settings.daglo_api_token:
+        daglo_client = DagloHTTPClient(
+            api_token=settings.daglo_api_token,
+            base_url=settings.daglo_base_url,
+            timeout=settings.daglo_timeout_seconds,
+        )
+        grpc_client = DagloGRPCClient(api_token=settings.daglo_api_token)
+        provider = DagloSTTProvider(daglo_client, grpc_client=grpc_client)
+        service = STTService(provider)
+        app.dependency_overrides[stt_routes.get_stt_service] = lambda: service
+        app.state.stt_service = service
+
+    if not is_offline_demo():
+        await init_postgres()
+        await init_neo4j()
+
     yield
-    await close_neo4j()
-    await close_redis()
+
+    if daglo_client is not None:
+        await daglo_client.aclose()
+    if not is_offline_demo():
+        await close_neo4j()
+        await close_redis()
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="MentorBridgeX API",
-        description="온톨로지 생기부 MVP — Swagger 데모 (6/5)",
+        description="온톨로지 생기부 MVP + Daglo STT",
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs",
@@ -60,7 +83,9 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(recommendations.router)
     app.include_router(jobs.router)
+    app.include_router(sync.router)
     app.include_router(voice.router)
+    app.include_router(stt_routes.router)
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -69,14 +94,20 @@ def create_app() -> FastAPI:
     async def graph_viewer() -> FileResponse:
         return FileResponse(STATIC_DIR / "graph_viewer.html")
 
+    @app.get("/dev/stt-recorder", include_in_schema=False)
+    async def stt_recorder() -> FileResponse:
+        return FileResponse(STATIC_DIR / "stt_recorder.html")
+
     @app.get("/", include_in_schema=False)
     async def root() -> dict:
         return {
             "service": "MentorBridgeX API",
             "docs": "/docs",
             "graph_viewer": "/dev/graph-viewer",
+            "stt_recorder": "/dev/stt-recorder",
             "debug": settings.api_debug,
             "offline_demo": settings.offline_demo,
+            "stt_enabled": bool(settings.daglo_api_token),
         }
 
     return app
