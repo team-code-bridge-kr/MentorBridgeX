@@ -10,9 +10,15 @@ MentorBridgeX/
 ├── docs/                  # Architecture & demo scripts
 ├── guide/                 # Product specs (IA, feature spec, …)
 ├── services/api/          # FastAPI backend
+├── 초안_코드.jsx          # 프론트 UI 초안 (React 단일 파일, API mock)
 ├── docker-compose.yml
 └── Makefile
 ```
+
+### Frontend draft (`초안_코드.jsx`)
+
+팀 프론트 초안(단일 React JSX). 현재 API는 **목업**이며, 파일 상단 `api` 객체를 실제 `services/api` (`/v1/...`) 호출로 교체하면 됩니다.  
+백엔드 연동 베이스 URL 예: `https://api.teamcodebridge.dev` 또는 로컬 `http://127.0.0.1:8000`.
 
 ## Quick start
 
