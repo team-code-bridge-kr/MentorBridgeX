@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { KIND_META } from "../../theme/graphMeta.js";
+import { Btn } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
+import api from "../../api/index.js";
 
 export function S06({ onNav }) {
   const { state, actions } = useStore();
@@ -75,22 +77,22 @@ export function S06({ onNav }) {
               </div>
             )}
 
-            {/* 엣지 — 곡선 + 활성 노드 연결선 강조 */}
-            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+            {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
               {edges.map(e=>{
                 const a=nodeById(e.from), b=nodeById(e.to);
                 if(!a||!b) return null;
                 const on = activeId && (e.from===activeId||e.to===activeId);
-                // 퍼센트 좌표 → 곡선 제어점
                 const ax=parseFloat(a.x), ay=parseFloat(a.y), bx=parseFloat(b.x), by=parseFloat(b.y);
                 const mx=(ax+bx)/2, my=(ay+by)/2 - 4;
                 return (
                   <path key={e.id}
-                    d={`M ${ax}% ${ay}% Q ${mx}% ${my}% ${bx}% ${by}%`}
+                    d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
                     fill="none"
                     stroke={on?"url(#edgeGrad)":TDS.borderStrong}
-                    strokeWidth={on?2.4:1.4}
-                    strokeDasharray={on?"none":"4 4"}
+                    strokeWidth={on?0.6:0.35}
+                    vectorEffect="non-scaling-stroke"
+                    strokeDasharray={on?"none":"1 1"}
                     opacity={activeId && !on ? .25 : (on?.95:.6)}
                     style={{transition:"opacity .2s, stroke-width .2s"}}
                   />
