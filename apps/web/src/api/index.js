@@ -17,7 +17,7 @@
  */
 
 import { request, setToken, clearToken, getToken } from "./client.js";
-import { SEED_NODES, SEED_EDGES, mockApi } from "./mockData.js";
+import { mockApi } from "./mockData.js";
 
 const _uid = (p = "id") =>
   `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -31,15 +31,20 @@ function mapNode(n, idx) {
   const angle  = (idx / 8) * Math.PI * 2;
   const cx     = 50 + Math.cos(angle) * 28;
   const cy     = 48 + Math.sin(angle) * 30;
+  const t = String(n.type || "").toLowerCase();
+  const kind =
+    t === "root" ? "root" :
+    t === "keyword" || t === "inquiry" || t === "subject" ? "topic" :
+    "leaf";
   return {
     id:    n.id,
     label: n.label,
-    kind:  n.type === "ROOT" ? "root" : n.type === "KEYWORD" ? "topic" : "leaf",
+    kind,
     x:     n.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? `${cy.toFixed(0)}%`,
     color: n.color ?? PALETTE[idx % PALETTE.length],
-    size:  n.size ?? (n.type === "ROOT" ? 64 : 44),
-    cat:   n.cat  ?? (n.type === "ROOT" ? "핵심 노드" : "연결 노드"),
+    size:  n.size ?? (kind === "root" ? 64 : kind === "topic" ? 44 : 38),
+    cat:   n.cat  ?? (kind === "root" ? "핵심 노드" : kind === "topic" ? "연결 노드" : "말단 노드"),
   };
 }
 function mapEdge(e) {
@@ -147,54 +152,44 @@ const api = {
 
   // ══ 그래프 ════════════════════════════════════════════════
   graph: {
-    /** ✅ LIVE — GET /v1/students/me/graph */
+    /** ✅ LIVE — GET /v1/students/me/graph (빈 그래프면 빈 배열 그대로) */
     async fetch(userId) {
-      try {
-        const data = await request("/v1/students/me/graph");
-        const nodes = (data.nodes ?? []).map(mapNode);
-        const edges = (data.edges ?? []).map(mapEdge);
-        // 그래프가 비어있으면 시드 데이터 보여줌
-        if (nodes.length === 0) return { nodes: [...SEED_NODES], edges: [...SEED_EDGES] };
-        return { nodes, edges };
-      } catch {
-        // 토큰 없거나 백엔드 오류 → fallback
-        return { nodes: [...SEED_NODES], edges: [...SEED_EDGES] };
-      }
+      const data = await request("/v1/students/me/graph");
+      return {
+        nodes: (data.nodes ?? []).map(mapNode),
+        edges: (data.edges ?? []).map(mapEdge),
+      };
     },
 
     /** ✅ LIVE — POST /v1/students/me/graph/nodes */
     async addNode(node) {
-      try {
-        const data = await request("/v1/students/me/graph/nodes", {
-          method: "POST",
-          body:   { label: node.label, type: node.kind?.toUpperCase() ?? "KEYWORD", description: node.description ?? "" },
-        });
-        return mapNode(data, Math.floor(Math.random() * 8));
-      } catch {
-        await _sleep();
-        return { ...node, id: _uid("n"), createdAt: Date.now() };
-      }
+      const data = await request("/v1/students/me/graph/nodes", {
+        method: "POST",
+        body: {
+          label: node.label,
+          type: "Keyword",
+          description: node.description ?? "",
+        },
+      });
+      return mapNode(data, Math.floor(Math.random() * 8));
     },
 
     /** ✅ LIVE — POST /v1/students/me/graph/edges */
     async addEdge(edge) {
-      try {
-        const data = await request("/v1/students/me/graph/edges", {
-          method: "POST",
-          body:   { source_id: edge.from, target_id: edge.to, relation: "RELATED" },
-        });
-        return mapEdge(data);
-      } catch {
-        await _sleep();
-        return { ...edge, id: _uid("e") };
-      }
+      const data = await request("/v1/students/me/graph/edges", {
+        method: "POST",
+        body: {
+          source_id: edge.from,
+          target_id: edge.to,
+          relation: "RELATES_TO",
+        },
+      });
+      return mapEdge(data);
     },
 
     /** ✅ LIVE — DELETE /v1/students/me/graph/nodes/{id} */
     async removeNode(id) {
-      try {
-        await request(`/v1/students/me/graph/nodes/${id}`, { method: "DELETE" });
-      } catch { /* 없으면 로컬에서만 삭제 */ }
+      await request(`/v1/students/me/graph/nodes/${id}`, { method: "DELETE" });
       return { id };
     },
 
@@ -203,50 +198,27 @@ const api = {
      * 시드 키워드들을 백엔드에 등록하고 생성된 노드 배열 반환
      */
     async generateFromSeeds(keywords) {
-      try {
-        const data = await request("/v1/students/me/graph/seed", {
-          method: "POST",
-          body:   { seeds: keywords },
-        });
-        return (Array.isArray(data) ? data : data.nodes ?? []).map(mapNode);
-      } catch {
-        // fallback: 클라이언트에서 원형 배치
-        await _sleep(900);
-        const palette = PALETTE;
-        const N = keywords.length;
-        return keywords.map((k, i) => {
-          const angle = (i / Math.max(N, 1)) * Math.PI * 2;
-          const cx = 50 + Math.cos(angle) * 28;
-          const cy = 48 + Math.sin(angle) * 30;
-          return { id: _uid("n"), label: k, kind: i === 0 ? "root" : "topic",
-            x: `${cx.toFixed(0)}%`, y: `${cy.toFixed(0)}%`,
-            color: palette[i % palette.length], size: i === 0 ? 60 : 44,
-            cat: i === 0 ? "핵심 노드" : "연결 노드" };
-        });
-      }
+      const data = await request("/v1/students/me/graph/seed", {
+        method: "POST",
+        body: { seeds: keywords },
+      });
+      return (Array.isArray(data) ? data : data.nodes ?? []).map(mapNode);
     },
 
     /**
      * ✅ LIVE — POST /v1/students/me/recommendations/branch
-     * 가지치기 추천 (백엔드 Mock ML 활용)
      */
     async pruneSuggestions(userId) {
-      try {
-        const data = await request("/v1/students/me/recommendations/branch", {
-          method: "POST",
-          body:   { seeds: [], max_results: 5 },
-        });
-        // BranchRecommendationResponse: { suggestions: [{ label, score, reason }] }
-        const sugs = data.suggestions ?? data ?? [];
-        return sugs.map((s, i) => ({
-          nodeId: `rec_${i}`,
-          label:  s.label ?? s,
-          reason: s.reason ?? "추천 키워드",
-        }));
-      } catch {
-        await _sleep(700);
-        return SEED_NODES.slice(0, 3).map((n) => ({ nodeId: n.id, reason: "최근 6개월 활동 없음" }));
-      }
+      const data = await request("/v1/students/me/recommendations/branch", {
+        method: "POST",
+        body: { seeds: [], max_results: 5 },
+      });
+      const sugs = data.suggestions ?? data ?? [];
+      return sugs.map((s, i) => ({
+        nodeId: `rec_${i}`,
+        label: s.label ?? s,
+        reason: s.rationale ?? s.reason ?? "추천 키워드",
+      }));
     },
   },
 

@@ -6,7 +6,14 @@ import { NavIcon } from "../../components/NavIcon.jsx";
 import { DonutChart } from "../../components/ui.jsx";
 
 export function S05({ onNav }) {
+  const { state, actions } = useStore();
+  const nodeCount = state.graph?.nodes?.length ?? 0;
   const [period, setPeriod] = useState("일별");
+
+  useEffect(() => {
+    if (state.session?.user?.id) actions.loadGraph(state.session.user.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.session?.user?.id]);
 
   // 30개 데이터 포인트 (피그마 DAU 차트와 동일)
   const pts = [42,68,55,82,71,90,78,95,83,110,98,115,88,102,119,105,125,108,118,112,98,115,107,120,113,119,125,118,122,119];
@@ -17,12 +24,12 @@ export function S05({ onNav }) {
   const linePath = pts.map((v, i) => `${i === 0 ? "M" : "L"} ${tx(i)} ${ty(v)}`).join(" ");
   const areaPath = linePath + ` L ${tx(nPts-1)} ${H} L ${tx(0)} ${H} Z`;
 
-  // stat 카드 데이터 (피그마와 동일)
+  // 총 노드 수만 실제 API 그래프 기준, 나머지는 아직 UI 목업
   const stats = [
-    { label:"총 노드 수", value:"2,847개", sub:"전월 대비 +12%", color:TDS.blue500, icon:"🧠", iconBg:TDS.blue50, trend:"+12%", trendUp:true },
-    { label:"텍스트 영역", value:"8 / 8",  sub:"모든 영역 입력됨", color:TDS.success, icon:"📄", iconBg:TDS.successBg, trend:"완료", trendUp:true },
-    { label:"음성 세션",  value:"23회",    sub:"총 18시간 37분", color:TDS.textPrimary, icon:"🎙️", iconBg:TDS.bgTertiary, trend:"+3", trendUp:true },
-    { label:"양식 생성",  value:"6개",     sub:"이번 달 3개 생성", color:TDS.warning, icon:"📝", iconBg:TDS.warningBg, trend:"+2", trendUp:true },
+    { label:"총 노드 수", value:`${nodeCount.toLocaleString()}개`, sub: nodeCount ? "Neo4j 실제 데이터" : "시드를 추가해 보세요", color:TDS.blue500, icon:"🧠", iconBg:TDS.blue50, trend: nodeCount ? "LIVE" : "0", trendUp:true },
+    { label:"텍스트 영역", value:"—",  sub:"문서 API 연동 예정", color:TDS.success, icon:"📄", iconBg:TDS.successBg, trend:"…", trendUp:true },
+    { label:"음성 세션",  value:"—",    sub:"STT 세션 연동 예정", color:TDS.textPrimary, icon:"🎙️", iconBg:TDS.bgTertiary, trend:"…", trendUp:true },
+    { label:"양식 생성",  value:"—",     sub:"양식 API 연동 예정", color:TDS.warning, icon:"📝", iconBg:TDS.warningBg, trend:"…", trendUp:true },
   ];
 
   // 활동 항목 (dot 색상 피그마와 동일)
