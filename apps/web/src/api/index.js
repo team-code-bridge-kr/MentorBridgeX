@@ -6,12 +6,9 @@
  *
  * 📌 "실제 백엔드 연결" vs "목업" 상태 요약
  * ──────────────────────────────────────────
- * ✅ LIVE  : auth.signInWithPassword, auth.signOut
- *            graph.fetch, graph.addNode, graph.addEdge, graph.removeNode
- *            graph.generateFromSeeds, graph.pruneSuggestions
- *            ingest.uploadPdf
- * 🔶 MOCK  : auth.signInGoogle, auth.exchangeOAuthCode, auth.signInAdmin
- *            comments.*, teacher.*, admin.*
+ * ✅ LIVE  : auth.*, graph.*, ingest.uploadPdf,
+ *            comments.*, voice.*, forms.*, notifications.*, stats.*, settings.*
+ * 🔶 MOCK  : auth.signInAdmin (partial), teacher.*, admin.*
  *
  * 백엔드 라우터 참고: services/api/app/routers/
  */
@@ -22,6 +19,64 @@ import { mockApi } from "./mockData.js";
 const _uid = (p = "id") =>
   `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const _sleep = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+
+function mapComment(c) {
+  const createdAt = c.createdAt ?? (c.created_at ? Date.parse(c.created_at) : Date.now());
+  return {
+    id: c.id,
+    author: c.author,
+    type: c.type,
+    target: c.target,
+    content: c.content,
+    reports: c.reports ?? 0,
+    replied: c.replied ?? false,
+    createdAt: typeof createdAt === "number" ? createdAt : Date.parse(createdAt),
+  };
+}
+
+function mapNotif(n) {
+  const createdAt = n.created_at ? Date.parse(n.created_at) : Date.now();
+  const agoMs = Date.now() - createdAt;
+  const time =
+    agoMs < 3600_000 ? `${Math.max(1, Math.floor(agoMs / 60_000))}분 전` :
+    agoMs < 86400_000 ? `${Math.floor(agoMs / 3600_000)}시간 전` :
+    `${Math.floor(agoMs / 86400_000)}일 전`;
+  return {
+    id: n.id,
+    ic: n.icon || "bell",
+    t: n.title,
+    d: n.body,
+    time,
+    read: !!n.read,
+  };
+}
+
+function fmtDur(sec) {
+  const s = Math.max(0, Number(sec) || 0);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h) return `${h}시간 ${m}분`;
+  return `${m}분`;
+}
+
+function mapVoice(v) {
+  const created = v.created_at ? new Date(v.created_at) : new Date();
+  const date = `${created.getFullYear()}.${String(created.getMonth()+1).padStart(2,"0")}.${String(created.getDate()).padStart(2,"0")}`;
+  return {
+    id: v.id,
+    t: v.title,
+    date,
+    dur: fmtDur(v.duration_sec),
+    duration_sec: v.duration_sec || 0,
+    st: v.status,
+    ppl: (v.participants || []).length || 1,
+    transcript: v.transcript || "",
+    keywords: v.keywords || [],
+    participants: v.participants || [],
+    stt_mode: v.stt_mode,
+    raw: v,
+  };
+}
 
 // ── 노드 매퍼: 백엔드 → UI 형태 ─────────────────────────────
 const PALETTE = ["#3182f6","#4593fc","#22c55e","#f59e0b","#8b95a1","#f04452"];
@@ -90,12 +145,19 @@ const api = {
     },
 
     /**
-     * 🔶 MOCK — Google OAuth (MVP: dev-login 으로 고정 이메일 사용)
-     * 실제 구현: window.location.href = `/v1/auth/google/start?redirect=/oauth/callback`
+     * ✅ LIVE — Google OAuth 시작 (redirect). 세션은 /oauth/callback 에서 완성.
+     * GOOGLE 미설정 시 기존처럼 dev-login fallback.
      */
     async signInWithGoogle() {
-      await _sleep(700);
-      try {
+      const clientId =
+        import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+        (await this._fetchGoogleConfig()).client_id;
+      const redirectUri =
+        import.meta.env.VITE_GOOGLE_REDIRECT_URI ||
+        `${window.location.origin}/oauth/callback`;
+
+      if (!clientId) {
+        // 로컬/미설정: 기존 데모 경로 유지
         const data = await request("/v1/auth/dev-login", {
           method: "POST",
           body:   { email: "student@gmail.com", display_name: "김학생" },
@@ -104,20 +166,64 @@ const api = {
         setToken(data.access_token);
         return {
           token: data.access_token,
-          user:  { id: data.user_id, email: data.email, name: "김학생", role: "student", provider: "google" },
+          user:  {
+            id: data.user_id,
+            email: data.email,
+            name: data.display_name || "김학생",
+            role: "student",
+            provider: "google",
+          },
         };
+      }
+
+      const state = _uid("gstate");
+      sessionStorage.setItem("mbx_oauth_state", state);
+      sessionStorage.setItem("mbx_oauth_redirect", redirectUri);
+
+      const params = new URLSearchParams({
+        client_id:     clientId,
+        redirect_uri:  redirectUri,
+        response_type: "code",
+        scope:         "openid email profile",
+        state,
+        prompt:        "select_account",
+        access_type:   "online",
+      });
+      window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+      // redirect 중 — 호출부에서 세션을 기대하지 않음
+      return null;
+    },
+
+    async _fetchGoogleConfig() {
+      try {
+        return await request("/v1/auth/google/config", { auth: false });
       } catch {
-        // 백엔드 없을 때 fallback
-        const tok = _uid("tok");
-        setToken(tok);
-        return { token: tok, user: { id: _uid("u"), email: "student@gmail.com", name: "김학생", role: "student", provider: "google" } };
+        return { enabled: false, client_id: "", redirect_uri: "" };
       }
     },
 
-    /** 🔶 MOCK — OAuth callback code exchange */
-    async exchangeOAuthCode(code) {
-      await _sleep();
-      return { token: _uid("tok"), user: { id: _uid("u"), email: "student@gmail.com", name: "김학생", role: "student", provider: "google" } };
+    /** ✅ LIVE — OAuth callback code → JWT */
+    async exchangeOAuthCode(code, redirectUri) {
+      const data = await request("/v1/auth/google/callback", {
+        method: "POST",
+        body: {
+          code,
+          redirect_uri: redirectUri || `${window.location.origin}/oauth/callback`,
+        },
+        auth: false,
+      });
+      setToken(data.access_token);
+      const name = data.display_name || data.email.split("@")[0];
+      return {
+        token: data.access_token,
+        user: {
+          id: data.user_id,
+          email: data.email,
+          name,
+          role: inferRole(data.email),
+          provider: "google",
+        },
+      };
     },
 
     /**
@@ -244,21 +350,130 @@ const api = {
       }
     },
 
-    /** 🔶 MOCK — 음성 업로드 (백엔드 미구현) */
+    /** ✅ LIVE — voice session + STT (audio ≤5MB, not stored on disk) */
     async uploadAudio(blob) {
-      await _sleep(1200);
-      return { audioId: _uid("aud"), durationSec: 184 };
+      throw new Error("use voice.createSession + voice.transcribe");
     },
-
-    /** 🔶 MOCK — STT (백엔드 미구현) */
-    async transcribe(audioId) {
-      await _sleep(1500);
-      return { text: "녹음 전사 결과(목업)...", summary: "핵심 요약(목업)..." };
+    async transcribe() {
+      throw new Error("use voice.transcribe");
     },
   },
 
-  // ══ 코멘트 / 신고 (🔶 MOCK) ══════════════════════════════
-  comments: mockApi.comments,
+  // ══ 음성 ══════════════════════════════════════════════════
+  voice: {
+    async listSessions() {
+      const data = await request("/v1/students/me/voice/sessions");
+      return (data || []).map(mapVoice);
+    },
+    async createSession(title = "새 녹음 세션") {
+      const data = await request("/v1/students/me/voice/sessions", {
+        method: "POST",
+        body: { title },
+      });
+      return mapVoice(data);
+    },
+    async getSession(id) {
+      const data = await request(`/v1/students/me/voice/sessions/${id}`);
+      return mapVoice(data);
+    },
+    async patchSession(id, patch) {
+      const data = await request(`/v1/students/me/voice/sessions/${id}`, {
+        method: "PATCH",
+        body: patch,
+      });
+      return mapVoice(data);
+    },
+    async transcribe(sessionId, blob, durationSec = 0) {
+      const fd = new FormData();
+      fd.append("file", blob, "recording.webm");
+      fd.append("duration_sec", String(Math.floor(durationSec)));
+      const data = await request(`/v1/students/me/voice/sessions/${sessionId}/transcribe`, {
+        method: "POST",
+        formData: fd,
+      });
+      return mapVoice(data);
+    },
+  },
+
+  // ══ 코멘트 ✅ LIVE ════════════════════════════════════════
+  comments: {
+    async list() {
+      const data = await request("/v1/students/me/comments");
+      return (data || []).map(mapComment);
+    },
+    async create(c) {
+      const data = await request("/v1/students/me/comments", {
+        method: "POST",
+        body: {
+          content: c.content,
+          type: c.type || "그래프",
+          target: c.target || "전체 그래프",
+          author: c.author,
+        },
+      });
+      return mapComment(data);
+    },
+    async report(id) {
+      const data = await request(`/v1/students/me/comments/${id}/report`, { method: "POST" });
+      return mapComment(data);
+    },
+    async remove(id) {
+      await request(`/v1/students/me/comments/${id}`, { method: "DELETE" });
+      return { id };
+    },
+  },
+
+  // ══ 양식 ✅ LIVE ══════════════════════════════════════════
+  forms: {
+    async listTemplates() {
+      return request("/v1/students/me/forms/templates");
+    },
+    async list() {
+      return request("/v1/students/me/forms");
+    },
+    async generate(templateId, title) {
+      return request("/v1/students/me/forms/generate", {
+        method: "POST",
+        body: { template_id: templateId, title },
+      });
+    },
+    async get(id) {
+      return request(`/v1/students/me/forms/${id}`);
+    },
+    async patch(id, patch) {
+      return request(`/v1/students/me/forms/${id}`, { method: "PATCH", body: patch });
+    },
+  },
+
+  // ══ 알림 ✅ LIVE ══════════════════════════════════════════
+  notifications: {
+    async list() {
+      const data = await request("/v1/students/me/notifications");
+      return (data || []).map(mapNotif);
+    },
+    async readAll() {
+      return request("/v1/students/me/notifications/read-all", { method: "POST" });
+    },
+    async read(id) {
+      const data = await request(`/v1/students/me/notifications/${id}/read`, { method: "PATCH" });
+      return mapNotif(data);
+    },
+  },
+
+  // ══ 통계 / 설정 ✅ LIVE ═══════════════════════════════════
+  stats: {
+    async get() {
+      return request("/v1/students/me/stats");
+    },
+  },
+  settings: {
+    async get() {
+      return request("/v1/students/me/settings");
+    },
+    async patch(body) {
+      return request("/v1/students/me/settings", { method: "PATCH", body });
+    },
+  },
 
   // ══ 교사 (🔶 MOCK) ═══════════════════════════════════════
   teacher: mockApi.teacher,

@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     daglo_base_url: str = "https://apis.daglo.ai"
     daglo_timeout_seconds: float = 30.0
 
+    # Google OAuth (empty disables live Google login)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "https://mbx.teamcodebridge.dev/oauth/callback"
+
 
 @lru_cache
 def get_settings() -> Settings:

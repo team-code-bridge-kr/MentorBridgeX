@@ -34,7 +34,9 @@ export default function App() {
 function AppShell() {
   const { state } = useStore();
   const session = state.session;
-  const [screen, setScreen] = useState("S01");
+  const [screen, setScreen] = useState(() =>
+    window.location.pathname.startsWith("/oauth/callback") ? "S02" : "S01"
+  );
   const [picker, setPicker] = useState(false);
   const [preview, setPreview] = useState(false);  // 개발용: 게이트 우회하고 화면 미리보기 (디자인 검토)
 

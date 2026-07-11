@@ -40,7 +40,7 @@ export const A_NAV = [
 
 export const SHARED_SCREENS = ["S15","S16","S17","S18","S19","S20","S21","S22","S25","S26","S27","S30","S31","S32"];
 export function getLayout(s, sessionRole){
-  if(["S01","S03","S04","A00"].includes(s))return "full";
+  if(["S01","S02","S03","S04","A00"].includes(s))return "full";
   // 공용 화면(음성·양식·알림·설정)은 현재 로그인한 역할의 레이아웃으로 표시
   if(SHARED_SCREENS.includes(s) && sessionRole){
     return sessionRole==="teacher"?"teacher":sessionRole==="admin"?"admin":"student";

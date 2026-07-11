@@ -17,7 +17,7 @@ from app.errors import AppError, app_error_handler, unhandled_error_handler, val
 from app.features.stt import routes as stt_routes
 from app.features.stt.provider import DagloSTTProvider
 from app.features.stt.service import STTService
-from app.routers import auth, documents, graph, health, jobs, recommendations, sync, voice
+from app.routers import auth, documents, graph, health, jobs, product, recommendations, sync, voice
 from fastapi.exceptions import RequestValidationError
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -27,6 +27,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     settings = get_settings()
     daglo_client: DagloHTTPClient | None = None
+    app.state.stt_service = None
 
     if settings.daglo_api_token:
         daglo_client = DagloHTTPClient(
@@ -57,7 +58,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="MentorBridgeX API",
-        description="온톨로지 생기부 MVP + Daglo STT",
+        description="온톨로지 생기부 MVP + Daglo STT + product APIs",
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs",
@@ -85,6 +86,12 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(sync.router)
     app.include_router(voice.router)
+    app.include_router(product.comments_router)
+    app.include_router(product.notifications_router)
+    app.include_router(product.forms_router)
+    app.include_router(product.settings_router)
+    app.include_router(product.voice_router)
+    app.include_router(product.stats_router)
     app.include_router(stt_routes.router)
 
     if STATIC_DIR.exists():

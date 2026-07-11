@@ -1,4 +1,5 @@
 import { S01 } from "./student/S01.jsx";
+import { S02 } from "./student/S02.jsx";
 import { S03 } from "./student/S03.jsx";
 import { S04 } from "./student/S04.jsx";
 import { S05 } from "./student/S05.jsx";
@@ -75,7 +76,7 @@ import { Placeholder } from "../components/Placeholder.jsx";
 
 export function renderScreen(id, onNav) {
   const M={
-    S01:<S01 onNav={onNav}/>,S03:<S03 onNav={onNav}/>,S04:<S04 onNav={onNav}/>,
+    S01:<S01 onNav={onNav}/>,S02:<S02 onNav={onNav}/>,S03:<S03 onNav={onNav}/>,S04:<S04 onNav={onNav}/>,
     S05:<S05 onNav={onNav}/>,S06:<S06 onNav={onNav}/>,S07:<S07 onNav={onNav}/>,
     S08:<S08 onNav={onNav}/>,S09:<S09 onNav={onNav}/>,
     S10:<S10 onNav={onNav}/>,S11:<S11 onNav={onNav}/>,

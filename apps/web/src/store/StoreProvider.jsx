@@ -31,8 +31,17 @@ export function StoreProvider({ children }) {
     },
     async signInGoogle() {
       dispatch({ type:"AUTH_START" });
-      try { const s = await api.auth.signInWithGoogle(); dispatch({ type:"AUTH_OK", session:s }); return s; }
+      try {
+        const s = await api.auth.signInWithGoogle();
+        // Google redirect 경로면 session 이 null — AUTH_OK 하지 않음
+        if (s) dispatch({ type:"AUTH_OK", session:s });
+        return s;
+      }
       catch (e) { dispatch({ type:"AUTH_ERR", error:e.message }); throw e; }
+    },
+    async completeGoogleSession(session) {
+      dispatch({ type:"AUTH_OK", session });
+      return session;
     },
     async signInAdmin(email, password, mfa) {
       dispatch({ type:"AUTH_START" });
