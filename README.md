@@ -7,18 +7,27 @@
 ```
 MentorBridgeX/
 ├── AGENTS.md              # Harness / agent guide
+├── apps/web/              # 🆕 웹 프론트엔드 (Vite + React)
 ├── docs/                  # Architecture & demo scripts
 ├── guide/                 # Product specs (IA, feature spec, …)
 ├── services/api/          # FastAPI backend
-├── 초안_코드.jsx          # 프론트 UI 초안 (React 단일 파일, API mock)
 ├── docker-compose.yml
 └── Makefile
 ```
 
-### Frontend draft (`초안_코드.jsx`)
+### Frontend (`apps/web/`)
 
-팀 프론트 초안(단일 React JSX). 현재 API는 **목업**이며, 파일 상단 `api` 객체를 실제 `services/api` (`/v1/...`) 호출로 교체하면 됩니다.  
-백엔드 연동 베이스 URL 예: `https://api.teamcodebridge.dev` 또는 로컬 `http://127.0.0.1:8000`.
+Vite + React (JSX) 앱. 원래 `초안_코드.jsx` 단일 파일을 역할별 모듈로 분리했습니다.
+자세한 내용은 **[apps/web/README.md](apps/web/README.md)** 참고.
+
+```bash
+cd apps/web
+npm install
+npm run dev   # http://localhost:3000
+```
+
+**API 연결 상태**: `auth`, `graph`, `ingest` 는 실제 백엔드(`/v1/...`)에 연결됨.
+`comments`, `teacher`, `admin` 은 목업(mockData.js)으로 동작.
 
 ## Quick start
 

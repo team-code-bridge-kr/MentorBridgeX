@@ -25,8 +25,9 @@ htmlcov/
 .coverage
 coverage.xml
 
-# Node (future)
+# Node
 node_modules/
+apps/web/dist/
 
 # IDE
 .idea/
@@ -43,3 +44,4 @@ data/
 # Local student PDF samples (PII — do not commit)
 student_file/
 .student_file
+apps/web/.env
