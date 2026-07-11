@@ -37,5 +37,3 @@ export function reducer(state, a) {
   }
 }
 
-const StoreCtx = createContext(null);
-

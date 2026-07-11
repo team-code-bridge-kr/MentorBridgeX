@@ -84,7 +84,6 @@ function AppShell() {
 
   if(layout==="full") return (
     <>
-      <style>{CSS}</style>
       {renderScreen(screen, nav)}
       {devPicker}
     </>
@@ -95,7 +94,6 @@ function AppShell() {
 
   return (
     <>
-      <style>{CSS}</style>
       <div className="app">
         <Sidebar nav={sideNav} active={activeNav} onNav={nav} role={role} dark={layout==="admin"} />
         <div className="main">
