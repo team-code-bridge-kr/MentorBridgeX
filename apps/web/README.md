@@ -130,6 +130,26 @@ VITE_API_BASE_URL=https://api.teamcodebridge.dev
 
 ---
 
+## 🚀 CD (develop → mbx.teamcodebridge.dev)
+
+`develop`에 `apps/web/**` 변경이 push되면 GitHub Actions가 **로컬(CI)에서 빌드**한 뒤
+EC2 `/var/www/mbx`에 `dist/`만 rsync합니다. 서버에서 `npm`을 실행하지 않습니다.
+
+워크플로: `.github/workflows/deploy-web.yml`  
+수동 실행: Actions → **Deploy — Web (mbx)** → Run workflow
+
+레포 Secrets (필수):
+
+| Secret | 예시 |
+|--------|------|
+| `EC2_HOST` | `44.215.125.111` |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | PEM 전체 텍스트 |
+
+선택: `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_REDIRECT_URI`, `EC2_WEB_ROOT`
+
+---
+
 ## 🔗 관련 문서
 
 - 백엔드 API: `services/api/README.md`

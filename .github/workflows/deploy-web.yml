@@ -1,0 +1,98 @@
+# Frontend CD — GitHub에서 Vite 빌드 후 EC2 /var/www/mbx 에 dist만 rsync
+# 서버에서 npm/build 하지 않음 (디스크·메모리 안전).
+#
+# Required repo Secrets (Settings → Secrets and variables → Actions):
+#   EC2_HOST          e.g. 44.215.125.111
+#   EC2_USER          e.g. ubuntu
+#   EC2_SSH_KEY       PEM private key contents (-----BEGIN ... KEY-----)
+# Optional:
+#   VITE_API_BASE_URL           default https://api.teamcodebridge.dev
+#   VITE_GOOGLE_CLIENT_ID
+#   VITE_GOOGLE_REDIRECT_URI    default https://mbx.teamcodebridge.dev/oauth/callback
+#   EC2_WEB_ROOT                default /var/www/mbx
+
+name: Deploy — Web (mbx)
+
+on:
+  push:
+    branches: ["develop"]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & rsync dist
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://api.teamcodebridge.dev' }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_REDIRECT_URI: ${{ secrets.VITE_GOOGLE_REDIRECT_URI || 'https://mbx.teamcodebridge.dev/oauth/callback' }}
+        run: npm run build
+
+      - name: Verify dist
+        run: |
+          test -f dist/index.html
+          du -sh dist
+          ls -la dist
+
+      - name: Start ssh-agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: known_hosts
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Rsync dist → EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_WEB_ROOT: ${{ secrets.EC2_WEB_ROOT || '/var/www/mbx' }}
+        working-directory: apps/web
+        run: |
+          set -euo pipefail
+          test -n "${EC2_HOST}"
+          test -n "${EC2_USER}"
+          rsync -avz --delete \
+            -e "ssh -o IdentitiesOnly=yes" \
+            dist/ \
+            "${EC2_USER}@${EC2_HOST}:${EC2_WEB_ROOT}/"
+
+      - name: Smoke HTTP
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          # public URL preferred; fall back to host IP check is optional
+          curl -fsS -o /dev/null -w "mbx %{http_code}\n" \
+            https://mbx.teamcodebridge.dev/ || \
+          curl -fsS -o /dev/null -w "host %{http_code}\n" \
+            "http://${EC2_HOST}/" || true
