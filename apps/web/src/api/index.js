@@ -317,18 +317,62 @@ const api = {
     async pruneSuggestions(userId) {
       const data = await request("/v1/students/me/recommendations/branch", {
         method: "POST",
-        body: { seeds: [], max_results: 5 },
+        body: { seeds: [], max_results: 8 },
       });
       const sugs = data.suggestions ?? data ?? [];
       return sugs.map((s, i) => ({
-        nodeId: `rec_${i}`,
-        label: s.label ?? s,
+        id: s.id || `rec_${i}`,
+        label: s.label ?? String(s),
         reason: s.rationale ?? s.reason ?? "추천 키워드",
+        action: "추가",
       }));
+    },
+
+    /** ✅ LIVE — POST /v1/students/me/recommendations/accept */
+    async acceptSuggestion(label) {
+      return request("/v1/students/me/recommendations/accept", {
+        method: "POST",
+        body: { label },
+      });
     },
   },
 
   // ══ 문서 / PDF ════════════════════════════════════════════
+  documents: {
+    async list() {
+      return request("/v1/students/me/documents");
+    },
+    async create(sectionType, content) {
+      return request("/v1/students/me/documents", {
+        method: "POST",
+        body: { section_type: sectionType, content },
+      });
+    },
+    async patch(sectionId, content) {
+      return request(`/v1/students/me/documents/${sectionId}`, {
+        method: "PATCH",
+        body: { content },
+      });
+    },
+  },
+
+  jobs: {
+    async get(jobId) {
+      return request(`/v1/jobs/${jobId}`);
+    },
+    async wait(jobId, { intervalMs = 800, timeoutMs = 120000 } = {}) {
+      const started = Date.now();
+      while (Date.now() - started < timeoutMs) {
+        const job = await this.get(jobId);
+        if (job.status === "completed" || job.status === "failed" || job.status === "error") {
+          return job;
+        }
+        await _sleep(intervalMs);
+      }
+      throw new Error("PDF 처리 시간이 초과되었습니다.");
+    },
+  },
+
   ingest: {
     /**
      * ✅ LIVE — POST /v1/students/me/documents/import-pdf
@@ -337,17 +381,11 @@ const api = {
     async uploadPdf(file) {
       const fd = new FormData();
       fd.append("file", file);
-      try {
-        const data = await request("/v1/students/me/documents/import-pdf", {
-          method:   "POST",
-          formData: fd,
-        });
-        // ImportPdfResponse: { job_id }
-        return { docId: data.job_id, pages: 0, parsed: [] };
-      } catch {
-        await _sleep(1200);
-        return { docId: _uid("doc"), pages: 12, parsed: [{ title: "활동 제목", body: "파싱된 본문..." }] };
-      }
+      const data = await request("/v1/students/me/documents/import-pdf", {
+        method: "POST",
+        formData: fd,
+      });
+      return { jobId: data.job_id };
     },
 
     /** ✅ LIVE — voice session + STT (audio ≤5MB, not stored on disk) */
