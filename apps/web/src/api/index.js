@@ -6,8 +6,9 @@
  *
  * 📌 "실제 백엔드 연결" vs "목업" 상태 요약
  * ──────────────────────────────────────────
- * ✅ LIVE  : auth.*, graph.*, ingest.uploadPdf,
+ * ✅ LIVE  : auth.*, graph.*, documents.*, ingest.uploadPdf,
  *            comments.*, voice.*, forms.*, notifications.*, stats.*, settings.*
+ *            (통합검색 S27 = 위 LIVE API 클라이언트 집계)
  * 🔶 MOCK  : auth.signInAdmin (partial), teacher.*, admin.*
  *
  * 백엔드 라우터 참고: services/api/app/routers/
