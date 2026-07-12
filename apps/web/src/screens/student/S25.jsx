@@ -2,31 +2,34 @@ import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { Btn } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
-import api from "../../api/index.js";
+import { useStore } from "../../store/StoreProvider.jsx";
 
 export function S25() {
-  const [items, setItems] = useState([]);
+  const { state, actions } = useStore();
+  const items = state.notifications || [];
   const [tab, setTab] = useState("전체");
   const [err, setErr] = useState("");
 
-  const load = async () => {
+  useEffect(() => {
+    actions.loadNotifications().catch((e) => setErr(e.message || "알림을 불러오지 못했습니다."));
+  }, [actions]);
+
+  const unread = items.filter((n) => !n.read).length;
+  const markAll = async () => {
     try {
-      setItems(await api.notifications.list());
+      await actions.markAllNotificationsRead();
     } catch (e) {
       setErr(e.message);
     }
   };
-
-  useEffect(() => { load(); }, []);
-
-  const unread = items.filter((n) => !n.read).length;
-  const markAll = async () => {
-    await api.notifications.readAll();
-    setItems((p) => p.map((n) => ({ ...n, read: true })));
-  };
   const markOne = async (id) => {
-    await api.notifications.read(id);
-    setItems((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    const n = items.find((x) => x.id === id);
+    if (!n || n.read) return;
+    try {
+      await actions.markNotificationRead(id);
+    } catch (e) {
+      setErr(e.message);
+    }
   };
   const shown = items.filter((n) => (tab === "전체" ? true : tab === "안 읽음" ? !n.read : n.read));
 

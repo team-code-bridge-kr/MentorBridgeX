@@ -4,6 +4,7 @@ export const initialState = {
   authError: null,
   graph: { nodes:[], edges:[], loading:false },
   comments: [],
+  notifications: [],        // 학생 알림 (헤더 배지 ↔ S25 공유)
   students: [],             // 교사 담당 학생 목록 (T03/T06 공유)
   selectedStudent: null,    // T06 → T07 로 넘길 선택 학생
   teacherVerification: null,// { status, school, subject, submittedAt } | null

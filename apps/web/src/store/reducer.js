@@ -10,7 +10,7 @@ export function reducer(state, a) {
       comments:state.comments, reports:state.reports,
       teacherApplications:state.teacherApplications, students:state.students,
       adminUsers:state.adminUsers, announcements:state.announcements,
-      graph:state.graph };
+      graph:state.graph, notifications:[] };
     case "GRAPH_LOADING":return { ...state, graph:{ ...state.graph, loading:true } };
     case "GRAPH_SET":    return { ...state, graph:{ nodes:a.nodes, edges:a.edges, loading:false } };
     case "GRAPH_ADD_NODE":return { ...state, graph:{ ...state.graph, nodes:[...state.graph.nodes, a.node] } };
@@ -19,6 +19,9 @@ export function reducer(state, a) {
     case "COMMENT_ADD":  return { ...state, comments:[a.item, ...state.comments] };
     case "COMMENT_REPORT":return { ...state, comments:state.comments.map(c=>c.id===a.id?{ ...c, reports:(c.reports||0)+1, status:"검토 중" }:c) };
     case "COMMENT_DEL":  return { ...state, comments:state.comments.filter(c=>c.id!==a.id) };
+    case "NOTIFS_SET":   return { ...state, notifications:a.items };
+    case "NOTIF_READ":   return { ...state, notifications:state.notifications.map(n=>n.id===a.id?{ ...n, read:true }:n) };
+    case "NOTIF_READ_ALL":return { ...state, notifications:state.notifications.map(n=>({ ...n, read:true })) };
     case "STUDENTS_SET": return { ...state, students:a.items };
     case "SELECT_STUDENT":return { ...state, selectedStudent:a.student };
     case "TVERIFY_SET":  return { ...state, teacherVerification:a.item };

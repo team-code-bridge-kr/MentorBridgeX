@@ -139,6 +139,20 @@ export function StoreProvider({ children }) {
       toast("success", "코멘트가 삭제되었습니다.");
     },
 
+    async loadNotifications() {
+      const items = await api.notifications.list();
+      dispatch({ type: "NOTIFS_SET", items });
+      return items;
+    },
+    async markNotificationRead(id) {
+      await api.notifications.read(id);
+      dispatch({ type: "NOTIF_READ", id });
+    },
+    async markAllNotificationsRead() {
+      await api.notifications.readAll();
+      dispatch({ type: "NOTIF_READ_ALL" });
+    },
+
     async loadStudents(teacherId) {
       const items = await api.teacher.listStudents(teacherId);
       dispatch({ type: "STUDENTS_SET", items });
@@ -219,6 +233,29 @@ export function StoreProvider({ children }) {
 
     toast,
   }), [toast]);
+
+  // 로그인 세션이 있으면 알림을 불러오고, 포커스/주기적으로 갱신
+  useEffect(() => {
+    if (!state.session) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const items = await api.notifications.list();
+        if (!cancelled) dispatch({ type: "NOTIFS_SET", items });
+      } catch {
+        /* 헤더 배지만 조용히 실패 허용 */
+      }
+    };
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(refresh, 60_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, [state.session?.token]);
 
   return <StoreCtx.Provider value={{ state, actions }}>{children}</StoreCtx.Provider>;
 }

@@ -7,6 +7,7 @@ export function GlobalHeader({ onNav }) {
   const user = state.session?.user;
   const name = user?.name || user?.email?.split("@")[0] || "?";
   const picture = user?.picture;
+  const unread = (state.notifications || []).filter((n) => !n.read).length;
 
   return (
     <>
@@ -15,7 +16,7 @@ export function GlobalHeader({ onNav }) {
       </div>
       <div className="icon-btn" onClick={() => onNav("S25")} title="알림" style={{ position: "relative" }}>
         <TFI s={18} color={TDS.textSecondary}>🔔</TFI>
-        <span className="notif-dot" />
+        {unread > 0 && <span className="notif-dot" />}
       </div>
       <div
         onClick={() => onNav("S30")}
