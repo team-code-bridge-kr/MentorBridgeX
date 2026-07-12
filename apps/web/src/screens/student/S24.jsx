@@ -29,7 +29,7 @@ export function S24({ onNav }) {
   return (
     <div className="content">
       <div className="row-between mb16" style={{marginBottom:16}}>
-        <div className="sec-title">코멘트 목록</div>
+        <div className="sec-sub" style={{marginBottom:0}}>교사·본인이 남긴 코멘트를 확인하세요</div>
         <span style={{fontSize:13,color:TDS.textTertiary}}>{comments.length}개</span>
       </div>
 

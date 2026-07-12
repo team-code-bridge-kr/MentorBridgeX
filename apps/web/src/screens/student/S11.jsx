@@ -62,10 +62,7 @@ export function S11({ onNav }) {
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div>
-          <div className="sec-title">텍스트 영역</div>
-          <div className="sec-sub">8가지 생기부 영역을 관리하세요</div>
-        </div>
+        <div className="sec-sub" style={{ marginBottom: 0 }}>8가지 생기부 영역을 관리하세요</div>
         <div className="row g-8" style={{ gap: 8 }}>
           <Btn v="secondary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
           <Btn v="primary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>

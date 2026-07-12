@@ -34,7 +34,9 @@ export function S25() {
     <div className="content">
       <div className="row-between mb16" style={{ marginBottom: 16 }}>
         <div className="row" style={{ gap: 10, alignItems: "center" }}>
-          <div className="sec-title" style={{ marginBottom: 0 }}>알림</div>
+          <div className="sec-sub" style={{ marginBottom: 0 }}>
+            {unread > 0 ? `읽지 않은 알림 ${unread}개` : "새 알림이 없습니다"}
+          </div>
           {unread > 0 && <span className="badge-num">{unread}</span>}
         </div>
         <Btn v="secondary" s="sm" onClick={markAll} disabled={!unread}>모두 읽음 처리</Btn>

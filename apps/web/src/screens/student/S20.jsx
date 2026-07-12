@@ -29,10 +29,7 @@ export function S20({ onNav }) {
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div>
-          <div className="sec-title">양식 템플릿</div>
-          <div className="sec-sub">그래프 노드를 바탕으로 양식을 생성합니다 (LLM 없이 경량 생성)</div>
-        </div>
+        <div className="sec-sub" style={{ marginBottom: 0 }}>그래프 노드를 바탕으로 양식을 생성합니다 (LLM 없이 경량 생성)</div>
         <Btn v="secondary" s="sm" onClick={() => onNav("S21")}>생성 이력 보기</Btn>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}

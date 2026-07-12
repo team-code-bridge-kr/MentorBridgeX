@@ -42,10 +42,7 @@ export function S15({ onNav }) {
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div>
-          <div className="sec-title">음성 활동 기록</div>
-          <div className="sec-sub">녹음은 서버에 저장되지 않고 STT 텍스트만 보관합니다 (≤5MB)</div>
-        </div>
+        <div className="sec-sub" style={{ marginBottom: 0 }}>녹음은 서버에 저장되지 않고 STT 텍스트만 보관합니다 (≤5MB)</div>
         <Btn v="primary" onClick={startNew}><TFI>🎙️</TFI> 새 녹음 시작</Btn>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}

@@ -16,8 +16,7 @@ export function S28() {
 
   return (
     <div className="content">
-      <div className="sec-title mb6" style={{ marginBottom: 6 }}>나의 활동 통계</div>
-      <div className="sec-sub">그래프·코멘트·양식·음성 실데이터 기준</div>
+      <div className="sec-sub mb24" style={{ marginBottom: 24 }}>그래프·코멘트·양식·음성 실데이터 기준</div>
       {err && <div style={{ color: TDS.danger }}>{err}</div>}
       <div className="grid4 g-20 mb24" style={{ gap: 20, marginBottom: 24 }}>
         <StatCard label="총 노드" value={`${s.node_count}개`} sub={`엣지 ${s.edge_count}`} color={TDS.blue500} />
