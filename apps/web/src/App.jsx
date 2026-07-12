@@ -110,7 +110,9 @@ function AppShell() {
   const sideNav = layout === "teacher" ? T_NAV : layout === "admin" ? A_NAV : S_NAV;
   const role = layout === "teacher" ? "교사" : layout === "admin" ? "관리자" : "학생";
 
-  const devPicker = (
+  // 개발용 화면 피커 FAB — 프로덕션에서는 숨김
+  const SHOW_DEV_PICKER = false;
+  const devPicker = SHOW_DEV_PICKER ? (
     <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 9999 }}>
       <button
         onClick={() => setPicker(!picker)}
@@ -130,7 +132,7 @@ function AppShell() {
         />
       )}
     </div>
-  );
+  ) : null;
 
   if (layout === "full") {
     return (
