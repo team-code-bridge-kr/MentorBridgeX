@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { KIND_META } from "../../theme/graphMeta.js";
-import { Btn } from "../../components/ui.jsx";
+import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 
