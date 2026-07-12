@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.db.factory import is_offline_demo
 from app.dependencies import create_access_token, ensure_dev_user, get_db_session
 from app.errors import AppError
 from app.schemas.auth import (
@@ -125,11 +126,19 @@ async def google_callback(
         )
 
     display_name = (info.get("name") or email.split("@")[0])[:50]
+    picture = info.get("picture") or None
     user = await ensure_dev_user(session, email, display_name)
+    if user.display_name != display_name:
+        user.display_name = display_name
+        if not is_offline_demo() and session is not None:
+            await session.commit()
+            await session.refresh(user)
+
     jwt_token = create_access_token(user.id, user.email)
     return TokenResponse(
         access_token=jwt_token,
         user_id=user.id,
         email=user.email,
         display_name=user.display_name,
+        picture=picture,
     )

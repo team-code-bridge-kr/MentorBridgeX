@@ -27,7 +27,7 @@ export function S24({ onNav }) {
   const report = async (c) => { await actions.reportComment(c.id, "부적절한 내용"); };
 
   return (
-    <div className="content"><div className="content-narrow">
+    <div className="content">
       <div className="row-between mb16" style={{marginBottom:16}}>
         <div className="sec-title">코멘트 목록</div>
         <span style={{fontSize:13,color:TDS.textTertiary}}>{comments.length}개</span>
@@ -74,7 +74,7 @@ export function S24({ onNav }) {
       ))}
 
       <Notice type="info">신고한 코멘트는 관리자 신고 큐(A08)로 전달됩니다.</Notice>
-    </div></div>
+    </div>
   );
 }
 

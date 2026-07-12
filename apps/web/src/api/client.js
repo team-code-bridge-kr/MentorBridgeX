@@ -1,8 +1,8 @@
 /**
- * api/client.js — fetch 헬퍼 + 토큰 관리
+ * api/client.js — fetch 헬퍼 + 토큰·세션 관리
  * ─────────────────────────────────────────
  * 모든 백엔드 요청은 여기 request() 를 통해 처리됩니다.
- * 토큰은 localStorage 에 저장되고, Bearer 헤더로 자동 첨부됩니다.
+ * 토큰·세션은 localStorage 에 저장되어 새로고침 후에도 유지됩니다.
  */
 
 // .env.example 참고: VITE_API_BASE_URL 설정
@@ -11,11 +11,41 @@ export const API_BASE =
 // API_BASE 가 비어있으면 vite.config.js 의 /v1 프록시가 처리합니다 (로컬 개발 시).
 
 const TOKEN_KEY = "mbx_token";
+const SESSION_KEY = "mbx_session";
 
 // ── 토큰 저장소 ──────────────────────────────────────────────
 export const getToken    = ()  => localStorage.getItem(TOKEN_KEY);
 export const setToken    = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken  = ()  => localStorage.removeItem(TOKEN_KEY);
+
+export function saveSession(session) {
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+    return;
+  }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  if (session.token) setToken(session.token);
+}
+
+export function loadSession() {
+  try {
+    const token = getToken();
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!token || !raw) return null;
+    const session = JSON.parse(raw);
+    if (!session?.user || !session?.token) return null;
+    // token mismatch → stale
+    if (session.token !== token) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSession() {
+  clearToken();
+  localStorage.removeItem(SESSION_KEY);
+}
 
 // ── 공통 fetch 래퍼 ──────────────────────────────────────────
 /**

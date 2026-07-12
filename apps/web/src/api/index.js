@@ -13,7 +13,7 @@
  * 백엔드 라우터 참고: services/api/app/routers/
  */
 
-import { request, setToken, clearToken, getToken } from "./client.js";
+import { request, setToken, clearSession } from "./client.js";
 import { mockApi } from "./mockData.js";
 
 const _uid = (p = "id") =>
@@ -220,6 +220,7 @@ const api = {
           id: data.user_id,
           email: data.email,
           name,
+          picture: data.picture || null,
           role: inferRole(data.email),
           provider: "google",
         },
@@ -251,7 +252,7 @@ const api = {
     },
 
     async signOut() {
-      clearToken();
+      clearSession();
       return true;
     },
   },

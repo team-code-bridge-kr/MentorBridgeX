@@ -31,7 +31,7 @@ export function S25() {
   const shown = items.filter((n) => (tab === "전체" ? true : tab === "안 읽음" ? !n.read : n.read));
 
   return (
-    <div className="content"><div className="content-narrow">
+    <div className="content">
       <div className="row-between mb16" style={{ marginBottom: 16 }}>
         <div className="row" style={{ gap: 10, alignItems: "center" }}>
           <div className="sec-title" style={{ marginBottom: 0 }}>알림</div>
@@ -62,6 +62,6 @@ export function S25() {
           <div style={{ fontSize: 12, color: TDS.textTertiary, flexShrink: 0, whiteSpace: "nowrap" }}>{n.time}</div>
         </div>
       ))}
-    </div></div>
+    </div>
   );
 }

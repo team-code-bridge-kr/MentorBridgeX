@@ -45,7 +45,6 @@ export function S30({ onNav }) {
 
   return (
     <div className="content">
-      <div className="content-wide">
         <div className="card card-p" style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: TDS.blue500, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 30, fontWeight: 700, flexShrink: 0 }}>{initial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -128,7 +127,6 @@ export function S30({ onNav }) {
             <Btn v="danger" s="sm" style={{ marginTop: 12 }} onClick={() => onNav("S32")}>계정 삭제 요청</Btn>
           </div>
         )}
-      </div>
     </div>
   );
 }

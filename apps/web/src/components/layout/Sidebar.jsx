@@ -29,7 +29,7 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
         })}
       </div>
       <div className="sb-profile">
-        <Av name={displayName[0]||"?"} size="sm" />
+        <Av name={displayName || "?"} src={user?.picture} size="sm" />
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <span className="sb-pname">{displayName}</span>

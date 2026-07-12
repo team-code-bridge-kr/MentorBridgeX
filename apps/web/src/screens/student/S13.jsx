@@ -39,7 +39,7 @@ export function S13({ onNav }) {
         throw new Error(job.error || "PDF 처리에 실패했습니다.");
       }
       sessionStorage.setItem("mbx_pdf_job", jobId);
-      onNav("S14");
+      onNav("S14", { replace: true });
     } catch (e) {
       setErr(e.message || "업로드 실패");
       setProgress("");

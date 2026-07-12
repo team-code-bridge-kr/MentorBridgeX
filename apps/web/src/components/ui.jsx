@@ -32,8 +32,10 @@ export const Btn = ({ v = "primary", s = "md", fw, onClick, children, style, ...
 export const Badge = ({ t = "grey", pill, children }) => (
   <span className={`badge badge-${t}${pill?" badge-pill":""}`}>{children}</span>
 );
-export const Av = ({ name = "?", size = "sm" }) => (
-  <div className={`av av-${size}`}>{name[0]}</div>
+export const Av = ({ name = "?", size = "sm", src }) => (
+  src
+    ? <img className={`av av-${size}`} src={src} alt={name} style={{ objectFit: "cover" }} referrerPolicy="no-referrer" />
+    : <div className={`av av-${size}`}>{name[0]}</div>
 );
 export const Card = ({ children, style, className = "" }) => (
   <div className={`card card-p ${className}`} style={style}>{children}</div>

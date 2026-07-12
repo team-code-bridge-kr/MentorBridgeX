@@ -69,7 +69,7 @@ export function S16({ onNav }) {
         setPartial("STT 처리 중… (오디오는 서버에 저장되지 않습니다)");
         await api.voice.transcribe(sessionId, blob, sec);
       }
-      onNav("S17");
+      onNav("S17", { replace: true });
     } catch (e) {
       setErr(e.message || "저장 실패");
     } finally {

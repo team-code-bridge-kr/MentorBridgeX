@@ -31,7 +31,7 @@ export function S31({ onNav }) {
   const email = profile?.email || user?.email || "";
 
   return (
-    <div className="content" style={{ maxWidth: 560, margin: "0 auto" }}>
+    <div className="content">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <button className="btn btn-ghost btn-sm" onClick={() => onNav("S30")}>← 설정</button>
         <div style={{ fontSize: 20, fontWeight: 700 }}>계정 정보</div>

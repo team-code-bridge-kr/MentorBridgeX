@@ -45,16 +45,15 @@ export function S02({ onNav }) {
         sessionStorage.removeItem("mbx_oauth_state");
         sessionStorage.removeItem("mbx_oauth_redirect");
         if (cancelled) return;
-        // history 정리 후 store에 세션 반영 → App 이 역할 홈으로 이동
-        window.history.replaceState({}, "", "/");
         await actions.completeGoogleSession(session);
+        onNav?.("S05", { replace: true });
       } catch (e) {
         if (!cancelled) setErr(e.message || "Google 로그인에 실패했습니다.");
       }
     })();
 
     return () => { cancelled = true; };
-  }, [actions]);
+  }, [actions, onNav]);
 
   return (
     <div className="login-wrap" style={{ justifyContent: "center", alignItems: "center" }}>
@@ -73,7 +72,7 @@ export function S02({ onNav }) {
             <p style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 24, lineHeight: 1.6 }}>{err}</p>
             <button
               type="button"
-              onClick={() => { window.history.replaceState({}, "", "/"); onNav?.("S01"); }}
+              onClick={() => onNav?.("S01", { replace: true })}
               style={{
                 height: 44, padding: "0 20px", borderRadius: 10, border: "none",
                 background: TDS.blue500, color: "#fff", fontWeight: 700, cursor: "pointer",

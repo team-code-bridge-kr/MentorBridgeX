@@ -27,3 +27,4 @@ class TokenResponse(BaseModel):
     user_id: str
     email: str
     display_name: str | None = None
+    picture: str | None = None

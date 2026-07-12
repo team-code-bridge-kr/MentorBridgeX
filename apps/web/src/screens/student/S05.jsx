@@ -1,253 +1,165 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
-import { NavIcon } from "../../components/NavIcon.jsx";
-import { DonutChart } from "../../components/ui.jsx";
+import { TFI, Btn, DonutChart } from "../../components/ui.jsx";
+import api from "../../api/index.js";
 
 export function S05({ onNav }) {
   const { state, actions } = useStore();
-  const nodeCount = state.graph?.nodes?.length ?? 0;
-  const [period, setPeriod] = useState("일별");
+  const [stats, setStats] = useState(null);
+  const [comments, setComments] = useState([]);
+  const nodeCount = state.graph?.nodes?.length ?? stats?.node_count ?? 0;
 
   useEffect(() => {
     if (state.session?.user?.id) actions.loadGraph(state.session.user.id);
+    api.stats.get().then(setStats).catch(() => {});
+    api.comments.list().then((c) => setComments(c.slice(0, 3))).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.session?.user?.id]);
 
-  // 30개 데이터 포인트 (피그마 DAU 차트와 동일)
-  const pts = [42,68,55,82,71,90,78,95,83,110,98,115,88,102,119,105,125,108,118,112,98,115,107,120,113,119,125,118,122,119];
-  const maxV = 130, nPts = pts.length;
-  const W = 800, H = 200, padX = 40, padY = 12;
-  const tx = i => padX + (i / (nPts - 1)) * (W - padX - 8);
-  const ty = v => padY + (1 - v / maxV) * (H - padY * 2);
-  const linePath = pts.map((v, i) => `${i === 0 ? "M" : "L"} ${tx(i)} ${ty(v)}`).join(" ");
-  const areaPath = linePath + ` L ${tx(nPts-1)} ${H} L ${tx(0)} ${H} Z`;
-
-  // 총 노드 수만 실제 API 그래프 기준, 나머지는 아직 UI 목업
-  const stats = [
-    { label:"총 노드 수", value:`${nodeCount.toLocaleString()}개`, sub: nodeCount ? "Neo4j 실제 데이터" : "시드를 추가해 보세요", color:TDS.blue500, icon:"🧠", iconBg:TDS.blue50, trend: nodeCount ? "LIVE" : "0", trendUp:true },
-    { label:"텍스트 영역", value:"—",  sub:"문서 API 연동 예정", color:TDS.success, icon:"📄", iconBg:TDS.successBg, trend:"…", trendUp:true },
-    { label:"음성 세션",  value:"—",    sub:"STT 세션 연동 예정", color:TDS.textPrimary, icon:"🎙️", iconBg:TDS.bgTertiary, trend:"…", trendUp:true },
-    { label:"양식 생성",  value:"—",     sub:"양식 API 연동 예정", color:TDS.warning, icon:"📝", iconBg:TDS.warningBg, trend:"…", trendUp:true },
+  const cards = [
+    {
+      label: "총 노드 수",
+      value: `${nodeCount.toLocaleString()}개`,
+      sub: nodeCount ? "Neo4j 실제 데이터" : "시드를 추가해 보세요",
+      color: TDS.blue500, icon: "🧠", iconBg: TDS.blue50, trend: "LIVE",
+    },
+    {
+      label: "텍스트 / 양식",
+      value: `${stats?.form_count ?? 0}개`,
+      sub: `코멘트 ${stats?.comment_count ?? 0}개`,
+      color: TDS.success, icon: "📄", iconBg: TDS.successBg, trend: "LIVE",
+    },
+    {
+      label: "음성 세션",
+      value: `${stats?.voice_count ?? 0}회`,
+      sub: `${Math.floor((stats?.voice_duration_sec || 0) / 60)}분 녹음`,
+      color: TDS.textPrimary, icon: "🎙️", iconBg: TDS.bgTertiary, trend: "LIVE",
+    },
+    {
+      label: "엣지",
+      value: `${stats?.edge_count ?? 0}개`,
+      sub: "그래프 연결",
+      color: TDS.warning, icon: "🔗", iconBg: TDS.warningBg, trend: "LIVE",
+    },
   ];
 
-  // 활동 항목 (dot 색상 피그마와 동일)
-  const acts = [
-    { title:"텍스트 편집", desc:"세특 영역 내용 수정",      time:"5분 전",   dot:TDS.blue500 },
-    { title:"노드 추가",   desc:'"양자컴퓨팅" 노드 생성',   time:"1시간 전", dot:TDS.success },
-    { title:"음성 녹음",   desc:"화학 세특 토론 기록",       time:"2시간 전", dot:TDS.warning },
-    { title:"양식 생성",   desc:"화학과 지원용 자소서 생성", time:"어제",     dot:TDS.blue500 },
-  ];
-
-  // 코멘트 항목
-  const comments = [
-    { from:"김선생님", txt:"세특 내용 중 실험 결과 부분을 더 구체적으로 서술해 주세요.", time:"10분 전", unread:true },
-    { from:"박선생님", txt:"동아리 활동에서 리더십이 잘 드러나고 있어요.",               time:"1시간 전", unread:false },
-    { from:"이선생님", txt:"양자컴퓨팅 노드에 관련 논문 링크도 추가해 보세요.",           time:"어제",    unread:false },
-  ];
-
-  // X축 날짜 레이블
-  const xLabels = ["01.19","01.22","01.25","01.28","01.31","02.03","02.06","02.09","02.12","02.15"];
+  const sections = stats?.sections || [];
+  const topNodes = stats?.top_nodes || [];
+  const maxTop = Math.max(1, ...topNodes.map((n) => n.count || 1));
 
   return (
     <div className="content">
-
-      {/* ── Stat 카드 4개 (피그마: 아이콘배지 + 트렌드배지 + 하단 컬러라인) ── */}
-      <div className="grid4" style={{gap:20,marginBottom:24}}>
-        {stats.map((s,i) => (
-          <div key={i} className="card" style={{padding:"22px 24px",position:"relative",overflow:"hidden"}}>
-            {/* 아이콘 배경 */}
-            <div style={{width:44,height:44,borderRadius:12,background:s.iconBg,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10}}>
+      <div className="grid4" style={{ gap: 20, marginBottom: 24 }}>
+        {cards.map((s) => (
+          <div key={s.label} className="card" style={{ padding: "22px 24px", position: "relative", overflow: "hidden" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
               <TFI s={22} color={s.color}>{s.icon}</TFI>
             </div>
-            {/* 레이블 */}
-            <div style={{fontSize:13,color:TDS.textTertiary,fontWeight:500,marginBottom:6}}>{s.label}</div>
-            {/* 값 */}
-            <div style={{fontSize:26,fontWeight:700,color:s.color,lineHeight:1.15,marginBottom:8}}>{s.value}</div>
-            {/* 서브텍스트 */}
-            <div style={{fontSize:12,color:TDS.textDisabled}}>{s.sub}</div>
-            {/* 트렌드 배지 */}
-            <div style={{position:"absolute",top:20,right:20,padding:"3px 8px",borderRadius:4,background:s.trendUp?TDS.successBg:TDS.dangerBg,color:s.trendUp?TDS.success:TDS.danger,fontSize:11,fontWeight:700}}>{s.trend}</div>
-            {/* 하단 컬러 액센트 라인 */}
-            <div style={{position:"absolute",bottom:0,left:0,right:0,height:3,background:s.color,borderRadius:"0 0 16px 16px"}} />
+            <div style={{ fontSize: 13, color: TDS.textTertiary, fontWeight: 500, marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1.15, marginBottom: 8 }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: TDS.textDisabled }}>{s.sub}</div>
+            <div style={{ position: "absolute", top: 20, right: 20, padding: "3px 8px", borderRadius: 4, background: TDS.successBg, color: TDS.success, fontSize: 11, fontWeight: 700 }}>{s.trend}</div>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: s.color, borderRadius: "0 0 16px 16px" }} />
           </div>
         ))}
       </div>
 
-      {/* ── DAU 라인 차트 (피그마: 30pt, 면채움, dot 6개, Y축 그리드) ── */}
-      <div className="card card-p mb24" style={{marginBottom:24}}>
-        <div className="card-hdr">
-          <div className="row" style={{gap:8,alignItems:"center"}}>
-            <span className="card-title">DAU (일별 활성 사용자)</span>
-            <div style={{width:18,height:18,borderRadius:"50%",background:TDS.bgTertiary,color:TDS.textTertiary,fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>?</div>
+      <div className="grid2" style={{ gap: 20, marginBottom: 24 }}>
+        <div className="card card-p">
+          <div className="card-hdr">
+            <span className="card-title">영역 완성도</span>
+            <Btn v="ghost" s="sm" onClick={() => onNav("S28")}>통계</Btn>
           </div>
-          <div className="row" style={{gap:12,alignItems:"center"}}>
-            <div className="tab-pill-wrap">
-              {["일별","주별","월별"].map(p=>(
-                <div key={p} className={`tab-pill${period===p?" active":""}`} onClick={()=>setPeriod(p)}>{p}</div>
-              ))}
+          {sections.length === 0 && <div style={{ fontSize: 13, color: TDS.textTertiary }}>데이터 로딩 중…</div>}
+          {sections.map((sec) => (
+            <div key={sec.name} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                <span style={{ color: TDS.textSecondary }}>{sec.name}</span>
+                <span style={{ fontWeight: 600, color: sec.pct > 0 ? TDS.blue500 : TDS.textDisabled }}>{sec.pct}%</span>
+              </div>
+              <div className="prog-wrap">
+                <div className="prog-fill" style={{ width: `${sec.pct}%`, background: sec.pct > 0 ? TDS.blue500 : TDS.bgTertiary }} />
+              </div>
             </div>
-            <div className="date-range"><TFI>📅</TFI>&nbsp;2025.12.28 ~ 2026.01.28</div>
-            <Btn v="secondary" s="sm">다운로드</Btn>
-          </div>
+          ))}
+          {!!sections.length && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+              <DonutChart
+                size={120}
+                label="평균"
+                pct={`${Math.round(sections.reduce((a, s) => a + (s.pct || 0), 0) / sections.length) || 0}%`}
+                data={sections.slice(0, 4).map((s, i) => ({
+                  color: [TDS.blue500, TDS.success, TDS.warning, TDS.chartiOS][i % 4],
+                  pct: Math.max(0.01, (s.pct || 0) / 100),
+                }))}
+              />
+            </div>
+          )}
         </div>
 
-        {/* SVG 차트 — 완전 반응형: viewBox 유지, height auto */}
-        <div style={{background:TDS.bgSecondary,borderRadius:10,padding:"16px 16px 0",overflow:"hidden"}}>
-          <div style={{position:"relative",width:"100%",paddingBottom:"27%",minHeight:120}}>
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              preserveAspectRatio="xMidYMid meet"
-              style={{position:"absolute",inset:0,width:"100%",height:"100%",display:"block"}}
+        <div className="card card-p">
+          <div className="card-hdr">
+            <span className="card-title">주요 노드</span>
+            <Btn v="ghost" s="sm" onClick={() => onNav("S06")}>그래프</Btn>
+          </div>
+          {!topNodes.length && <div style={{ fontSize: 13, color: TDS.textTertiary }}>아직 노드가 없습니다</div>}
+          {topNodes.map((n) => (
+            <div key={n.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: TDS.blue500, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: TDS.textSecondary, minWidth: 90 }}>{n.label}</span>
+              <div style={{ flex: 1, height: 4, background: TDS.bgTertiary, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: 4, borderRadius: 2, background: TDS.blue500, width: `${((n.count || 1) / maxTop) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid2" style={{ gap: 20 }}>
+        <div className="card card-p">
+          <div className="card-hdr">
+            <span className="card-title">빠른 작업</span>
+          </div>
+          {[
+            { t: "PDF 업로드", d: "생기부 PDF 파싱", s: "S13", c: TDS.blue500 },
+            { t: "음성 녹음", d: "STT 세션 시작", s: "S15", c: TDS.warning },
+            { t: "양식 생성", d: "템플릿으로 작성", s: "S20", c: TDS.success },
+            { t: "시드 추가", d: "그래프 키워드", s: "S09", c: TDS.blue500 },
+          ].map((a, i, arr) => (
+            <div
+              key={a.t}
+              onClick={() => onNav(a.s)}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 12, padding: "13px 0", cursor: "pointer",
+                borderBottom: i < arr.length - 1 ? `1px solid ${TDS.bgTertiary}` : "none",
+              }}
             >
-              <defs>
-                <linearGradient id="dauGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={TDS.blue500} stopOpacity="0.18" />
-                  <stop offset="100%" stopColor={TDS.blue500} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {/* Y축 그리드 라인 + 레이블 */}
-              {[0,25,50,75,100,125].map(v => (
-                <g key={v}>
-                  <line x1={padX} y1={ty(v)} x2={W-8} y2={ty(v)} stroke={TDS.borderDefault} strokeWidth="0.8" opacity="0.7" />
-                  <text x={padX-4} y={ty(v)+4} textAnchor="end" fontSize="10" fill={TDS.textTertiary} fontFamily="Pretendard,sans-serif">{v}</text>
-                </g>
-              ))}
-              {/* 면 채움 */}
-              <path d={areaPath} fill="url(#dauGrad)" />
-              {/* 라인 */}
-              <path d={linePath} fill="none" stroke={TDS.blue500} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-              {/* 데이터 포인트 (6개 강조) */}
-              {[4,9,14,19,24,29].map(i => (
-                <circle key={i} cx={tx(i)} cy={ty(pts[i])} r="4" fill="#fff" stroke={TDS.blue500} strokeWidth="2.5" />
-              ))}
-            </svg>
-          </div>
-        </div>
-        {/* X축 날짜 레이블 */}
-        <div style={{display:"flex",justifyContent:"space-between",padding:"6px 16px 0",fontSize:10,color:TDS.textTertiary}}>
-          {xLabels.map(d => <span key={d}>{d}</span>)}
-        </div>
-      </div>
-
-      {/* ── OS 도넛 + 성별 도넛 (피그마와 동일) ── */}
-      <div className="grid2" style={{gap:20,marginBottom:24}}>
-        {/* OS 분포 */}
-        <div className="card card-p">
-          <div className="card-hdr">
-            <span className="card-title">OS 분포</span>
-            <span style={{fontSize:13,color:TDS.textTertiary}}>총 763명</span>
-          </div>
-          {/* 도넛 */}
-          <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
-            <DonutChart
-              size={148}
-              label="Android"
-              pct="61.3%"
-              data={[
-                {color:TDS.chartAndroid, pct:0.613},
-                {color:TDS.chartiOS,     pct:0.387},
-              ]}
-            />
-          </div>
-          {/* 구분선 */}
-          <div style={{height:1,background:TDS.borderDefault,marginBottom:14}} />
-          {/* 범례 */}
-          {[
-            {col:TDS.chartAndroid, name:"Android", cnt:"468명", pct:"61.3%"},
-            {col:TDS.chartiOS,     name:"iOS",     cnt:"295명", pct:"38.7%"},
-          ].map(l=>(
-            <div key={l.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:l.col,flexShrink:0}} />
-              <span style={{fontSize:13,color:TDS.textSecondary,minWidth:60}}>{l.name}</span>
-              <span style={{fontSize:13,color:TDS.textSecondary,flex:1}}>{l.cnt}</span>
-              <span style={{fontSize:13,fontWeight:600,color:TDS.textPrimary,minWidth:44}}>{l.pct}</span>
-              {/* 미니 프로그레스바 */}
-              <div style={{width:48,height:4,background:TDS.bgTertiary,borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:4,borderRadius:2,background:l.col,width:`${parseFloat(l.pct)}%`}} />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: a.c, flexShrink: 0, marginTop: 7 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: TDS.textPrimary }}>{a.t}</div>
+                <div style={{ fontSize: 13, color: TDS.textTertiary, marginTop: 2 }}>{a.d}</div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* 성별 분포 */}
         <div className="card card-p">
           <div className="card-hdr">
-            <span className="card-title">성별 분포</span>
-            <span style={{fontSize:13,color:TDS.textTertiary}}>총 763명</span>
-          </div>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
-            <DonutChart
-              size={148}
-              label="남성"
-              pct="64.7%"
-              data={[
-                {color:TDS.chartMale,   pct:0.647},
-                {color:TDS.chartFemale, pct:0.353},
-              ]}
-            />
-          </div>
-          <div style={{height:1,background:TDS.borderDefault,marginBottom:14}} />
-          {[
-            {col:TDS.chartMale,   name:"남성", cnt:"494명", pct:"64.7%"},
-            {col:TDS.chartFemale, name:"여성", cnt:"269명", pct:"35.3%"},
-          ].map(l=>(
-            <div key={l.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:l.col,flexShrink:0}} />
-              <span style={{fontSize:13,color:TDS.textSecondary,minWidth:60}}>{l.name}</span>
-              <span style={{fontSize:13,color:TDS.textSecondary,flex:1}}>{l.cnt}</span>
-              <span style={{fontSize:13,fontWeight:600,color:TDS.textPrimary,minWidth:44}}>{l.pct}</span>
-              <div style={{width:48,height:4,background:TDS.bgTertiary,borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:4,borderRadius:2,background:l.col,width:`${parseFloat(l.pct)}%`}} />
-              </div>
+            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <span className="card-title">최근 코멘트</span>
+              {comments.length > 0 && <span className="badge-num">{comments.length}</span>}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 최근 활동 + 읽지 않은 코멘트 ── */}
-      <div className="grid2" style={{gap:20}}>
-        {/* 최근 활동 (피그마: 색상 dot + title/desc/time) */}
-        <div className="card card-p">
-          <div className="card-hdr">
-            <span className="card-title">최근 활동</span>
-            <Btn v="ghost" s="sm" onClick={()=>onNav("S26")}>피드 보기</Btn>
+            <Btn v="ghost" s="sm" onClick={() => onNav("S24")}>전체 보기</Btn>
           </div>
-          {acts.map((a,i) => (
-            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"13px 0",borderBottom:i<acts.length-1?`1px solid ${TDS.bgTertiary}`:"none"}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:a.dot,flexShrink:0,marginTop:7}} />
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:14,fontWeight:500,color:TDS.textPrimary}}>{a.title}</div>
-                <div style={{fontSize:13,color:TDS.textTertiary,marginTop:2}}>{a.desc}</div>
+          {!comments.length && <div style={{ fontSize: 13, color: TDS.textTertiary, padding: "12px 0" }}>코멘트가 없습니다</div>}
+          {comments.map((c, i) => (
+            <div key={c.id} style={{ padding: "13px 0", borderBottom: i < comments.length - 1 ? `1px solid ${TDS.bgTertiary}` : "none" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{c.author}</span>
+                <span style={{ fontSize: 11, color: TDS.textDisabled }}>{c.type}</span>
               </div>
-              <div style={{fontSize:12,color:TDS.textDisabled,flexShrink:0}}>{a.time}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* 읽지 않은 코멘트 (피그마: 아바타 + 안 읽음 dot + 내용 클리핑) */}
-        <div className="card card-p">
-          <div className="card-hdr">
-            <div className="row" style={{gap:8,alignItems:"center"}}>
-              <span className="card-title">읽지 않은 코멘트</span>
-              <span className="badge-num">3</span>
-            </div>
-            <Btn v="ghost" s="sm" onClick={()=>onNav("S24")}>전체 보기</Btn>
-          </div>
-          {comments.map((c,i) => (
-            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"13px 0",borderBottom:i<comments.length-1?`1px solid ${TDS.bgTertiary}`:"none",position:"relative"}}>
-              {/* 안 읽음 파란 dot */}
-              {c.unread && <div style={{position:"absolute",left:-2,top:18,width:6,height:6,borderRadius:"50%",background:TDS.blue500}} />}
-              {/* 아바타 */}
-              <Av name={c.from[0]} size="sm" />
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,fontWeight:700,color:TDS.textPrimary}}>{c.from}</span>
-                  <span style={{fontSize:11,color:TDS.textDisabled,flexShrink:0,marginLeft:8}}>{c.time}</span>
-                </div>
-                <div style={{fontSize:13,color:TDS.textSecondary,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{c.txt}</div>
-              </div>
+              <div style={{ fontSize: 13, color: TDS.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.content}</div>
             </div>
           ))}
         </div>
@@ -255,4 +167,3 @@ export function S05({ onNav }) {
     </div>
   );
 }
-
