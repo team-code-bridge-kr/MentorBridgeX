@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
-import { NavIcon } from "../../components/NavIcon.jsx";
+import { Btn, Badge, Av, Card } from "../../components/ui.jsx";
 import { timeAgo } from "../../utils/time.js";
 
 export function S24({ onNav }) {
@@ -72,11 +71,6 @@ export function S24({ onNav }) {
           </div>
         </Card>
       ))}
-
-      <Notice type="info">신고한 코멘트는 관리자 신고 큐(A08)로 전달됩니다.</Notice>
     </div>
   );
 }
-
-/* S25 알림 */
-
