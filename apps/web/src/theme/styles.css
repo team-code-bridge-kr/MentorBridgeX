@@ -74,7 +74,7 @@ a { text-decoration:none; color:inherit; }
 /* ── Sidebar internals ── */
 .sb-logo  { height:60px; min-height:60px; box-sizing:border-box; padding:0 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--brd); }
 .sb-dark .sb-logo { border-bottom-color:#2f3847; }
-.sb-logo-icon { width:36px; height:36px; border-radius:10px; background:var(--blue-500); display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; flex-shrink:0; }
+.sb-logo-icon { width:36px; height:36px; border-radius:10px; object-fit:contain; flex-shrink:0; display:block; background:transparent; }
 .sb-logo-text { font-size:16px; font-weight:700; color:var(--tp); }
 .sb-dark .sb-logo-text { color:#fff; }
 .sb-section { flex:1; padding:8px 8px 0; }

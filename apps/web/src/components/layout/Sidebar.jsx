@@ -1,7 +1,9 @@
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Av } from "../ui.jsx";
+import { Av } from "../ui.jsx";
 import { NavIcon } from "../NavIcon.jsx";
+import logoBlack from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
+import logoWhite from "../../assets/brand/TeamCodeBridge_Logo_White_Web.png";
 
 export function Sidebar({ nav, active, onNav, role, dark }) {
   const { state, actions } = useStore();
@@ -11,8 +13,12 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
   return (
     <div className={`sidebar sb-${dark?"dark":"light"}`}>
       <div className="sb-logo">
-        <div className="sb-logo-icon"><TFI s={22} color="#fff">{dark?"🛡️":"📚"}</TFI></div>
-        <span className="sb-logo-text">{dark?"관리자 콘솔":"생기부 관리"}</span>
+        <img
+          className="sb-logo-icon"
+          src={dark ? logoWhite : logoBlack}
+          alt="Team Code Bridge"
+        />
+        <span className="sb-logo-text">MentorBridgeX</span>
       </div>
       <div className="sb-section">
         {nav.map(n => {
