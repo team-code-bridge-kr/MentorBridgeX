@@ -148,8 +148,7 @@ export function S27({ onNav }) {
   };
 
   return (
-    <div className="content" style={{ maxWidth: 720, margin: "0 auto" }}>
-      <div className="sec-title mb16" style={{ marginBottom: 16 }}>통합 검색</div>
+    <div className="content">
       <div className="search-wrap mb20" style={{ marginBottom: 20, height: 52, fontSize: 16 }}>
         <span style={{ fontSize: 18 }}><TFI s={18} color={TDS.textTertiary}>🔍</TFI></span>
         <input
