@@ -59,29 +59,52 @@ jobs:
           du -sh dist
           ls -la dist
 
-      - name: Start ssh-agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
-
-      - name: known_hosts
+      - name: Prepare SSH key
         env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
+        working-directory: .
         run: |
+          set -euo pipefail
+          test -n "${EC2_SSH_KEY}"
+          test -n "${EC2_HOST}"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          test -n "${EC2_HOST}"
+
+          # Secret 붙여넣기 시 CRLF/끝 개행 깨짐 보정
+          printf '%s\n' "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/ec2_deploy
+          # 파일 끝에 개행 보장
+          if [ -n "$(tail -c1 ~/.ssh/ec2_deploy | tr -d '\n' || true)" ]; then
+            printf '\n' >> ~/.ssh/ec2_deploy
+          fi
+          chmod 600 ~/.ssh/ec2_deploy
+
+          # 개인키 내용 노출 없이 형식/지문만 검증
+          head -1 ~/.ssh/ec2_deploy
+          tail -1 ~/.ssh/ec2_deploy
+          ssh-keygen -lf ~/.ssh/ec2_deploy
+          ssh-keygen -y -f ~/.ssh/ec2_deploy >/dev/null
+
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: SSH probe
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
+        working-directory: .
         run: |
           set -euo pipefail
-          test -n "${EC2_HOST}"
-          test -n "${EC2_USER}"
-          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+          EC2_HOST=$(printf '%s' "$EC2_HOST" | tr -d '\r\n[:space:]')
+          EC2_USER=$(printf '%s' "$EC2_USER" | tr -d '\r\n[:space:]')
+          test -n "$EC2_HOST"
+          test -n "$EC2_USER"
+          echo "ssh target: ${EC2_USER}@${EC2_HOST}"
+          ssh -i ~/.ssh/ec2_deploy \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o PreferredAuthentications=publickey \
+            -o ConnectTimeout=15 \
             "${EC2_USER}@${EC2_HOST}" \
             'echo connected; whoami; ls -ld /var/www/mbx'
 
@@ -93,9 +116,12 @@ jobs:
         working-directory: apps/web
         run: |
           set -euo pipefail
+          EC2_HOST=$(printf '%s' "$EC2_HOST" | tr -d '\r\n[:space:]')
+          EC2_USER=$(printf '%s' "$EC2_USER" | tr -d '\r\n[:space:]')
           WEB_ROOT="${EC2_WEB_ROOT:-/var/www/mbx}"
+          WEB_ROOT=$(printf '%s' "$WEB_ROOT" | tr -d '\r\n')
           rsync -avz --delete \
-            -e "ssh -o IdentitiesOnly=yes -o BatchMode=yes" \
+            -e "ssh -i $HOME/.ssh/ec2_deploy -o IdentitiesOnly=yes -o BatchMode=yes" \
             dist/ \
             "${EC2_USER}@${EC2_HOST}:${WEB_ROOT}/"
 
