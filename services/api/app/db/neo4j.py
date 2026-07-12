@@ -176,6 +176,23 @@ class Neo4jGraphStore:
                 return None
             return _parse_node(dict(record))
 
+    async def get_node(self, user_id: str, node_id: str) -> GraphNode | None:
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            result = await session.run(
+                """
+                MATCH (n:Node {user_id: $user_id, node_id: $node_id})
+                RETURN n.node_id AS node_id, n.type AS type, n.label AS label,
+                       n.description AS description,
+                       n.external_refs_json AS external_refs_json,
+                       n.created_at AS created_at, n.updated_at AS updated_at
+                """,
+                user_id=user_id,
+                node_id=node_id,
+            )
+            record = await result.single()
+            return _parse_node(dict(record)) if record else None
+
     async def delete_node(self, user_id: str, node_id: str) -> bool:
         driver = get_neo4j_driver()
         async with driver.session() as session:

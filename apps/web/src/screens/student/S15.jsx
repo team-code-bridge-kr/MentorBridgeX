@@ -64,9 +64,11 @@ export function S15({ onNav }) {
             </div>
           </div>
           <Badge t={stType[s.st] || "grey"}>{s.st}</Badge>
-          <Btn v={s.st === "검토 대기" ? "primary" : "secondary"} s="sm" onClick={() => open(s)}>
-            {s.st === "검토 대기" ? "검토하기" : "보기"}
-          </Btn>
+          {s.st !== "완료" && (
+            <Btn v={s.st === "검토 대기" ? "primary" : "secondary"} s="sm" onClick={() => open(s)}>
+              {s.st === "검토 대기" ? "검토하기" : "보기"}
+            </Btn>
+          )}
         </div>
       ))}
     </div>

@@ -115,3 +115,4 @@ class StatsOut(BaseModel):
     voice_duration_sec: int = 0
     sections: list[dict] = Field(default_factory=list)
     top_nodes: list[dict] = Field(default_factory=list)
+    recent_activities: list[dict] = Field(default_factory=list)

@@ -64,8 +64,8 @@ export function S11({ onNav }) {
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
         <div className="sec-sub" style={{ marginBottom: 0 }}>8가지 생기부 영역을 관리하세요</div>
         <div className="row g-8" style={{ gap: 8 }}>
-          <Btn v="secondary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
-          <Btn v="primary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>
+          <Btn v="primary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
+          <Btn v="secondary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>
         </div>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}

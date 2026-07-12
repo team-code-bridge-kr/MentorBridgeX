@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     daglo_base_url: str = "https://apis.daglo.ai"
     daglo_timeout_seconds: float = 30.0
 
+    # Anthropic LLM (empty disables LLM features; falls back to rule-based)
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5-20251001"
+
     # Google OAuth (empty disables live Google login)
     google_client_id: str = ""
     google_client_secret: str = ""

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { KIND_META } from "../../theme/graphMeta.js";
-import { Btn, Badge } from "../../components/ui.jsx";
+import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 
@@ -12,11 +12,14 @@ export function S06({ onNav }) {
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
   const [q, setQ] = useState("");
+  const [comments, setComments] = useState([]);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
   // 선택 노드가 삭제되면 패널 닫기
   useEffect(()=>{ if(sel && !nodes.find(n=>n.id===sel.id)) setSel(null); }, [nodes, sel]);
+  // 코멘트 초기 로드
+  useEffect(()=>{ api.comments.list().then(setComments).catch(()=>{}); }, []);
 
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
@@ -202,9 +205,26 @@ export function S06({ onNav }) {
             <div style={{background:TDS.bgTertiary,borderRadius:10,padding:12,fontSize:11,color:TDS.textSecondary,fontFamily:"monospace"}}>
               [0.234, 0.891, -0.123, 0.567, ...]
             </div>
+            <Divider my={16} />
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>코멘트 {comments.length}개</p>
+            </div>
+            {!comments.length ? (
+              <div style={{fontSize:13,color:TDS.textDisabled,padding:"8px 0"}}>아직 코멘트가 없습니다</div>
+            ) : comments.slice(0,3).map((c,i)=>(
+              <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
+                <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>
+                  {c.author?.[0]??"?"}
+                </div>
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:2}}>{c.author}</div>
+                  <div style={{fontSize:12,color:TDS.textSecondary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.content}</div>
+                </div>
+              </div>
+            ))}
             <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:10}}>
               <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S07")}>노드 상세 보기</Btn>
-              <Btn v="secondary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 보기</Btn>
+              <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
               <Btn v="secondary" s="md" style={{width:"100%",color:TDS.danger}} onClick={()=>handleDelete(sel.id)}>노드 삭제</Btn>
             </div>
           </div>

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.factory import get_graph_store
 from app.db.memory import MemoryUser
 from app.db.postgres import UserRow
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
 from app.schemas.graph import (
     EdgeCreateRequest,
@@ -31,8 +32,21 @@ async def get_graph(user: UserRow | MemoryUser = Depends(get_current_user)) -> G
 async def create_seed(
     body: SeedRequest,
     user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
 ) -> list[GraphNode]:
-    return await _store().create_seeds(user.id, body.seeds)
+    nodes = await _store().create_seeds(user.id, body.seeds)
+    if nodes:
+        from app.routers.product import _push_notification  # noqa: PLC0415
+        labels = ", ".join(n.label for n in nodes[:3])
+        suffix = f" 외 {len(nodes) - 3}개" if len(nodes) > 3 else ""
+        await _push_notification(
+            user.id,
+            title="그래프 시드 추가됨",
+            body=f"{labels}{suffix} 키워드로 지식 그래프가 시작되었습니다.",
+            icon="graph",
+            session=session,
+        )
+    return nodes
 
 
 @router.post("/nodes", response_model=GraphNode, status_code=status.HTTP_201_CREATED)

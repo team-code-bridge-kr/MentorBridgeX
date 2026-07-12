@@ -300,6 +300,12 @@ async def create_comment(
             "created_at": now,
         }
         db.comments[cid] = row
+        await _push_notification(
+            user.id,
+            title="새 코멘트",
+            body=f"{author}님이 [{body.target}]에 코멘트를 남겼습니다.",
+            icon="comment",
+        )
         return _comment_out(row)
 
     assert session is not None
@@ -317,6 +323,13 @@ async def create_comment(
     session.add(row)
     await session.commit()
     await session.refresh(row)
+    await _push_notification(
+        user.id,
+        title="새 코멘트",
+        body=f"{author}님이 [{body.target}]에 코멘트를 남겼습니다.",
+        icon="comment",
+        session=session,
+    )
     return _comment_out(row)
 
 
@@ -890,7 +903,64 @@ async def transcribe_voice_session(
     return _voice_out(row)
 
 
+# ── Notification helper ───────────────────────────────────────
+
+
+async def _push_notification(
+    user_id: str,
+    title: str,
+    body: str,
+    icon: str = "bell",
+    session: AsyncSession | None = None,
+) -> None:
+    """자동 알림 생성 (이벤트 트리거용)."""
+    nid = str(uuid4())
+    now = _now()
+    if is_offline_demo():
+        db = get_memory_db()
+        if not hasattr(db, "notifications"):
+            db.notifications = {}  # type: ignore[attr-defined]
+        db.notifications[nid] = {
+            "id": nid, "user_id": user_id, "icon": icon,
+            "title": title, "body": body, "read": False, "created_at": now,
+        }
+        return
+    if session is not None:
+        session.add(NotificationRow(
+            id=nid, user_id=user_id, icon=icon,
+            title=title, body=body, read=False, created_at=now,
+        ))
+        await session.commit()
+
+
 # ── Stats ─────────────────────────────────────────────────────
+
+_SECTION_META = [
+    ("subject_specific", "세특"),
+    ("autonomous",       "자율"),
+    ("club",             "동아리"),
+    ("volunteer",        "봉사"),
+    ("career",           "진로"),
+    ("behavior",         "행특"),
+    ("reading",          "독서"),
+    ("award",            "수상"),
+]
+
+
+def _doc_pct(content: str) -> int:
+    chars = len((content or "").strip())
+    if chars == 0:
+        return 0
+    return min(100, chars * 100 // 800)
+
+
+def _ago_str(dt: datetime) -> str:
+    ms = (datetime.now(timezone.utc) - dt).total_seconds() * 1000
+    if ms < 3_600_000:
+        return f"{max(1, int(ms // 60_000))}분 전"
+    if ms < 86_400_000:
+        return f"{int(ms // 3_600_000)}시간 전"
+    return "어제"
 
 
 @stats_router.get("", response_model=StatsOut)
@@ -904,42 +974,84 @@ async def get_stats(
     top_nodes = [{"label": n.label, "count": 1} for n in snap.nodes[:8]]
 
     comment_count = form_count = voice_count = voice_duration = 0
+    sections: list[dict] = []
+    recent_activities: list[dict] = []
+
     if is_offline_demo():
         db = get_memory_db()
-        comment_count = sum(1 for c in getattr(db, "comments", {}).values() if c["user_id"] == user.id)
-        form_count = sum(1 for f in getattr(db, "forms", {}).values() if f["user_id"] == user.id)
-        voices = [v for v in getattr(db, "voice", {}).values() if v["user_id"] == user.id]
-        voice_count = len(voices)
-        voice_duration = sum(int(v.get("duration_sec", 0)) for v in voices)
+        comments_list = [c for c in getattr(db, "comments", {}).values() if c["user_id"] == user.id]
+        forms_list    = [f for f in getattr(db, "forms",    {}).values() if f["user_id"] == user.id]
+        voices_list   = [v for v in getattr(db, "voice",    {}).values() if v["user_id"] == user.id]
+        docs_by_type  = {}
+        for d in db.documents.values():
+            if d.user_id == user.id:
+                docs_by_type.setdefault(d.section_type, []).append(d)
+
+        comment_count = len(comments_list)
+        form_count    = len(forms_list)
+        voice_count   = len(voices_list)
+        voice_duration = sum(int(v.get("duration_sec", 0)) for v in voices_list)
+
+        for stype, name in _SECTION_META:
+            docs = docs_by_type.get(stype, [])
+            best = max((len((d.content or "").strip()) for d in docs), default=0)
+            sections.append({"name": name, "pct": _doc_pct(" " * best)})
+
+        # 최근 활동 피드 구성
+        events: list[tuple[datetime, str, str]] = []
+        for c in comments_list:
+            events.append((c["created_at"], "코멘트 수신", f"{c['author']}님이 코멘트를 남겼습니다"))
+        for f in forms_list:
+            events.append((f["created_at"], "양식 생성", f['title']))
+        for v in voices_list:
+            events.append((v["created_at"], "음성 녹음", v["title"]))
+        events.sort(key=lambda x: x[0], reverse=True)
+        recent_activities = [
+            {"type": t, "detail": d, "time": _ago_str(ts)}
+            for ts, t, d in events[:8]
+        ]
     else:
         assert session is not None
-        comment_count = len(
-            (await session.execute(select(CommentRow).where(CommentRow.user_id == user.id)))
-            .scalars()
-            .all()
-        )
-        form_count = len(
-            (await session.execute(select(FormDocRow).where(FormDocRow.user_id == user.id)))
-            .scalars()
-            .all()
-        )
-        voices = (
-            (await session.execute(select(VoiceSessionRow).where(VoiceSessionRow.user_id == user.id)))
-            .scalars()
-            .all()
-        )
-        voice_count = len(voices)
-        voice_duration = sum(v.duration_sec for v in voices)
+        comments_rows = (await session.execute(
+            select(CommentRow).where(CommentRow.user_id == user.id).order_by(CommentRow.created_at.desc())
+        )).scalars().all()
+        forms_rows = (await session.execute(
+            select(FormDocRow).where(FormDocRow.user_id == user.id).order_by(FormDocRow.created_at.desc())
+        )).scalars().all()
+        voices_rows = (await session.execute(
+            select(VoiceSessionRow).where(VoiceSessionRow.user_id == user.id)
+        )).scalars().all()
 
-    # Document section completeness (rough)
-    sections = [
-        {"name": "세특", "pct": min(100, node_count * 8)},
-        {"name": "자율", "pct": min(100, node_count * 5)},
-        {"name": "동아리", "pct": min(100, form_count * 20)},
-        {"name": "진로", "pct": min(100, voice_count * 15)},
-        {"name": "독서", "pct": 0},
-        {"name": "봉사", "pct": 0},
-    ]
+        from app.db.postgres import DocumentSectionRow  # noqa: PLC0415
+        docs_rows = (await session.execute(
+            select(DocumentSectionRow).where(DocumentSectionRow.user_id == user.id)
+        )).scalars().all()
+        docs_by_type: dict[str, list] = {}
+        for d in docs_rows:
+            docs_by_type.setdefault(d.section_type, []).append(d)
+
+        comment_count  = len(comments_rows)
+        form_count     = len(forms_rows)
+        voice_count    = len(voices_rows)
+        voice_duration = sum(v.duration_sec for v in voices_rows)
+
+        for stype, name in _SECTION_META:
+            docs = docs_by_type.get(stype, [])
+            best = max((len((d.content or "").strip()) for d in docs), default=0)
+            sections.append({"name": name, "pct": _doc_pct(" " * best)})
+
+        events = []
+        for c in comments_rows[:4]:
+            events.append((c.created_at, "코멘트 수신", f"{c.author}님이 코멘트를 남겼습니다"))
+        for f in forms_rows[:2]:
+            events.append((f.created_at, "양식 생성", f.title))
+        for v in voices_rows[:2]:
+            events.append((v.created_at, "음성 녹음", v.title))
+        events.sort(key=lambda x: x[0], reverse=True)
+        recent_activities = [
+            {"type": t, "detail": d, "time": _ago_str(ts)}
+            for ts, t, d in events[:8]
+        ]
 
     return StatsOut(
         node_count=node_count,
@@ -950,4 +1062,5 @@ async def get_stats(
         voice_duration_sec=voice_duration,
         sections=sections,
         top_nodes=top_nodes,
+        recent_activities=recent_activities,
     )

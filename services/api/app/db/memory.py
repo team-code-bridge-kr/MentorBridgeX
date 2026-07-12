@@ -144,6 +144,9 @@ class InMemoryGraphStore:
         self._edges.setdefault(user_id, {})[edge.id] = edge
         return edge
 
+    async def get_node(self, user_id: str, node_id: str) -> GraphNode | None:
+        return self._nodes.get(user_id, {}).get(node_id)
+
     async def delete_edge(self, user_id: str, edge_id: str) -> bool:
         edges = self._edges.get(user_id, {})
         if edge_id not in edges:

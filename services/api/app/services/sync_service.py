@@ -89,8 +89,8 @@ class SyncService:
             raise ValueError(f"노드를 찾을 수 없습니다: {node_id}")
 
         settings = get_settings()
-        if not settings.openai_api_key:
-            # LLM 없을 때 규칙 기반 fallback
+        if not settings.anthropic_api_key:
+            # LLM 미설정 시 규칙 기반 fallback
             sentence = f"{node.label}에 대해 심층적으로 탐구하며 관련 역량을 키웠다."
             return GraphToTextResult(
                 node_id=node_id,
@@ -99,36 +99,52 @@ class SyncService:
                 insert_hint="마지막 문장 다음에 추가",
             )
 
-        from openai import AsyncOpenAI
+        import json
+        import re
 
-        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        import anthropic  # noqa: PLC0415
 
-        prompt = f"""당신은 대한민국 고등학생 생활기록부 세특(세부능력 및 특기사항) 작성 전문가입니다.
+        def _parse_json(text: str) -> dict:
+            text = text.strip()
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                pass
+            m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+            if m:
+                try:
+                    return json.loads(m.group(1))
+                except json.JSONDecodeError:
+                    pass
+            m = re.search(r"\{.*\}", text, re.DOTALL)
+            if m:
+                try:
+                    return json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    pass
+            return {}
 
-현재 [{section_title}] 섹션 텍스트:
-{section_text[:1500]}
-
-다음 키워드를 이 세특에 자연스럽게 추가하려 합니다:
-- 키워드: {node.label}
-- 타입: {node.type.value}
-
-요구사항:
-1. 이 키워드를 담은 생기부 세특 문체의 문장을 1~2개 작성하세요.
-2. 기존 텍스트의 흐름을 자연스럽게 이어야 합니다.
-3. 삽입 위치 힌트도 한 줄로 알려주세요.
-
-JSON으로 응답:
-{{"suggested_sentence": "...", "insert_hint": "..."}}"""
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        prompt = (
+            f"현재 [{section_title}] 섹션 텍스트:\n{section_text[:1500]}\n\n"
+            f"다음 키워드를 이 세특에 자연스럽게 추가하려 합니다:\n"
+            f"- 키워드: {node.label}\n"
+            f"- 타입: {node.type.value}\n\n"
+            "요구사항:\n"
+            "1. 이 키워드를 담은 생기부 세특 문체의 문장을 1~2개 작성하세요.\n"
+            "2. 기존 텍스트의 흐름을 자연스럽게 이어야 합니다.\n"
+            "3. 삽입 위치 힌트도 한 줄로 알려주세요.\n\n"
+            '반환 형식(JSON만 출력): {"suggested_sentence": "...", "insert_hint": "..."}'
+        )
 
         try:
-            resp = await client.chat.completions.create(
-                model=settings.llm_model,
-                messages=[{"role": "user", "content": prompt}],
+            resp = await client.messages.create(
+                model=settings.anthropic_model,
                 max_tokens=300,
-                response_format={"type": "json_object"},
+                system="당신은 대한민국 고등학생 생활기록부 세특 작성 전문가입니다. 반드시 유효한 JSON만 반환하세요.",
+                messages=[{"role": "user", "content": prompt}],
             )
-            import json
-            data = json.loads(resp.choices[0].message.content or "{}")
+            data = _parse_json(resp.content[0].text)
             suggested = data.get("suggested_sentence", "")
             hint = data.get("insert_hint", "마지막 문장 다음에 추가")
         except Exception as exc:
