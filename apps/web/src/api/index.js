@@ -81,25 +81,27 @@ function mapVoice(v) {
 
 // ── 노드 매퍼: 백엔드 → UI 형태 ─────────────────────────────
 const PALETTE = ["#3182f6","#4593fc","#22c55e","#f59e0b","#8b95a1","#f04452"];
-function mapNode(n, idx) {
-  // 백엔드 GraphNode: { id, label, type, description, ... }
+function mapNode(n, idx, total = 8) {
+  // 백엔드 GraphNode: { id, label, type, description, external_refs, ... }
   // UI 기대: { id, label, kind, x, y, color, size, cat }
-  const angle  = (idx / 8) * Math.PI * 2;
-  const cx     = 50 + Math.cos(angle) * 28;
-  const cy     = 48 + Math.sin(angle) * 30;
+  const angle  = (idx / Math.max(total, 8)) * Math.PI * 2;
+  const cx     = 50 + Math.cos(angle) * 32;
+  const cy     = 48 + Math.sin(angle) * 32;
   const t = String(n.type || "").toLowerCase();
+  // subject → 핵심(root) / inquiry·keyword → 연결(topic) / 나머지 → 말단(leaf)
   const kind =
-    t === "root" ? "root" :
-    t === "keyword" || t === "inquiry" || t === "subject" ? "topic" :
+    t === "subject" ? "root" :
+    t === "inquiry" || t === "keyword" ? "topic" :
     "leaf";
+  const refs = n.external_refs || {};
   return {
     id:    n.id,
     label: n.label,
     kind,
-    x:     n.x ?? `${cx.toFixed(0)}%`,
-    y:     n.y ?? `${cy.toFixed(0)}%`,
-    color: n.color ?? PALETTE[idx % PALETTE.length],
-    size:  n.size ?? (kind === "root" ? 64 : kind === "topic" ? 44 : 38),
+    x:     n.x ?? refs.x ?? `${cx.toFixed(0)}%`,
+    y:     n.y ?? refs.y ?? `${cy.toFixed(0)}%`,
+    color: n.color ?? refs.color ?? PALETTE[idx % PALETTE.length],
+    size:  n.size ?? (kind === "root" ? 64 : kind === "topic" ? 44 : 36),
     cat:   n.cat  ?? (kind === "root" ? "핵심 노드" : kind === "topic" ? "연결 노드" : "말단 노드"),
   };
 }
@@ -263,8 +265,9 @@ const api = {
     /** ✅ LIVE — GET /v1/students/me/graph (빈 그래프면 빈 배열 그대로) */
     async fetch(userId) {
       const data = await request("/v1/students/me/graph");
+      const raw = data.nodes ?? [];
       return {
-        nodes: (data.nodes ?? []).map(mapNode),
+        nodes: raw.map((n, i) => mapNode(n, i, raw.length)),
         edges: (data.edges ?? []).map(mapEdge),
       };
     },
@@ -310,7 +313,8 @@ const api = {
         method: "POST",
         body: { seeds: keywords },
       });
-      return (Array.isArray(data) ? data : data.nodes ?? []).map(mapNode);
+      const arr = Array.isArray(data) ? data : data.nodes ?? [];
+      return arr.map((n, i) => mapNode(n, i, arr.length));
     },
 
     /**
