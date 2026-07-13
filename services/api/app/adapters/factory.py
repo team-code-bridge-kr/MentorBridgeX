@@ -24,7 +24,7 @@ def get_embedding_adapter() -> EmbeddingAdapter:
     raise ValueError(f"Unsupported embedding adapter: {settings.embedding_adapter}")
 
 
-def get_graph_analyze_adapter() -> "AnthropicMLAdapter | None":
+def get_graph_analyze_adapter() -> MLAdapter | None:
     """Returns Anthropic adapter for graph analysis, or None if not configured."""
     settings = get_settings()
     if settings.ml_adapter == "real" and settings.anthropic_api_key:

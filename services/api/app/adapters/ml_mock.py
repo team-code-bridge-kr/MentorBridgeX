@@ -1,4 +1,3 @@
-from app.adapters.protocols import MLAdapter
 from app.schemas.graph import GraphSnapshot, NodeType
 from app.schemas.recommendations import SuggestedKeyword
 

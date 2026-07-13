@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.schemas.graph import GraphEdge, GraphNode, GraphSnapshot, NodeType, RelationType
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass
@@ -232,13 +231,15 @@ def seed_demo_data(user_id: str) -> None:
         db.comments = {}  # type: ignore[attr-defined]
     for author, ctype, target, content, replied, days_f in [
         ("김선생님", "노드",   "양자역학 노드",
-         "이 노드에 관련 논문 링크를 추가해 보는 것은 어떨까요? arXiv의 최신 논문들을 참고하면 좋을 것 같습니다.",
+         "이 노드에 관련 논문 링크를 추가해 보는 것은 어떨까요? "
+         "arXiv의 최신 논문들을 참고하면 좋을 것 같습니다.",
          False, 0.4),
         ("박선생님", "텍스트", "세특 영역",
          "실험 결과를 수치로 표현해 주세요. 구체적인 데이터가 있으면 더 설득력 있는 세특이 됩니다.",
          True, 2.0),
         ("이선생님", "그래프", "전체 그래프",
-         "과학 분야 노드들이 잘 연결되어 있어요. 인문학 분야도 연결해 보면 융합 역량을 보여줄 수 있습니다.",
+         "과학 분야 노드들이 잘 연결되어 있어요. "
+         "인문학 분야도 연결해 보면 융합 역량을 보여줄 수 있습니다.",
          True, 1.0),
     ]:
         cid = str(uuid4())
@@ -277,8 +278,10 @@ def seed_demo_data(user_id: str) -> None:
         "id": fid, "user_id": user_id, "template_id": "setuk",
         "title": "세특 요약 보고서 — 김학생",
         "content": (
-            "김학생은 물리학을 중심으로 양자역학, 고전역학, 전자기학, 열역학에 대해 탐구하였습니다. "
-            "수업과 연계한 자료를 검토하고, 핵심 개념을 그래프 노드로 정리하며 탐구 과정을 심화하였습니다."
+            "김학생은 물리학을 중심으로 양자역학, 고전역학, 전자기학, "
+            "열역학에 대해 탐구하였습니다. "
+            "수업과 연계한 자료를 검토하고, 핵심 개념을 그래프 노드로 정리하며 "
+            "탐구 과정을 심화하였습니다."
         ),
         "used_nodes": ["물리학", "양자역학", "고전역학", "전자기학"],
         "status": "완료",

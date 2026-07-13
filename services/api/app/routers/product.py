@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
@@ -99,7 +99,7 @@ stats_router = APIRouter(prefix="/v1/students/me/stats", tags=["stats"])
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _comment_out(row: CommentRow | dict) -> CommentOut:
@@ -421,7 +421,9 @@ async def read_all_notifications(
 
     assert session is not None
     result = await session.execute(
-        select(NotificationRow).where(NotificationRow.user_id == user.id, NotificationRow.read.is_(False))
+        select(NotificationRow).where(
+            NotificationRow.user_id == user.id, NotificationRow.read.is_(False)
+        )
     )
     for row in result.scalars().all():
         row.read = True
@@ -481,7 +483,9 @@ async def list_forms(
 
     assert session is not None
     result = await session.execute(
-        select(FormDocRow).where(FormDocRow.user_id == user.id).order_by(FormDocRow.created_at.desc())
+        select(FormDocRow)
+        .where(FormDocRow.user_id == user.id)
+        .order_by(FormDocRow.created_at.desc())
     )
     return [_form_out(r) for r in result.scalars().all()]
 
@@ -617,7 +621,9 @@ async def get_settings_me(
         )
 
     assert session is not None
-    result = await session.execute(select(UserSettingsRow).where(UserSettingsRow.user_id == user.id))
+    result = await session.execute(
+        select(UserSettingsRow).where(UserSettingsRow.user_id == user.id)
+    )
     row = result.scalar_one_or_none()
     prefs = json.loads(row.prefs) if row else default_prefs
     return SettingsOut(
@@ -639,7 +645,8 @@ async def patch_settings_me(
         db = get_memory_db()
         if not hasattr(db, "settings"):
             db.settings = {}  # type: ignore[attr-defined]
-        prefs = db.settings.get(user.id, {"comment": True, "system": True, "weekly": False, "push": True})
+        default = {"comment": True, "system": True, "weekly": False, "push": True}
+        prefs = db.settings.get(user.id, default)
         if body.prefs is not None:
             prefs = {**prefs, **body.prefs}
             db.settings[user.id] = prefs
@@ -655,9 +662,12 @@ async def patch_settings_me(
     assert session is not None
     if body.display_name:
         user.display_name = body.display_name  # type: ignore[union-attr]
-    result = await session.execute(select(UserSettingsRow).where(UserSettingsRow.user_id == user.id))
+    result = await session.execute(
+        select(UserSettingsRow).where(UserSettingsRow.user_id == user.id)
+    )
     row = result.scalar_one_or_none()
-    prefs = json.loads(row.prefs) if row else {"comment": True, "system": True, "weekly": False, "push": True}
+    _default = {"comment": True, "system": True, "weekly": False, "push": True}
+    prefs = json.loads(row.prefs) if row else _default
     if body.prefs is not None:
         prefs = {**prefs, **body.prefs}
     if row:
@@ -689,7 +699,8 @@ async def list_voice_sessions(
     session: AsyncSession | None = Depends(get_db_session),
 ) -> list[VoiceSessionOut]:
     if is_offline_demo():
-        rows = [v for v in getattr(get_memory_db(), "voice", {}).values() if v["user_id"] == user.id]
+        all_v = getattr(get_memory_db(), "voice", {}).values()
+        rows = [v for v in all_v if v["user_id"] == user.id]
         rows.sort(key=lambda x: x["created_at"], reverse=True)
         return [_voice_out(r) for r in rows]
 
@@ -955,7 +966,7 @@ def _doc_pct(content: str) -> int:
 
 
 def _ago_str(dt: datetime) -> str:
-    ms = (datetime.now(timezone.utc) - dt).total_seconds() * 1000
+    ms = (datetime.now(UTC) - dt).total_seconds() * 1000
     if ms < 3_600_000:
         return f"{max(1, int(ms // 60_000))}분 전"
     if ms < 86_400_000:
@@ -1000,7 +1011,7 @@ async def get_stats(
         # 최근 활동 피드 구성
         events: list[tuple[datetime, str, str]] = []
         for c in comments_list:
-            events.append((c["created_at"], "코멘트 수신", f"{c['author']}님이 코멘트를 남겼습니다"))
+            events.append((c["created_at"], "코멘트 수신", f"{c['author']}님이 코멘트를 남겼습니다"))  # noqa: E501
         for f in forms_list:
             events.append((f["created_at"], "양식 생성", f['title']))
         for v in voices_list:
@@ -1013,10 +1024,14 @@ async def get_stats(
     else:
         assert session is not None
         comments_rows = (await session.execute(
-            select(CommentRow).where(CommentRow.user_id == user.id).order_by(CommentRow.created_at.desc())
+            select(CommentRow)
+            .where(CommentRow.user_id == user.id)
+            .order_by(CommentRow.created_at.desc())
         )).scalars().all()
         forms_rows = (await session.execute(
-            select(FormDocRow).where(FormDocRow.user_id == user.id).order_by(FormDocRow.created_at.desc())
+            select(FormDocRow)
+            .where(FormDocRow.user_id == user.id)
+            .order_by(FormDocRow.created_at.desc())
         )).scalars().all()
         voices_rows = (await session.execute(
             select(VoiceSessionRow).where(VoiceSessionRow.user_id == user.id)

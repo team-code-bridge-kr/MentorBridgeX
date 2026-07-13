@@ -1,8 +1,6 @@
 import hashlib
 import math
 
-from app.adapters.protocols import EmbeddingAdapter
-
 DIM = 1536
 
 

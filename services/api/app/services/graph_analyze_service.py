@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +111,7 @@ class GraphAnalyzeService:
     async def _set_progress(
         self, session: AsyncSession | None, job_id: str, progress: int
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if is_offline_demo():
             job = get_memory_db().jobs.get(job_id)
             if job:
@@ -133,7 +133,7 @@ class GraphAnalyzeService:
         *,
         skipped: bool = False,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if is_offline_demo():
             job = get_memory_db().jobs.get(job_id)
             if job:
@@ -158,7 +158,7 @@ class GraphAnalyzeService:
             await session.commit()
 
     async def _fail_job(self, session: AsyncSession | None, job_id: str, error: str) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if is_offline_demo():
             job = get_memory_db().jobs.get(job_id)
             if job:

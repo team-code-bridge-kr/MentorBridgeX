@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import uuid4
 
@@ -20,7 +20,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 def create_access_token(user_id: str, email: str) -> str:
     settings = get_settings()
-    expire = datetime.now(timezone.utc) + timedelta(hours=12)
+    expire = datetime.now(UTC) + timedelta(hours=12)
     payload = {"sub": user_id, "email": email, "exp": expire}
     return jwt.encode(payload, settings.api_secret_key, algorithm=ALGORITHM)
 

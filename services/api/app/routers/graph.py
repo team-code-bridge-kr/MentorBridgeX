@@ -69,7 +69,9 @@ async def patch_node(
     body: NodePatchRequest,
     user: UserRow | MemoryUser = Depends(get_current_user),
 ) -> GraphNode:
-    node = await _store().patch_node(user.id, node_id, label=body.label, description=body.description)
+    node = await _store().patch_node(
+        user.id, node_id, label=body.label, description=body.description
+    )
     if not node:
         raise AppError("DOC_NOT_FOUND", "노드를 찾을 수 없습니다.", status_code=404)
     return node

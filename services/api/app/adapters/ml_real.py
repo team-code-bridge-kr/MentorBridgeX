@@ -60,7 +60,8 @@ class AnthropicMLAdapter:
         prompt = (
             f"다음 관심 키워드와 관련된 탐구·활동 주제를 {max_results}개 이내로 추천해주세요: "
             f"{', '.join(seeds)}\n\n"
-            '반환 형식(JSON만 출력): {"suggestions": [{"label": "...", "confidence": 0.0-1.0, "rationale": "..."}]}'
+            '반환 형식(JSON만 출력): {"suggestions": '
+            '[{"label": "...", "confidence": 0.0-1.0, "rationale": "..."}]}'
         )
         try:
             resp = await self._client.messages.create(
@@ -116,7 +117,8 @@ class AnthropicMLAdapter:
             "  EVIDENCED_BY  — A가 B에 의해 입증/뒷받침됨\n"
             "  CONTRADICTS   — A와 B가 상충하거나 대조됨\n"
             "  RELATES_TO    — 그 외 일반적 관련성\n\n"
-            f"최대 {max_edges}개의 관계만 반환하세요. 노드 목록에 없는 레이블은 사용하지 마세요.\n\n"
+            f"최대 {max_edges}개의 관계만 반환하세요. "
+            "노드 목록에 없는 레이블은 사용하지 마세요.\n\n"
             '반환 형식(JSON만 출력): {"edges": [{"source_label": "...", "target_label": "...", '
             '"relation": "INFLUENCES", "confidence": 0.85}]}'
         )
@@ -124,7 +126,10 @@ class AnthropicMLAdapter:
             resp = await self._client.messages.create(
                 model=self._model,
                 max_tokens=1024,
-                system="당신은 학생 생기부 온톨로지 분석 전문가입니다. 반드시 유효한 JSON만 반환하세요.",
+                system=(
+                    "당신은 학생 생기부 온톨로지 분석 전문가입니다. "
+                    "반드시 유효한 JSON만 반환하세요."
+                ),
                 messages=[{"role": "user", "content": prompt}],
             )
             data = _parse_json(resp.content[0].text)

@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
-_model: "SentenceTransformer | None" = None
+_model: SentenceTransformer | None = None
 
 
-def _load_model(model_name: str) -> "SentenceTransformer":
+def _load_model(model_name: str) -> SentenceTransformer:
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer  # noqa: PLC0415

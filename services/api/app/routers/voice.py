@@ -2,4 +2,8 @@
 
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/v1/students/me/voice-legacy", tags=["voice-planned"], include_in_schema=False)
+router = APIRouter(
+    prefix="/v1/students/me/voice-legacy",
+    tags=["voice-planned"],
+    include_in_schema=False,
+)

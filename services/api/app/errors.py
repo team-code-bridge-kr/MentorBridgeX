@@ -1,13 +1,15 @@
 from typing import Any
 
+import ulid
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-import ulid
 
 
 class AppError(Exception):
-    def __init__(self, code: str, message: str, status_code: int = 400, details: dict | None = None):
+    def __init__(
+        self, code: str, message: str, status_code: int = 400, details: dict | None = None
+    ):
         self.code = code
         self.message = message
         self.status_code = status_code
@@ -18,7 +20,9 @@ def new_trace_id() -> str:
     return str(ulid.new())
 
 
-def error_body(code: str, message: str, details: dict | None = None, trace_id: str | None = None) -> dict:
+def error_body(
+    code: str, message: str, details: dict | None = None, trace_id: str | None = None
+) -> dict:
     return {
         "error": {
             "code": code,

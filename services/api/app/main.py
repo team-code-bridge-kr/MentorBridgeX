@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,12 +14,16 @@ from app.db.factory import is_offline_demo
 from app.db.neo4j import close_neo4j, init_neo4j
 from app.db.postgres import init_postgres
 from app.db.redis_client import close_redis
-from app.errors import AppError, app_error_handler, unhandled_error_handler, validation_error_handler
+from app.errors import (
+    AppError,
+    app_error_handler,
+    unhandled_error_handler,
+    validation_error_handler,
+)
 from app.features.stt import routes as stt_routes
 from app.features.stt.provider import DagloSTTProvider
 from app.features.stt.service import STTService
 from app.routers import auth, documents, graph, health, jobs, product, recommendations, sync, voice
-from fastapi.exceptions import RequestValidationError
 
 STATIC_DIR = Path(__file__).parent / "static"
 

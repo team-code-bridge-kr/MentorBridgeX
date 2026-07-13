@@ -9,7 +9,12 @@ from app.db.memory import MemoryDocument, MemoryJob, get_memory_db
 from app.db.postgres import DocumentSectionRow, JobRow, utcnow
 from app.errors import AppError
 from app.parsers.pdf_extractor import ParsedPdf, parse_pdf_bytes
-from app.schemas.documents import DocumentCreateRequest, DocumentPatchRequest, DocumentSection, SectionType
+from app.schemas.documents import (
+    DocumentCreateRequest,
+    DocumentPatchRequest,
+    DocumentSection,
+    SectionType,
+)
 from app.schemas.graph import NodeType, RelationType
 
 
@@ -95,7 +100,11 @@ class DocumentService:
         return self._to_schema_from_row(row)
 
     async def patch_section(
-        self, session: AsyncSession | None, user_id: str, section_id: str, body: DocumentPatchRequest
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        section_id: str,
+        body: DocumentPatchRequest,
     ) -> DocumentSection | None:
         if is_offline_demo():
             doc = get_memory_db().documents.get(section_id)

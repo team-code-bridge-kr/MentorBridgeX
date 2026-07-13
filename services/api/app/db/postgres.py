@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -135,7 +135,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def get_user_by_email(session: AsyncSession, email: str) -> UserRow | None:

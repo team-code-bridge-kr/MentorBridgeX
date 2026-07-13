@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.memory import MemoryUser
 from app.db.postgres import UserRow
@@ -11,7 +12,6 @@ from app.schemas.documents import (
     ImportPdfResponse,
 )
 from app.services.document_service import DocumentService
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/v1/students/me/documents", tags=["ontology-documents"])
 service = DocumentService()

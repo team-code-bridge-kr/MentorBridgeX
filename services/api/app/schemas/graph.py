@@ -1,10 +1,10 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class NodeType(str, Enum):
+class NodeType(StrEnum):
     KEYWORD = "Keyword"
     INQUIRY = "Inquiry"
     SUBJECT = "Subject"
@@ -13,7 +13,7 @@ class NodeType(str, Enum):
     DOCUMENT = "Document"
 
 
-class RelationType(str, Enum):
+class RelationType(StrEnum):
     RELATES_TO = "RELATES_TO"
     BELONGS_TO = "BELONGS_TO"
     MENTIONED_IN = "MENTIONED_IN"

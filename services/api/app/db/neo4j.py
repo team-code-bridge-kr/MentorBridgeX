@@ -1,9 +1,9 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from app.config import get_settings
 from app.schemas.graph import GraphEdge, GraphNode, GraphSnapshot, NodeType, RelationType
@@ -39,7 +39,7 @@ async def init_neo4j() -> None:
 
 def _to_datetime(value: Any) -> datetime:
     if value is None:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if isinstance(value, datetime):
         return value
     if hasattr(value, "to_native"):
@@ -117,7 +117,7 @@ class Neo4jGraphStore:
         description: str | None = None,
         external_refs: dict | None = None,
     ) -> GraphNode:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         node_id = str(uuid4())
         driver = get_neo4j_driver()
         async with driver.session() as session:
@@ -151,7 +151,7 @@ class Neo4jGraphStore:
     async def patch_node(
         self, user_id: str, node_id: str, *, label: str | None, description: str | None
     ) -> GraphNode | None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         driver = get_neo4j_driver()
         async with driver.session() as session:
             result = await session.run(
@@ -211,7 +211,7 @@ class Neo4jGraphStore:
     async def create_edge(
         self, user_id: str, *, source_id: str, target_id: str, relation: RelationType
     ) -> GraphEdge:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         edge_id = str(uuid4())
         driver = get_neo4j_driver()
         async with driver.session() as session:
@@ -244,7 +244,8 @@ class Neo4jGraphStore:
         async with driver.session() as session:
             result = await session.run(
                 """
-                MATCH (a:Node {user_id: $user_id})-[r:REL {edge_id: $edge_id}]->(b:Node {user_id: $user_id})
+                MATCH (a:Node {user_id: $user_id})-[r:REL {edge_id: $edge_id}]->
+                      (b:Node {user_id: $user_id})
                 DELETE r
                 RETURN count(r) AS deleted
                 """,

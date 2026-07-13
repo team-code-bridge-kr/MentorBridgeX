@@ -141,7 +141,10 @@ class SyncService:
             resp = await client.messages.create(
                 model=settings.anthropic_model,
                 max_tokens=300,
-                system="당신은 대한민국 고등학생 생활기록부 세특 작성 전문가입니다. 반드시 유효한 JSON만 반환하세요.",
+                system=(
+                    "당신은 대한민국 고등학생 생활기록부 세특 작성 전문가입니다. "
+                    "반드시 유효한 JSON만 반환하세요."
+                ),
                 messages=[{"role": "user", "content": prompt}],
             )
             data = _parse_json(resp.content[0].text)
