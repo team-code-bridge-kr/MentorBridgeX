@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db.factory import is_offline_demo
-from app.db.memory import MemoryUser, get_memory_db
+from app.db.memory import MemoryUser, get_memory_db, seed_demo_data
 from app.db.postgres import UserRow, get_session, get_user_by_email, utcnow
 from app.errors import AppError
 
@@ -75,6 +75,7 @@ async def ensure_dev_user(
         user = MemoryUser(id=str(uuid4()), email=email, display_name=display_name, created_at=now)
         db.users_by_email[email] = user
         db.users_by_id[user.id] = user
+        seed_demo_data(user.id)
         return user
 
     user = await get_user_by_email(session, email)
