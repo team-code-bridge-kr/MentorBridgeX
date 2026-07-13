@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { KIND_META } from "../../theme/graphMeta.js";
@@ -13,6 +13,11 @@ export function S06({ onNav }) {
   const [hover, setHover] = useState(null);
   const [q, setQ] = useState("");
   const [comments, setComments] = useState([]);
+  // 노드 위치 로컬 상태 (드래그로 변경)
+  const [positions, setPositions] = useState({});
+  // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
+  const dragging = useRef(null);
+  const canvasRef = useRef(null);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
@@ -20,12 +25,64 @@ export function S06({ onNav }) {
   useEffect(()=>{ if(sel && !nodes.find(n=>n.id===sel.id)) setSel(null); }, [nodes, sel]);
   // 코멘트 초기 로드
   useEffect(()=>{ api.comments.list().then(setComments).catch(()=>{}); }, []);
+  // 새 노드가 생기면 positions 에 추가 (이미 드래그로 옮긴 노드는 덮어쓰지 않음)
+  useEffect(()=>{
+    setPositions(prev=>{
+      const next = {...prev};
+      nodes.forEach(n=>{ if(!next[n.id]) next[n.id]={x:n.x,y:n.y}; });
+      Object.keys(next).forEach(id=>{ if(!nodes.find(n=>n.id===id)) delete next[id]; });
+      return next;
+    });
+  }, [nodes]);
 
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
   const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
   const activeId = hover || sel?.id || null;
   const connectedIds = activeId ? new Set(edgesOf(activeId).flatMap(e=>[e.from,e.to])) : null;
+  const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
+
+  // ── 드래그 핸들러 ────────────────────────────────────────
+  const onNodeDown = useCallback((e, n) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const pos = getPos(n);
+    dragging.current = {
+      id: n.id,
+      startCX: e.clientX,
+      startCY: e.clientY,
+      origX: parseFloat(pos.x),
+      origY: parseFloat(pos.y),
+      moved: false,
+    };
+  }, [getPos]);
+
+  const onCanvasMove = useCallback((e) => {
+    const d = dragging.current;
+    if (!d) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dx = e.clientX - d.startCX;
+    const dy = e.clientY - d.startCY;
+    if (!d.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    dragging.current.moved = true;
+    const newX = Math.max(4, Math.min(96, d.origX + (dx / rect.width) * 100));
+    const newY = Math.max(4, Math.min(96, d.origY + (dy / rect.height) * 100));
+    setPositions(prev => ({...prev, [d.id]: {x:`${newX.toFixed(1)}%`, y:`${newY.toFixed(1)}%`}}));
+  }, []);
+
+  const onCanvasUp = useCallback((e) => {
+    const d = dragging.current;
+    dragging.current = null;
+    if (!d) return;
+    if (!d.moved) {
+      const n = nodes.find(n=>n.id===d.id);
+      if (n) setSel(s => s?.id===n.id ? null : n);
+    }
+  }, [nodes]);
 
   const handleDelete = async (id) => { await actions.deleteNode(id); };
   const handlePrune = async () => {
@@ -52,7 +109,13 @@ export function S06({ onNav }) {
       <div style={{flex:1,display:"flex",overflow:"hidden"}}>
         {/* Canvas */}
         <div style={{flex:1,padding:20,overflow:"hidden",position:"relative"}}>
-          <div style={{height:"100%",background:`radial-gradient(circle at 50% 40%, ${TDS.bgSecondary} 0%, ${TDS.bgTertiary} 100%)`,borderRadius:16,position:"relative",border:`1px solid ${TDS.borderDefault}`,overflow:"hidden"}}>
+          <div
+            ref={canvasRef}
+            onMouseMove={onCanvasMove}
+            onMouseUp={onCanvasUp}
+            onMouseLeave={onCanvasUp}
+            style={{height:"100%",background:`radial-gradient(circle at 50% 40%, ${TDS.bgSecondary} 0%, ${TDS.bgTertiary} 100%)`,borderRadius:16,position:"relative",border:`1px solid ${TDS.borderDefault}`,overflow:"hidden",userSelect:"none"}}
+          >
             {/* 도트 격자 배경 */}
             <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:.5,pointerEvents:"none"}}>
               <defs>
@@ -86,7 +149,8 @@ export function S06({ onNav }) {
                 const a=nodeById(e.from), b=nodeById(e.to);
                 if(!a||!b) return null;
                 const on = activeId && (e.from===activeId||e.to===activeId);
-                const ax=parseFloat(a.x), ay=parseFloat(a.y), bx=parseFloat(b.x), by=parseFloat(b.y);
+                const pa=getPos(a), pb=getPos(b);
+                const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
                 const mx=(ax+bx)/2, my=(ay+by)/2 - 4;
                 return (
                   <path key={e.id}
@@ -109,12 +173,14 @@ export function S06({ onNav }) {
               const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
               const dim = dimSearch || dimActive;
               const isActive = n.id===activeId;
+              const isDraggingThis = dragging.current?.id === n.id;
               const meta = KIND_META[n.kind] || KIND_META.topic;
+              const pos = getPos(n);
               return (
                 <div key={n.id}
-                  onClick={()=>setSel(sel?.id===n.id?null:n)}
+                  onMouseDown={(e)=>onNodeDown(e,n)}
                   onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
-                  style={{position:"absolute",left:n.x,top:n.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",transition:"transform .2s, opacity .2s",opacity:dim?.28:1,zIndex:isActive?4:2}}>
+                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?.28:1,zIndex:isDraggingThis?10:isActive?4:2}}>
                   <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${TDS.bgPrimary}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
                     <NavIcon name={meta.icon} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
                   </div>
