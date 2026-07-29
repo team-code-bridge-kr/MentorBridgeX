@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir \
     "neo4j>=5.26.0" "redis>=5.2.0" \
     "python-jose[cryptography]>=3.3.0" "python-multipart>=0.0.12" \
     "ulid-py>=1.1.0" "pyyaml>=6.0.2" "httpx>=0.28.0" "email-validator>=2.2.0" \
-    "pymupdf>=1.24.0"
+    "pymupdf>=1.24.0" "grpcio>=1.66.0" "protobuf>=5.28.0" "anthropic>=0.40.0"
 
 COPY app ./app
 
