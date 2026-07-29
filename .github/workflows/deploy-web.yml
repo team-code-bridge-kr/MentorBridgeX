@@ -1,6 +1,10 @@
 # Frontend CD — GitHub에서 Vite 빌드 후 EC2 /var/www/mbx 에 dist만 rsync
 # 서버에서 npm/build 하지 않음 (디스크·메모리 안전).
 #
+# 비활성화됨 (2026-07): 호스팅을 AWS EC2 → 홈서버(docker-compose + Cloudflare Tunnel)로 이전.
+# 프론트는 이제 홈서버에서 apps/web/dist를 nginx 컨테이너로 직접 서빙.
+# 다시 EC2로 되돌릴 일이 있으면 아래 push 트리거만 복구하면 됨 (workflow_dispatch는 유지).
+#
 # Required repo Secrets (Settings → Secrets and variables → Actions):
 #   EC2_HOST          e.g. 44.215.125.111
 #   EC2_USER          e.g. ubuntu
@@ -14,11 +18,6 @@
 name: Deploy — Web (mbx)
 
 on:
-  push:
-    branches: ["develop"]
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/deploy-web.yml"
   workflow_dispatch:
 
 concurrency:

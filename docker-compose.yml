@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: mentor
       POSTGRES_DB: mentorbridgex
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -14,6 +14,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 512m
 
   neo4j:
     image: neo4j:5-community
@@ -21,9 +22,12 @@ services:
       NEO4J_AUTH: neo4j/mentorbridgex
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     volumes:
       - neo4jdata:/data
     healthcheck:
@@ -32,23 +36,25 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
+    mem_limit: 1200m
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    mem_limit: 128m
 
   api:
     build:
       context: ./services/api
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     environment:
@@ -64,9 +70,20 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 512m
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
     volumes:
-      - ./services/api:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - ./apps/web/dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    mem_limit: 64m
 
 volumes:
   pgdata:
