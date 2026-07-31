@@ -56,6 +56,45 @@ def _merge_sections_by_type(sections: list) -> list[tuple[SectionType, str]]:
     return [(t, "\n\n".join(buckets[t])) for t in order if buckets[t]]
 
 
+def _sections_for_extraction(sections: list) -> list[tuple[str, str]]:
+    """키워드 추출에 넘길 섹션 목록을 만든다.
+
+    두 가지를 한다.
+
+    1. 같은 (유형, 제목) 조각을 하나로 합친다. 자율활동 5조각, 봉사활동 6조각처럼
+       학년별로 쪼개진 것들이 각각 한 칸씩 차지하지 않게 한다. 표본 기준 69 -> 48.
+
+    2. 유형을 돌아가며 뽑는다. 파싱 결과는 세특이 앞에 몰려 있는데(46/69), 어댑터가
+       앞에서부터 정해진 개수만 처리하기 때문에 그대로 넘기면 창의적 체험활동이
+       한 번도 안 보인다. 실제로 그래프에 자율·동아리·봉사·진로가 통째로 빠졌다.
+       유형별로 번갈아 뽑으면 조각이 적은 영역도 반드시 앞쪽에 들어간다.
+    """
+    order: list[str] = []
+    buckets: dict[str, dict[str, list[str]]] = {}
+
+    for block in sections:
+        key = block.section_type.value
+        if key not in buckets:
+            buckets[key] = {}
+            order.append(key)
+        body = block.content.strip()
+        if not body:
+            continue
+        buckets[key].setdefault(block.title, []).append(body)
+
+    queues = [
+        [(title, "\n\n".join(bodies)) for title, bodies in buckets[key].items()]
+        for key in order
+    ]
+
+    out: list[tuple[str, str]] = []
+    while any(queues):
+        for queue in queues:
+            if queue:
+                out.append(queue.pop(0))
+    return out
+
+
 class DocumentService:
     def __init__(self) -> None:
         self.graph = get_graph_store()
@@ -294,7 +333,7 @@ class DocumentService:
     async def _extract_keywords(self, parsed: ParsedPdf) -> tuple[list[ExtractedKeyword], str]:
         """Pick keywords for graph nodes, tagging the extractor with the PDF pipeline."""
         keywords, extractor = await extract_keywords(
-            sections=[(section.title, section.content) for section in parsed.sections],
+            sections=_sections_for_extraction(parsed.sections),
             token_freqs=parsed.token_frequencies,
             limit=_MAX_KEYWORD_NODES,
             rule_source="pdf_tokens",

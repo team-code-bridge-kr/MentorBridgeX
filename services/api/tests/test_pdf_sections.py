@@ -20,6 +20,7 @@ from app.parsers.pdf_extractor import (
     parse_pdf_bytes,
 )
 from app.schemas.documents import SectionType
+from app.services.document_service import _sections_for_extraction
 
 # NEIS 출력물과 같은 순서로 배열한 표본.
 _RECORD = """출결상황
@@ -195,3 +196,36 @@ def test_subject_split_stays_inside_the_grades_region() -> None:
     joined = " ".join(s.content for s in _split_subject_specific_blocks(_SUBJECT_TEXT))
 
     assert "마이클 샌델" not in joined
+
+
+# ── 키워드 추출에 넘길 섹션 고르기 ────────────────────────────────────────────
+
+
+def test_extraction_sections_are_merged_and_interleaved() -> None:
+    """세특이 앞을 다 차지해 창의적 체험활동이 잘리는 일이 없어야 한다.
+
+    파싱 결과는 세특이 앞에 몰려 있고(표본 46/69), 어댑터는 앞에서부터 정해진
+    개수만 처리한다. 그대로 넘기면 자율·동아리·봉사·진로가 한 번도 안 보인다.
+    """
+    prepared = _sections_for_extraction(_split_major_sections(_RECORD))
+    titles = [title for title, _ in prepared]
+
+    # 창체 4개 영역이 모두, 그리고 앞쪽에 들어간다.
+    for area in ("자율활동", "동아리활동", "봉사활동", "진로활동"):
+        assert area in titles, titles
+        assert titles.index(area) < 8, titles
+
+
+def test_extraction_sections_merge_same_title() -> None:
+    """학년별로 쪼개진 같은 영역은 하나로 합쳐 한 칸만 쓴다."""
+    text = (
+        "창의적 체험활동상황\n자율활동\n1학년 학급 회장으로 학급 규칙을 정하고 운영함.\n"
+        "동아리활동\n(프로그래밍반) 파이썬으로 계산기를 만들어 발표함.\n"
+        "자율활동\n2학년 학급 자치 회의를 주도하여 안건을 정리함.\n"
+    )
+    prepared = _sections_for_extraction(_split_major_sections(text))
+    autonomous = [body for title, body in prepared if title == "자율활동"]
+
+    assert len(autonomous) == 1
+    assert "1학년" in autonomous[0]
+    assert "2학년" in autonomous[0]

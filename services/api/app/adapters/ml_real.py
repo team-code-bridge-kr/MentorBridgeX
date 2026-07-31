@@ -43,9 +43,11 @@ _LABEL_MIN_LEN = 2
 _LABEL_MAX_LEN = 30
 
 # Per-request caps so one oversized PDF cannot fan out into unbounded LLM spend.
-_MAX_SECTIONS = 20
+# 19쪽 표본이 (유형, 제목) 기준 48개 섹션이라 20개로는 창의적 체험활동이 통째로
+# 잘렸다. 32개로 올리고 동시 실행을 6으로 늘려 왕복 횟수(≈5)는 예전과 같게 둔다.
+_MAX_SECTIONS = 32
 _SECTION_CHAR_LIMIT = 4000
-_LLM_CONCURRENCY = 4
+_LLM_CONCURRENCY = 6
 
 _KEYWORD_SCHEMA = {
     "type": "object",
@@ -375,20 +377,38 @@ class AnthropicMLAdapter:
             return_exceptions=True,
         )
 
-        # Highest-confidence wins when the same label appears in several sections.
-        merged: dict[str, ExtractedKeyword] = {}
+        # 섹션마다 신뢰도 순으로 세워 두고, 섹션을 돌아가며 한 개씩 뽑는다.
+        #
+        # 예전에는 전체를 신뢰도로 한 줄 세워 앞에서 잘랐다. 그러면 조각이 많은
+        # 영역(세특 40개)이 후보를 독차지해서, 조각이 적은 영역(자율·동아리·봉사·
+        # 진로 각 1~2개)의 키워드가 한 개도 못 들어가는 일이 생긴다. 실제로 그래프에
+        # 창의적 체험활동이 통째로 빠졌다. 돌아가며 뽑으면 모든 영역이 대표를 갖는다.
+        buckets: list[list[ExtractedKeyword]] = []
         for result in results:
             if isinstance(result, BaseException):
                 logger.warning("extract_document_keywords: section failed: %s", result)
                 continue
-            for keyword in result:
-                key = keyword.label.replace(" ", "").lower()
-                current = merged.get(key)
-                if current is None or (keyword.confidence or 0.0) > (current.confidence or 0.0):
-                    merged[key] = keyword
+            buckets.append(sorted(result, key=lambda k: (-(k.confidence or 0.0), k.label)))
 
-        ranked = sorted(merged.values(), key=lambda k: (-(k.confidence or 0.0), k.label))
-        return ranked[:max_keywords]
+        picked: list[ExtractedKeyword] = []
+        seen: set[str] = set()
+        while len(picked) < max_keywords:
+            progressed = False
+            for bucket in buckets:
+                if len(picked) >= max_keywords:
+                    break
+                while bucket:
+                    keyword = bucket.pop(0)
+                    key = keyword.label.replace(" ", "").lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    picked.append(keyword)
+                    progressed = True
+                    break
+            if not progressed:
+                break
+        return picked
 
     async def _extract_section_keywords(
         self, title: str, content: str, limit: int
