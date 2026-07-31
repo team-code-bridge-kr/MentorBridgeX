@@ -45,3 +45,7 @@ data/
 student_file/
 .student_file
 apps/web/.env
+
+# Local backups (may contain secrets — do not commit)
+*.bak
+*.bak.*

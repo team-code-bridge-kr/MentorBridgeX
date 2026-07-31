@@ -71,7 +71,9 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-    mem_limit: 512m
+    # EMBEDDING_ADAPTER=real 이면 torch + ko-sroberta 모델이 상주해 ~1.2GB 를 쓴다.
+    # mock 으로 되돌리면 512m 로 낮춰도 된다.
+    mem_limit: 2g
 
   web:
     image: nginx:alpine
