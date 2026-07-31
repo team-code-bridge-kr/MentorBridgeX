@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { KIND_META } from "../../theme/graphMeta.js";
+import { KIND_META, OVERLAY_SURFACE, Z } from "../../theme/graphMeta.js";
+import { iconForNode, SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
@@ -10,6 +11,11 @@ import api from "../../api/index.js";
 const DENSE_THRESHOLD = 30;
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
+
+// 선택 노드와 무관한 노드를 살짝만 내린다. 너무 흐리면 전체 지도를 못 읽는다.
+const DIM_OPACITY = 0.34;
+// 선택 라벨 카드가 캔버스 밖으로 나가지 않도록 남겨 두는 좌우 여백(%).
+const LABEL_EDGE_PAD = 14;
 
 // 가지치기 추천 유형별 표시 정보.
 const BRANCH_META = {
@@ -78,6 +84,7 @@ export function S06({ onNav }) {
 
   const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
   const activeId = hover || sel?.id || null;
+  const activeNode = activeId ? nodes.find(n=>n.id===activeId) : null;
   const connectedIds = activeId
     ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
     : null;
@@ -225,7 +232,7 @@ export function S06({ onNav }) {
             </svg>
 
             {loading && (
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:TDS.textTertiary,zIndex:5}}>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:TDS.textTertiary,zIndex:Z.loading}}>
                 <div className="spinner" /><div style={{fontSize:13}}>그래프 불러오는 중…</div>
               </div>
             )}
@@ -266,7 +273,7 @@ export function S06({ onNav }) {
               })}
             </svg>
 
-            {/* 노드 — kind 아이콘 + 라벨 pill */}
+            {/* 노드 — 색은 유형, 아이콘은 과목·분야 */}
             {nodes.map(n=>{
               const dimSearch = matched && !matched.includes(n.id);
               const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
@@ -276,67 +283,107 @@ export function S06({ onNav }) {
               const meta = KIND_META[n.kind] || KIND_META.topic;
               const pos = getPos(n);
               // 노드가 많으면 라벨을 전부 그릴 때 서로 겹쳐 오히려 못 읽는다.
-              // 밀집 상태에서는 핵심 노드와 지금 보고 있는 것만 라벨을 남긴다.
-              const showLabel =
-                !dense || n.kind==="root" || (showTopicLabels && n.kind==="topic") || isActive ||
+              // 밀집 상태에서는 뼈대(핵심·과목)와 지금 관련된 것만 남긴다.
+              // 지금 보고 있는 노드는 아래 오버레이가 따로 그리므로 여기선 뺀다.
+              const showLabel = !isActive && (
+                !dense || n.kind==="root" || (showTopicLabels && n.kind==="topic") ||
                 (connectedIds?.has(n.id) ?? false) ||
-                (matched?.includes(n.id) ?? false);
+                (matched?.includes(n.id) ?? false)
+              );
               const shortLabel =
                 n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
               return (
                 <div key={n.id}
                   onMouseDown={(e)=>onNodeDown(e,n)}
                   onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
-                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?.28:1,zIndex:isDraggingThis?10:isActive?4:2}}>
+                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
                   <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${TDS.bgPrimary}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
-                    <NavIcon name={meta.icon} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
+                    <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
                   </div>
                   {showLabel && (
-                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:TDS.textPrimary,background:TDS.bgPrimary,padding:"2px 8px",borderRadius:10,boxShadow:"0 1px 4px rgba(0,0,0,.1)",whiteSpace:"nowrap",border:`1px solid ${TDS.borderDefault}`,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
+                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:TDS.textPrimary,background:"rgba(255,255,255,.92)",padding:"2px 8px",borderRadius:10,boxShadow:"0 1px 4px rgba(15,23,42,.12)",whiteSpace:"nowrap",border:"1px solid rgba(0,0,0,.06)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
                   )}
                 </div>
               );
             })}
 
-            {/* 범례 (좌상단) */}
+            {/* 선택·호버 라벨 — 노드와 엣지보다 항상 위에 그린다.
+                노드 안에 같이 두면 다른 노드에 가려서, 별도 레이어로 뺐다. */}
+            {activeNode && (() => {
+              const pos = getPos(activeNode);
+              const x = parseFloat(pos.x), y = parseFloat(pos.y);
+              // 카드가 캔버스 밖으로 나가지 않도록 좌우를 묶고, 아래가 좁으면 위로 띄운다.
+              const clampedX = Math.max(LABEL_EDGE_PAD, Math.min(100 - LABEL_EDGE_PAD, x));
+              const below = y < 74;
+              const gap = activeNode.size / 2 + 12;
+              const isPinned = sel?.id === activeNode.id;  // 클릭한 것은 패널보다 위로
+              return (
+                <div style={{position:"absolute",left:`${clampedX}%`,top:`${y}%`,zIndex:isPinned?Z.labelPinned:Z.label,pointerEvents:"none",transform:`translate(-50%, ${below?"0":"-100%"})`,marginTop:below?gap:-gap}}>
+                  <div style={{...OVERLAY_SURFACE,borderRadius:12,padding:"8px 12px",maxWidth:240,textAlign:"center"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:TDS.textPrimary,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",wordBreak:"break-word"}}>
+                      {activeNode.label}
+                    </div>
+                    {activeNode.section && activeNode.section !== "기타" && (
+                      <div style={{fontSize:11,color:TDS.textTertiary,marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {activeNode.section}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목 */}
             {!!nodes.length && (
-              <div style={{position:"absolute",top:16,left:16,background:TDS.bgPrimary,border:`1px solid ${TDS.borderDefault}`,borderRadius:12,padding:"12px 14px",boxShadow:"0 4px 16px rgba(0,0,0,.08)",minWidth:150}}>
-                <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>노드 유형</div>
+              <div style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto"}}>
+                <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:10,letterSpacing:".02em"}}>
+                  색 = 노드 유형
+                </div>
                 {["root","topic","leaf"].map(k=>{
                   const m=KIND_META[k]; const c={root:"#3182f6",topic:"#4593fc",leaf:"#22c55e"}[k];
                   return (
-                    <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                      <div style={{width:22,height:22,borderRadius:"50%",background:c,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        <NavIcon name={m.icon} size={13} color="#fff"/>
-                      </div>
+                    <div key={k} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                      <span style={{width:12,height:12,borderRadius:"50%",background:c,flexShrink:0,boxShadow:`0 0 0 3px ${c}22`}} />
                       <span style={{fontSize:12,color:TDS.textSecondary,flex:1}}>{m.label}</span>
-                      <span style={{fontSize:12,fontWeight:700,color:TDS.textPrimary}}>{kindCounts[k]||0}</span>
+                      <span style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,fontVariantNumeric:"tabular-nums"}}>{kindCounts[k]||0}</span>
                     </div>
                   );
                 })}
+                <div style={{height:1,background:"rgba(0,0,0,.06)",margin:"10px -16px 10px"}} />
+                <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>
+                  모양 = 과목·분야
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>
+                  {SUBJECT_LEGEND.map(s=>(
+                    <div key={s.icon} style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                      <NavIcon name={s.icon} size={14} color={TDS.textSecondary}/>
+                      <span style={{fontSize:11,color:TDS.textTertiary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* 통계 배지 (우상단) */}
+            {/* 통계 (우상단) — 범례와 같은 재질 */}
             {!!nodes.length && (
-              <div style={{position:"absolute",top:16,right:16,display:"flex",gap:8}}>
-                <div style={{background:TDS.bgPrimary,border:`1px solid ${TDS.borderDefault}`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:7,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
-                  <NavIcon name="core" size={15} color={TDS.blue500}/>
-                  <span style={{fontSize:13,fontWeight:700,color:TDS.textPrimary}}>{nodes.length}</span>
-                  <span style={{fontSize:12,color:TDS.textTertiary}}>노드</span>
-                </div>
-                <div style={{background:TDS.bgPrimary,border:`1px solid ${TDS.borderDefault}`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:7,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
-                  <NavIcon name="branch" size={15} color="#22c55e"/>
-                  <span style={{fontSize:13,fontWeight:700,color:TDS.textPrimary}}>{edges.length}</span>
-                  <span style={{fontSize:12,color:TDS.textTertiary}}>연결</span>
-                </div>
+              <div style={{position:"absolute",top:16,right:16,zIndex:Z.panel,display:"flex",gap:8}}>
+                {[
+                  { icon:"core",   color:TDS.blue500, value:nodes.length, label:"노드" },
+                  { icon:"branch", color:"#22c55e",   value:edges.length, label:"연결" },
+                ].map(s=>(
+                  <div key={s.label} style={{...OVERLAY_SURFACE,borderRadius:12,padding:"9px 13px",display:"flex",alignItems:"center",gap:8}}>
+                    <NavIcon name={s.icon} size={15} color={s.color}/>
+                    <span style={{fontSize:15,fontWeight:800,color:TDS.textPrimary,fontVariantNumeric:"tabular-nums",letterSpacing:"-.01em"}}>{s.value}</span>
+                    <span style={{fontSize:12,color:TDS.textTertiary}}>{s.label}</span>
+                  </div>
+                ))}
               </div>
             )}
 
             {/* 줌 컨트롤 */}
-            <div style={{position:"absolute",bottom:16,right:16,display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{position:"absolute",bottom:16,right:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
               {["+","−"].map(z=>(
-                <button key={z} style={{width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",background:TDS.bgPrimary,border:`1px solid ${TDS.borderDefault}`,borderRadius:10,cursor:"pointer",fontSize:18,fontWeight:600,color:TDS.textSecondary,boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>{z}</button>
+                <button key={z} style={{...OVERLAY_SURFACE,borderRadius:12,width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:18,fontWeight:600,color:TDS.textSecondary}}>{z}</button>
               ))}
             </div>
           </div>
@@ -351,7 +398,7 @@ export function S06({ onNav }) {
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${sel.color}, ${sel.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
-                <NavIcon name={meta.icon} size={26} color="#fff"/>
+                <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
               <div style={{minWidth:0}}>
                 <div style={{fontSize:20,fontWeight:800,color:TDS.textPrimary,marginBottom:4}}>{sel.label}</div>
@@ -474,7 +521,7 @@ export function S06({ onNav }) {
               return (
               <div key={e.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
                 <div style={{width:30,height:30,borderRadius:"50%",background:other?.color||TDS.borderStrong,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <NavIcon name={om.icon} size={15} color="#fff"/>
+                  <NavIcon name={other ? iconForNode(other) : om.icon} size={15} color="#fff"/>
                 </div>
                 <div style={{minWidth:0,flex:1}}>
                   <div style={{fontSize:13,fontWeight:600,color:TDS.textPrimary}}>{other?.label||"—"}</div>

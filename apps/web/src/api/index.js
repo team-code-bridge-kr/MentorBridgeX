@@ -276,7 +276,9 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     kind,
     // 트리 배치에서 이 노드가 어느 가지에 매달리는지 (그래프 뷰의 가지 선)
     parentId: opts.parentId ?? null,
+    // 아이콘 결정에 쓴다: section = 과목·영역, type = 온톨로지 노드 유형
     section: sectionOf(n),
+    type: n.type ?? null,
     x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
     color: n.color ?? refs.color ?? PALETTE[idx % PALETTE.length],
