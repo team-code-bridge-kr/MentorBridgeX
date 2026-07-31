@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { KIND_META } from "../../theme/graphMeta.js";
@@ -59,12 +59,33 @@ export function S06({ onNav }) {
 
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
+
+  // 화면에 그릴 선.
+  //
+  // 백엔드 엣지는 거의 전부 "노드 → 생기부 문서"(MENTIONED_IN)라, 그대로 그리면
+  // 수십 개 선이 중앙으로 쏟아져 아무것도 안 보인다. 대신 배치가 만든 가지
+  // (문서 → 과목 → 그 과목의 노드)를 그리고, 문서를 거치지 않는 실제 엣지
+  // (EVOLVED_FROM 등)는 그 위에 겹쳐 보여준다.
+  const visualEdges = useMemo(() => {
+    const rootId = nodes.find(n => n.kind === "root")?.id ?? null;
+    const branches = nodes
+      .filter(n => n.parentId)
+      .map(n => ({ id: `branch_${n.id}`, from: n.parentId, to: n.id, branch: true }));
+    if (!branches.length) return edges;
+    const cross = edges.filter(e => e.from !== rootId && e.to !== rootId);
+    return [...branches, ...cross];
+  }, [nodes, edges]);
+
   const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
   const activeId = hover || sel?.id || null;
-  const connectedIds = activeId ? new Set(edgesOf(activeId).flatMap(e=>[e.from,e.to])) : null;
+  const connectedIds = activeId
+    ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
+    : null;
   const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
   // 이 개수를 넘으면 라벨을 전부 그려도 겹쳐서 못 읽는다 → 선택적으로만 표시
   const dense = nodes.length > DENSE_THRESHOLD;
+  // 과목 가지 이름은 지도의 뼈대라 밀집 상태에서도 남긴다 (수가 적을 때만).
+  const showTopicLabels = nodes.filter(n=>n.kind==="topic").length <= 20;
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -218,22 +239,27 @@ export function S06({ onNav }) {
 
             {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-              {edges.map(e=>{
+              {visualEdges.map(e=>{
                 const a=nodeById(e.from), b=nodeById(e.to);
                 if(!a||!b) return null;
                 const on = activeId && (e.from===activeId||e.to===activeId);
                 const pa=getPos(a), pb=getPos(b);
                 const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
-                const mx=(ax+bx)/2, my=(ay+by)/2 - 4;
+                // 선분에 수직으로 살짝 밀어 마인드맵처럼 부드럽게 휘게 한다.
+                const dx=bx-ax, dy=by-ay;
+                const len=Math.hypot(dx,dy)||1;
+                const off=len*(e.branch?0.07:0.18);
+                const mx=(ax+bx)/2 + (-dy/len)*off;
+                const my=(ay+by)/2 + ( dx/len)*off;
                 return (
                   <path key={e.id}
                     d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
                     fill="none"
                     stroke={on?"url(#edgeGrad)":TDS.borderStrong}
-                    strokeWidth={on?0.6:0.35}
+                    strokeWidth={on?0.7:(e.branch?0.4:0.3)}
                     vectorEffect="non-scaling-stroke"
-                    strokeDasharray={on?"none":"1 1"}
-                    opacity={activeId && !on ? .25 : (on?.95:.6)}
+                    strokeDasharray={on||e.branch?"none":"1 1"}
+                    opacity={activeId && !on ? .18 : (on?.95:(e.branch?.55:.75))}
                     style={{transition:"opacity .2s, stroke-width .2s"}}
                   />
                 );
@@ -252,7 +278,7 @@ export function S06({ onNav }) {
               // 노드가 많으면 라벨을 전부 그릴 때 서로 겹쳐 오히려 못 읽는다.
               // 밀집 상태에서는 핵심 노드와 지금 보고 있는 것만 라벨을 남긴다.
               const showLabel =
-                !dense || n.kind==="root" || isActive ||
+                !dense || n.kind==="root" || (showTopicLabels && n.kind==="topic") || isActive ||
                 (connectedIds?.has(n.id) ?? false) ||
                 (matched?.includes(n.id) ?? false);
               const shortLabel =
