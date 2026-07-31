@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -75,11 +76,47 @@ class InMemoryGraphStore:
     def __init__(self) -> None:
         self._nodes: dict[str, dict[str, GraphNode]] = {}
         self._edges: dict[str, dict[str, GraphEdge]] = {}
+        self._embeddings: dict[str, dict[str, list[float]]] = {}
 
     async def get_snapshot(self, user_id: str) -> GraphSnapshot:
         nodes = list(self._nodes.get(user_id, {}).values())
         edges = list(self._edges.get(user_id, {}).values())
         return GraphSnapshot(nodes=nodes, edges=edges)
+
+    # ── Embeddings (F1-12) ────────────────────────────────────────────────────
+
+    async def store_embedding(self, user_id: str, node_id: str, vector: list[float]) -> None:
+        """Store a node's label embedding for cosine search."""
+        self._embeddings.setdefault(user_id, {})[node_id] = list(vector)
+
+    async def search_by_embedding(
+        self, user_id: str, vector: list[float], top_k: int = 10
+    ) -> list[tuple[str, float]]:
+        """Return (node_id, cosine similarity) ranked descending.
+
+        Vectors of a different dimension are skipped rather than raising, so a change
+        of embedding adapter degrades to fewer hits instead of an error.
+        """
+        stored = self._embeddings.get(user_id, {})
+        if not stored or not vector:
+            return []
+
+        query_norm = math.sqrt(sum(v * v for v in vector))
+        if not query_norm:
+            return []
+
+        scored: list[tuple[str, float]] = []
+        for node_id, candidate in stored.items():
+            if len(candidate) != len(vector):
+                continue
+            candidate_norm = math.sqrt(sum(v * v for v in candidate))
+            if not candidate_norm:
+                continue
+            dot = sum(a * b for a, b in zip(vector, candidate))
+            scored.append((node_id, dot / (query_norm * candidate_norm)))
+
+        scored.sort(key=lambda item: -item[1])
+        return scored[:top_k]
 
     async def create_node(
         self,
@@ -124,6 +161,7 @@ class InMemoryGraphStore:
         if node_id not in nodes:
             return False
         del nodes[node_id]
+        self._embeddings.get(user_id, {}).pop(node_id, None)
         edges = self._edges.get(user_id, {})
         for eid, edge in list(edges.items()):
             if edge.source_id == node_id or edge.target_id == node_id:

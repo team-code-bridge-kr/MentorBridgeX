@@ -21,6 +21,13 @@ def get_embedding_adapter() -> EmbeddingAdapter:
     settings = get_settings()
     if settings.embedding_adapter == "mock":
         return MockEmbeddingAdapter()
+    if settings.embedding_adapter == "real":
+        # Imported lazily: pulls in torch, which costs ~1GB RSS once the model loads.
+        from app.adapters.embedding_real import (  # noqa: PLC0415
+            SentenceTransformerEmbeddingAdapter,
+        )
+
+        return SentenceTransformerEmbeddingAdapter(model_name=settings.embedding_model)
     raise ValueError(f"Unsupported embedding adapter: {settings.embedding_adapter}")
 
 

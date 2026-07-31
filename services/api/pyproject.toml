@@ -30,6 +30,11 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
 ]
+# EMBEDDING_ADAPTER=real 에만 필요. torch 를 끌어와 무거우므로 기본 의존성에서 분리.
+# CPU 전용 설치: pip install torch --index-url https://download.pytorch.org/whl/cpu
+embeddings = [
+    "sentence-transformers>=3.0.0",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

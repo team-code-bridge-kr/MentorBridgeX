@@ -1,7 +1,7 @@
 """F1-06: 그래프-텍스트 양방향 동기화 서비스.
 
-text_to_graph: 섹션 텍스트 수정 → 토큰 diff → 신규 노드 증분 추가
-graph_to_text: 노드 추가 → LLM이 삽입 문장·위치 제안 (OpenAI 전제)
+text_to_graph: 섹션 텍스트 수정 → 키워드 추출(Claude, 미설정 시 룰 기반) → 신규 노드 증분 추가
+graph_to_text: 노드 추가 → Claude 가 삽입 문장·위치 제안 (미설정 시 규칙 기반 문장)
 """
 
 from __future__ import annotations
@@ -10,13 +10,17 @@ import logging
 
 from app.config import get_settings
 from app.db.factory import get_graph_store
-from app.parsers.keyword_classifier import classify_node_type
 from app.parsers.token_extractor import extract_token_frequencies
 from app.schemas.graph import GraphNode, RelationType
 from app.schemas.sync import GraphToTextResult, TextToGraphResult
 from app.services.embedding_index_service import EmbeddingIndexService
+from app.services.keyword_extraction import extract_keywords
 
 logger = logging.getLogger(__name__)
+
+# Cap on nodes added per text-sync call. This path runs while the user edits a
+# section, so it stays smaller than the PDF import cap.
+_MAX_SYNC_NODES = 30
 
 
 class SyncService:
@@ -26,12 +30,19 @@ class SyncService:
 
     # ── Text → Graph ──────────────────────────────────────────────────────────
 
-    async def text_to_graph(
-        self, user_id: str, section_title: str, text: str
-    ) -> TextToGraphResult:
-        """텍스트에서 새 토큰을 추출해 그래프에 증분 추가."""
-        token_freqs = extract_token_frequencies(text, top_n=80, min_freq=1)
-        if not token_freqs:
+    async def text_to_graph(self, user_id: str, section_title: str, text: str) -> TextToGraphResult:
+        """텍스트에서 키워드를 추출해 그래프에 증분 추가 (Claude, 미설정 시 룰 기반)."""
+        if not text or not text.strip():
+            return TextToGraphResult(added_nodes=[], added_count=0)
+
+        token_freqs = extract_token_frequencies(text, top_n=_MAX_SYNC_NODES, min_freq=1)
+        keywords, extractor = await extract_keywords(
+            sections=[(section_title, text)],
+            token_freqs=token_freqs,
+            limit=_MAX_SYNC_NODES,
+            rule_source="text_sync",
+        )
+        if not keywords:
             return TextToGraphResult(added_nodes=[], added_count=0)
 
         snapshot = await self.graph.get_snapshot(user_id)
@@ -43,20 +54,25 @@ class SyncService:
         added: list[GraphNode] = []
         new_node_ids: list[str] = []
 
-        for label, freq in token_freqs:
-            if label in existing_labels:
+        for keyword in keywords:
+            if keyword.label in existing_labels:
                 continue
-            node_type = classify_node_type(label)
             node = await self.graph.create_node(
                 user_id,
-                node_type=node_type,
-                label=label,
-                description=f"section={section_title}",
-                external_refs={"source": "text_sync", "frequency": freq},
+                node_type=keyword.node_type,
+                label=keyword.label,
+                description=keyword.rationale or f"section={section_title}",
+                external_refs={
+                    "source": "text_sync",
+                    "extractor": extractor,
+                    "frequency": keyword.frequency,
+                    "weight": keyword.confidence,
+                    "section": section_title,
+                },
             )
             added.append(node)
             new_node_ids.append(node.id)
-            existing_labels.add(label)
+            existing_labels.add(keyword.label)
 
             if doc_node:
                 try:
@@ -69,7 +85,7 @@ class SyncService:
                 except Exception:
                     pass
 
-            if len(added) >= 30:
+            if len(added) >= _MAX_SYNC_NODES:
                 break
 
         # 새 노드 임베딩 인덱싱

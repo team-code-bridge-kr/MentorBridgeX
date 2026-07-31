@@ -1,4 +1,5 @@
 import json
+import logging
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -15,7 +16,15 @@ from app.schemas.documents import (
     DocumentSection,
     SectionType,
 )
+from app.schemas.extraction import ExtractedKeyword
 from app.schemas.graph import NodeType, RelationType
+from app.services.keyword_extraction import extract_keywords
+
+logger = logging.getLogger(__name__)
+
+# Cap on graph nodes created per PDF import. The full token list still lands in the
+# job result; this only bounds what becomes a node, so one PDF can't produce thousands.
+_MAX_KEYWORD_NODES = 60
 
 
 class DocumentService:
@@ -253,6 +262,16 @@ class DocumentService:
         session.add(row)
         return section_id
 
+    async def _extract_keywords(self, parsed: ParsedPdf) -> tuple[list[ExtractedKeyword], str]:
+        """Pick keywords for graph nodes, tagging the extractor with the PDF pipeline."""
+        keywords, extractor = await extract_keywords(
+            sections=[(section.title, section.content) for section in parsed.sections],
+            token_freqs=parsed.token_frequencies,
+            limit=_MAX_KEYWORD_NODES,
+            rule_source="pdf_tokens",
+        )
+        return keywords, f"pymupdf+{extractor}"
+
     async def _complete_pdf_import(
         self,
         session: AsyncSession | None,
@@ -282,23 +301,32 @@ class DocumentService:
             external_refs={"document_section_ids": section_ids},
         )
 
+        # Full token stats stay in the job result whichever extractor ran; only the
+        # number of graph *nodes* is bounded.
+        tokens_payload: list[dict[str, int | str]] = [
+            {"label": label, "frequency": freq} for label, freq in parsed.token_frequencies
+        ]
+
+        keywords, extractor = await self._extract_keywords(parsed)
+
         keyword_labels: list[str] = []
-        tokens_payload: list[dict[str, int | str]] = []
-        for label, freq in parsed.token_frequencies:
-            tokens_payload.append({"label": label, "frequency": freq})
+        for keyword in keywords:
+            description = keyword.rationale
+            if not description and keyword.frequency is not None:
+                description = f"pdf_freq={keyword.frequency}"
             kw_node = await self.graph.create_node(
                 user_id,
-                node_type=NodeType.KEYWORD,
-                label=label,
-                description=f"pdf_freq={freq}",
+                node_type=keyword.node_type,
+                label=keyword.label,
+                description=description,
                 external_refs={
-                    "source": "pdf_tokens",
-                    "frequency": freq,
-                    # ML weight reserved for team lead / future adapter
-                    "weight": None,
+                    "source": keyword.source,
+                    "frequency": keyword.frequency,
+                    "weight": keyword.confidence,
+                    "section": keyword.section_title,
                 },
             )
-            keyword_labels.append(label)
+            keyword_labels.append(keyword.label)
             await self.graph.create_edge(
                 user_id,
                 source_id=kw_node.id,
@@ -315,7 +343,8 @@ class DocumentService:
             "unique_token_count": parsed.unique_token_count,
             "tokens": tokens_payload,
             "keywords": keyword_labels,
-            "extractor": "pymupdf+rule_tokens",
+            "keyword_node_count": len(keyword_labels),
+            "extractor": extractor,
         }
 
         if is_offline_demo():

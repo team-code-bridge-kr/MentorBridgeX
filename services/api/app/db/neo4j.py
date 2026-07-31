@@ -208,6 +208,50 @@ class Neo4jGraphStore:
             record = await result.single()
             return bool(record and record["deleted"] > 0)
 
+    # ── Embeddings (F1-12) ────────────────────────────────────────────────────
+
+    async def store_embedding(self, user_id: str, node_id: str, vector: list[float]) -> None:
+        """Store a node's label embedding as a property for cosine search."""
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            await session.run(
+                """
+                MATCH (n:Node {user_id: $user_id, node_id: $node_id})
+                SET n.embedding = $vector
+                """,
+                user_id=user_id,
+                node_id=node_id,
+                vector=[float(v) for v in vector],
+            )
+
+    async def search_by_embedding(
+        self, user_id: str, vector: list[float], top_k: int = 10
+    ) -> list[tuple[str, float]]:
+        """Return (node_id, cosine similarity) ranked descending.
+
+        vector.similarity.cosine returns null when dimensions differ, so a change of
+        embedding adapter degrades to fewer hits instead of erroring.
+        """
+        if not vector:
+            return []
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            result = await session.run(
+                """
+                MATCH (n:Node {user_id: $user_id})
+                WHERE n.embedding IS NOT NULL
+                WITH n, vector.similarity.cosine(n.embedding, $vector) AS score
+                WHERE score IS NOT NULL
+                RETURN n.node_id AS node_id, score
+                ORDER BY score DESC
+                LIMIT $top_k
+                """,
+                user_id=user_id,
+                vector=[float(v) for v in vector],
+                top_k=top_k,
+            )
+            return [(r["node_id"], float(r["score"])) async for r in result]
+
     async def create_edge(
         self, user_id: str, *, source_id: str, target_id: str, relation: RelationType
     ) -> GraphEdge:
@@ -259,8 +303,6 @@ class Neo4jGraphStore:
         created: list[GraphNode] = []
         for seed in seeds:
             created.append(
-                await self.create_node(
-                    user_id, node_type=NodeType.KEYWORD, label=seed.strip()
-                )
+                await self.create_node(user_id, node_type=NodeType.KEYWORD, label=seed.strip())
             )
         return created

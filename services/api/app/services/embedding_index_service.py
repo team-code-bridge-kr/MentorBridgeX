@@ -50,7 +50,11 @@ class EmbeddingIndexService:
             logger.warning("쿼리 임베딩 실패: %s", exc)
             return []
 
-        hits = await self.graph.search_by_embedding(user_id, vecs[0], top_k)
+        try:
+            hits = await self.graph.search_by_embedding(user_id, vecs[0], top_k)
+        except Exception as exc:
+            logger.warning("임베딩 검색 실패: %s", exc)
+            return []
         if not hits:
             return []
 

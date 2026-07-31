@@ -81,25 +81,67 @@ function mapVoice(v) {
 
 // ── 노드 매퍼: 백엔드 → UI 형태 ─────────────────────────────
 const PALETTE = ["#3182f6","#4593fc","#22c55e","#f59e0b","#8b95a1","#f04452"];
-function mapNode(n, idx, total = 8) {
+
+// subject → 핵심(root) / inquiry·keyword → 연결(topic) / 나머지 → 말단(leaf)
+function nodeKind(n) {
+  const t = String(n.type || "").toLowerCase();
+  if (t === "subject") return "root";
+  if (t === "inquiry" || t === "keyword") return "topic";
+  return "leaf";
+}
+
+// 황금각. 해바라기 씨앗 배열과 같은 원리로, 어떤 개수에서도 겹치지 않고
+// 원판을 고르게 채운다.
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+/**
+ * 노드 전체의 배치 좌표를 한 번에 계산한다.
+ *
+ * 이전에는 모든 노드를 반지름 32% 인 원 하나에 올려서, 노드가 수십 개만 되어도
+ * 원주에 몰려 라벨이 서로 겹쳤다. 여기서는 원판 안쪽까지 사용하고(반지름을
+ * sqrt 로 키워 면적당 밀도를 균일하게 유지), 같은 유형끼리 인접하도록 종류
+ * 순으로 정렬해 시각적 군집이 생기게 한다.
+ */
+function layoutPositions(rawNodes) {
+  const KIND_ORDER = { root: 0, topic: 1, leaf: 2 };
+  const order = rawNodes.map((_, i) => i);
+  order.sort((a, b) => {
+    const ka = KIND_ORDER[nodeKind(rawNodes[a])] ?? 3;
+    const kb = KIND_ORDER[nodeKind(rawNodes[b])] ?? 3;
+    return ka - kb || a - b;
+  });
+
+  const count = order.length;
+  // 노드가 적으면 굳이 넓게 벌리지 않는다.
+  const maxR = count <= 12 ? 28 : 42;
+  const positions = new Array(count);
+
+  order.forEach((originalIdx, rank) => {
+    const r = count <= 1 ? 0 : Math.sqrt((rank + 0.5) / count) * maxR;
+    const angle = rank * GOLDEN_ANGLE;
+    positions[originalIdx] = {
+      x: `${(50 + r * Math.cos(angle)).toFixed(1)}%`,
+      y: `${(48 + r * Math.sin(angle)).toFixed(1)}%`,
+    };
+  });
+  return positions;
+}
+
+function mapNode(n, idx, total = 8, pos = null) {
   // 백엔드 GraphNode: { id, label, type, description, external_refs, ... }
   // UI 기대: { id, label, kind, x, y, color, size, cat }
+  // pos 가 없을 때(단건 생성 등)만 쓰는 원형 폴백
   const angle  = (idx / Math.max(total, 8)) * Math.PI * 2;
   const cx     = 50 + Math.cos(angle) * 32;
   const cy     = 48 + Math.sin(angle) * 32;
-  const t = String(n.type || "").toLowerCase();
-  // subject → 핵심(root) / inquiry·keyword → 연결(topic) / 나머지 → 말단(leaf)
-  const kind =
-    t === "subject" ? "root" :
-    t === "inquiry" || t === "keyword" ? "topic" :
-    "leaf";
+  const kind = nodeKind(n);
   const refs = n.external_refs || {};
   return {
     id:    n.id,
     label: n.label,
     kind,
-    x:     n.x ?? refs.x ?? `${cx.toFixed(0)}%`,
-    y:     n.y ?? refs.y ?? `${cy.toFixed(0)}%`,
+    x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
+    y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
     color: n.color ?? refs.color ?? PALETTE[idx % PALETTE.length],
     size:  n.size ?? (kind === "root" ? 64 : kind === "topic" ? 44 : 36),
     cat:   n.cat  ?? (kind === "root" ? "핵심 노드" : kind === "topic" ? "연결 노드" : "말단 노드"),
@@ -266,8 +308,9 @@ const api = {
     async fetch(userId) {
       const data = await request("/v1/students/me/graph");
       const raw = data.nodes ?? [];
+      const positions = layoutPositions(raw);
       return {
-        nodes: raw.map((n, i) => mapNode(n, i, raw.length)),
+        nodes: raw.map((n, i) => mapNode(n, i, raw.length, positions[i])),
         edges: (data.edges ?? []).map(mapEdge),
       };
     },
@@ -314,7 +357,8 @@ const api = {
         body: { seeds: keywords },
       });
       const arr = Array.isArray(data) ? data : data.nodes ?? [];
-      return arr.map((n, i) => mapNode(n, i, arr.length));
+      const positions = layoutPositions(arr);
+      return arr.map((n, i) => mapNode(n, i, arr.length, positions[i]));
     },
 
     /**
@@ -340,6 +384,35 @@ const api = {
         method: "POST",
         body: { label },
       });
+    },
+  },
+
+  // ══ 가지치기 추천 (2단계) ══════════════════════════════════
+  // 1단계(recommend)는 웹 검색을 하지 않습니다.
+  // 2단계(research)는 학생이 '관련 자료 찾기'를 눌렀을 때만 호출하세요.
+  pruning: {
+    /** ✅ LIVE — POST /v1/students/me/recommendations/pruning */
+    async recommend(nodeId, grade) {
+      return request("/v1/students/me/recommendations/pruning", {
+        method: "POST",
+        body: { node_id: nodeId, grade: grade ?? null },
+      });
+    },
+
+    /** ✅ LIVE — POST .../pruning/{id}/research — 여기서만 웹 검색이 실행됩니다 */
+    async research(recommendationId, nodeId, grade) {
+      return request(
+        `/v1/students/me/recommendations/pruning/${encodeURIComponent(recommendationId)}/research`,
+        { method: "POST", body: { node_id: nodeId, grade: grade ?? null } },
+      );
+    },
+
+    /** ✅ LIVE — POST .../pruning/{id}/expand — 추천을 그래프 노드로 저장 */
+    async expand(recommendationId, nodeId, grade) {
+      return request(
+        `/v1/students/me/recommendations/pruning/${encodeURIComponent(recommendationId)}/expand`,
+        { method: "POST", body: { node_id: nodeId, grade: grade ?? null } },
+      );
     },
   },
 

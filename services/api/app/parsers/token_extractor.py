@@ -35,6 +35,26 @@ _SUFFIXES = (
 )
 _PARTICLES = ("을", "를", "이", "가", "은", "는", "의", "에", "도", "와", "과", "로", "만", "에서")
 
+# Predicate (verb/adjective) forms that survive suffix stripping because removing the
+# ending would leave fewer than 2 characters — e.g. "힘썼으며" → "힘". Matched on the
+# normalized token and dropped outright. Endings are deliberately multi-character so
+# nouns like "발음", "마음", "모음" are not caught by a bare "음" rule.
+_PREDICATE_TAIL = re.compile(
+    r"(?:"
+    r"으며|으므로|"
+    r"였으며|였고|였다|였음|"
+    r"했으며|했고|했다|했음|"
+    r"하였으며|하였고|하였다|하였음|하였습니다|"
+    r"썼으며|썼고|썼다|"
+    r"되었으며|되었다|되며|되어|"
+    r"드러냄|보여줌|나타냄|기울임"
+    r")$"
+)
+
+# Longest plausible single 생기부 keyword. Blocks PDF table cells that get glued into
+# one token, e.g. "질병미인정기타질병미인정기타" (14 chars).
+_MAX_TOKEN_LEN = 12
+
 # Administrative / layout noise common in school record PDFs.
 _STOPWORDS = frozenset(
     {
@@ -114,6 +134,25 @@ _STOPWORDS = frozenset(
         "참여",
         "문제",
         "기술",
+        # 출결/양식 표 잔해 (NEIS PDF)
+        "출결",
+        "질병",
+        "미인정",
+        "기타",
+        "지각",
+        "조퇴",
+        "결과",
+        "결석",
+        "수업일수",
+        "창의적",
+        "체험활동",
+        "자율활동",
+        "동아리활동",
+        "봉사활동",
+        "진로활동",
+        "교과",
+        "학기별",
+        "누계",
     }
 )
 
@@ -153,18 +192,31 @@ def extract_token_frequencies(
     text: str,
     *,
     min_len: int = 2,
+    max_len: int = _MAX_TOKEN_LEN,
+    min_freq: int = 1,
     top_n: int | None = None,
 ) -> list[tuple[str, int]]:
-    """Count token frequencies, drop stopwords, return descending by count."""
+    """Count token frequencies, drop stopwords/predicates, return descending by count.
+
+    min_freq defaults to 1 so callers that want every token (PDF stats, harness tests)
+    keep the full list; raise it to suppress one-off noise.
+    """
     counter: Counter[str] = Counter()
     for token in extract_tokens(text):
-        if len(token) < min_len or token in _STOPWORDS:
+        if not (min_len <= len(token) <= max_len):
+            continue
+        if token in _STOPWORDS:
             continue
         if token.isdigit():
             continue
+        if _PREDICATE_TAIL.search(token):
+            continue
         counter[token] += 1
 
-    ranked = sorted(counter.items(), key=lambda item: (-item[1], item[0]))
+    ranked = sorted(
+        ((label, count) for label, count in counter.items() if count >= min_freq),
+        key=lambda item: (-item[1], item[0]),
+    )
     if top_n is not None:
         return ranked[:top_n]
     return ranked

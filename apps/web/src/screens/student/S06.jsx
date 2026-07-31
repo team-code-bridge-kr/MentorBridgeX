@@ -6,6 +6,18 @@ import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 
+// 이 개수를 넘으면 라벨을 선택적으로만 표시한다 (전부 그리면 겹쳐서 못 읽음).
+const DENSE_THRESHOLD = 30;
+// 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
+const LABEL_MAX = 14;
+
+// 가지치기 추천 유형별 표시 정보.
+const BRANCH_META = {
+  DEPTH:    { label: "심화", color: "#3182f6" },
+  FUSION:   { label: "융합", color: "#8b5cf6" },
+  ACTIVITY: { label: "활동", color: "#22c55e" },
+};
+
 export function S06({ onNav }) {
   const { state, actions } = useStore();
   const { nodes, edges, loading } = state.graph;
@@ -13,6 +25,12 @@ export function S06({ onNav }) {
   const [hover, setHover] = useState(null);
   const [q, setQ] = useState("");
   const [comments, setComments] = useState([]);
+  // 가지치기 추천 1단계 — { nodeId, loading, error, items }
+  const [prune, setPrune] = useState(null);
+  // 2단계(관련 자료 찾기) — 추천 id 별 { loading, error, data }
+  const [research, setResearch] = useState({});
+  // '이 주제로 확장' 진행 중인 추천 id
+  const [expanding, setExpanding] = useState(null);
   // 노드 위치 로컬 상태 (드래그로 변경)
   const [positions, setPositions] = useState({});
   // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
@@ -23,6 +41,10 @@ export function S06({ onNav }) {
   useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
   // 선택 노드가 삭제되면 패널 닫기
   useEffect(()=>{ if(sel && !nodes.find(n=>n.id===sel.id)) setSel(null); }, [nodes, sel]);
+  // 다른 노드를 고르면 이전 노드의 추천은 버린다 (엉뚱한 노드의 카드가 남지 않도록)
+  useEffect(()=>{
+    if (prune && prune.nodeId !== sel?.id) { setPrune(null); setResearch({}); }
+  }, [sel, prune]);
   // 코멘트 초기 로드
   useEffect(()=>{ api.comments.list().then(setComments).catch(()=>{}); }, []);
   // 새 노드가 생기면 positions 에 추가 (이미 드래그로 옮긴 노드는 덮어쓰지 않음)
@@ -41,6 +63,8 @@ export function S06({ onNav }) {
   const activeId = hover || sel?.id || null;
   const connectedIds = activeId ? new Set(edgesOf(activeId).flatMap(e=>[e.from,e.to])) : null;
   const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
+  // 이 개수를 넘으면 라벨을 전부 그려도 겹쳐서 못 읽는다 → 선택적으로만 표시
+  const dense = nodes.length > DENSE_THRESHOLD;
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -85,11 +109,60 @@ export function S06({ onNav }) {
   }, [nodes]);
 
   const handleDelete = async (id) => { await actions.deleteNode(id); };
-  const handlePrune = async () => {
-    const sug = await api.graph.pruneSuggestions(state.session?.user?.id);
-    if (sug.length) actions.toast("info", `가지치기 추천 ${sug.length}건 — 상세는 S23에서 확인`);
-    onNav("S23");
+
+  // ── 가지치기 추천 ───────────────────────────────────────
+  // 1단계: 웹 검색 없이 온톨로지 기반 추천 3개를 받아 상세 패널에 표시한다.
+  const runPrune = useCallback(async (node) => {
+    if (!node) return;
+    setPrune({ nodeId: node.id, loading: true, error: "", items: [] });
+    setResearch({});
+    try {
+      const data = await api.pruning.recommend(node.id);
+      setPrune({
+        nodeId: node.id,
+        loading: false,
+        error: "",
+        items: data.recommendations ?? [],
+      });
+    } catch (e) {
+      setPrune({ nodeId: node.id, loading: false, error: e.message, items: [] });
+    }
+  }, []);
+
+  const handlePrune = () => {
+    if (!sel) {
+      actions.toast("info", "먼저 노드를 선택한 뒤 가지치기 추천을 눌러주세요.");
+      return;
+    }
+    runPrune(sel);
   };
+
+  // 2단계: 이 버튼을 눌렀을 때만 웹 검색이 실행된다.
+  const handleResearch = useCallback(async (rec) => {
+    if (!sel) return;
+    setResearch((r) => ({ ...r, [rec.id]: { loading: true, error: "", data: null } }));
+    try {
+      const data = await api.pruning.research(rec.id, sel.id);
+      setResearch((r) => ({ ...r, [rec.id]: { loading: false, error: "", data } }));
+    } catch (e) {
+      setResearch((r) => ({ ...r, [rec.id]: { loading: false, error: e.message, data: null } }));
+    }
+  }, [sel]);
+
+  const handleExpand = useCallback(async (rec) => {
+    if (!sel || expanding) return;
+    setExpanding(rec.id);
+    try {
+      await api.pruning.expand(rec.id, sel.id);
+      await actions.loadGraph(state.session?.user?.id);
+      actions.toast("success", `"${rec.title}" 를 그래프에 추가했습니다.`);
+    } catch (e) {
+      actions.toast("error", e.message);
+    } finally {
+      setExpanding(null);
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [sel, expanding, actions, state.session?.user?.id]);
 
   // 카테고리별 개수 (범례용)
   const kindCounts = nodes.reduce((a,n)=>{ a[n.kind]=(a[n.kind]||0)+1; return a; }, {});
@@ -176,6 +249,14 @@ export function S06({ onNav }) {
               const isDraggingThis = dragging.current?.id === n.id;
               const meta = KIND_META[n.kind] || KIND_META.topic;
               const pos = getPos(n);
+              // 노드가 많으면 라벨을 전부 그릴 때 서로 겹쳐 오히려 못 읽는다.
+              // 밀집 상태에서는 핵심 노드와 지금 보고 있는 것만 라벨을 남긴다.
+              const showLabel =
+                !dense || n.kind==="root" || isActive ||
+                (connectedIds?.has(n.id) ?? false) ||
+                (matched?.includes(n.id) ?? false);
+              const shortLabel =
+                n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
               return (
                 <div key={n.id}
                   onMouseDown={(e)=>onNodeDown(e,n)}
@@ -184,7 +265,9 @@ export function S06({ onNav }) {
                   <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${TDS.bgPrimary}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
                     <NavIcon name={meta.icon} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
                   </div>
-                  <span style={{fontSize:n.size>50?12:11,fontWeight:700,color:TDS.textPrimary,background:TDS.bgPrimary,padding:"2px 8px",borderRadius:10,boxShadow:"0 1px 4px rgba(0,0,0,.1)",whiteSpace:"nowrap",border:`1px solid ${TDS.borderDefault}`}}>{n.label}</span>
+                  {showLabel && (
+                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:TDS.textPrimary,background:TDS.bgPrimary,padding:"2px 8px",borderRadius:10,boxShadow:"0 1px 4px rgba(0,0,0,.1)",whiteSpace:"nowrap",border:`1px solid ${TDS.borderDefault}`,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
+                  )}
                 </div>
               );
             })}
@@ -249,6 +332,114 @@ export function S06({ onNav }) {
                 <Badge t="blue">{sel.cat}</Badge>
               </div>
             </div>
+            <Divider my={16} />
+
+            {/* 가지치기 추천 — 상단 버튼을 누르면 여기에 카드 3개가 뜬다 */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>가지치기 추천</p>
+              <Btn v="secondary" s="sm" disabled={!!prune?.loading} onClick={()=>runPrune(sel)}>
+                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시 추천" : "추천 받기"}
+              </Btn>
+            </div>
+
+            {prune?.loading && (
+              <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:12}}>
+                <div className="spinner" />
+                <span style={{fontSize:13,color:TDS.textSecondary}}>탐구 방향을 찾는 중…</span>
+              </div>
+            )}
+
+            {prune?.error && (
+              <div style={{padding:"12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:12}}>
+                <div style={{fontSize:13,color:TDS.danger,marginBottom:8}}>{prune.error}</div>
+                <Btn v="secondary" s="sm" onClick={()=>runPrune(sel)}>다시 시도</Btn>
+              </div>
+            )}
+
+            {!prune && (
+              <div style={{fontSize:13,color:TDS.textDisabled,marginBottom:12}}>
+                상단의 “가지치기 추천”을 누르면 다음 탐구 방향 3개를 제안합니다.
+              </div>
+            )}
+
+            {prune?.items?.map((rec) => {
+              const meta = BRANCH_META[rec.type] || BRANCH_META.DEPTH;
+              const res = research[rec.id];
+              return (
+                <div key={rec.id} style={{border:`1px solid ${TDS.borderDefault}`,borderRadius:12,padding:14,marginBottom:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                    <span style={{padding:"2px 8px",borderRadius:10,fontSize:11,fontWeight:700,color:"#fff",background:meta.color}}>
+                      {meta.label}
+                    </span>
+                    <span style={{fontSize:14,fontWeight:700,color:TDS.textPrimary}}>{rec.title}</span>
+                  </div>
+                  <div style={{fontSize:12,color:TDS.textSecondary,marginBottom:6}}>{rec.reason}</div>
+                  <div style={{fontSize:12,color:TDS.textPrimary,background:TDS.bgTertiary,borderRadius:8,padding:"8px 10px",marginBottom:6}}>
+                    {rec.activity}
+                  </div>
+                  {rec.expectedOutput && (
+                    <div style={{fontSize:12,color:TDS.textTertiary,marginBottom:6}}>
+                      결과물 · {rec.expectedOutput}
+                    </div>
+                  )}
+                  {!!rec.relatedNodes?.length && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                      {rec.relatedNodes.map((label) => (
+                        <span key={label} style={{fontSize:11,color:TDS.textSecondary,background:TDS.bgTertiary,borderRadius:8,padding:"2px 8px"}}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{display:"flex",gap:6}}>
+                    <Btn v="primary" s="sm" disabled={expanding===rec.id} onClick={()=>handleExpand(rec)}>
+                      {expanding===rec.id ? "추가 중…" : "이 주제로 확장"}
+                    </Btn>
+                    <Btn v="secondary" s="sm" disabled={!!res?.loading} onClick={()=>handleResearch(rec)}>
+                      {res?.loading ? "찾는 중…" : "관련 자료 찾기"}
+                    </Btn>
+                  </div>
+
+                  {res?.error && (
+                    <div style={{marginTop:10}}>
+                      <div style={{fontSize:12,color:TDS.danger,marginBottom:6}}>{res.error}</div>
+                      <Btn v="secondary" s="sm" onClick={()=>handleResearch(rec)}>다시 시도</Btn>
+                    </div>
+                  )}
+
+                  {res?.data && (
+                    <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${TDS.borderDefault}`}}>
+                      <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:6}}>
+                        {res.data.refinedTopic}
+                      </div>
+                      {!!res.data.researchQuestions?.length && (
+                        <ul style={{margin:"0 0 8px",paddingLeft:16}}>
+                          {res.data.researchQuestions.map((q,i)=>(
+                            <li key={i} style={{fontSize:12,color:TDS.textSecondary,marginBottom:3}}>{q}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {res.data.method && (
+                        <div style={{fontSize:12,color:TDS.textSecondary,marginBottom:8}}>{res.data.method}</div>
+                      )}
+                      {res.data.sources?.length ? res.data.sources.map((s)=>(
+                        <div key={s.url} style={{marginBottom:8}}>
+                          <a href={s.url} target="_blank" rel="noreferrer"
+                             style={{fontSize:12,fontWeight:600,color:TDS.blue500,textDecoration:"none"}}>
+                            {s.title}
+                          </a>
+                          <div style={{fontSize:11,color:TDS.textTertiary}}>{s.reason}</div>
+                        </div>
+                      )) : (
+                        <div style={{fontSize:12,color:TDS.textDisabled}}>참고자료를 찾지 못했습니다.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
             <Divider my={16} />
             <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,marginBottom:10}}>연결된 엣지 {eList.length}개</p>
             {eList.length ? eList.map((e,i)=>{
