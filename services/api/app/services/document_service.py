@@ -27,6 +27,35 @@ logger = logging.getLogger(__name__)
 _MAX_KEYWORD_NODES = 60
 
 
+def _merge_sections_by_type(sections: list) -> list[tuple[SectionType, str]]:
+    """파싱된 조각들을 생기부 영역 단위로 합친다.
+
+    화면(S11)은 "8가지 생기부 영역"을 영역당 카드 하나로 보여주고 그 카드에
+    문서 한 건을 연결한다. 그런데 실제 생기부는 한 영역이 학년별·과목별로
+    여러 조각이다(표본 19쪽에서 세특 46, 자율활동 5, 봉사활동 6조각).
+    조각마다 행을 만들면 카드가 그중 하나만 보여줘서 나머지가 사라진 것처럼 된다.
+
+    세특은 조각 제목이 과목명이라 앞에 붙여 둔다. 나머지 영역은 제목이 영역명
+    자체라 붙여봐야 같은 말의 반복이므로 본문만 잇는다.
+    """
+    order: list[SectionType] = []
+    buckets: dict[SectionType, list[str]] = {}
+
+    for block in sections:
+        if block.section_type not in buckets:
+            buckets[block.section_type] = []
+            order.append(block.section_type)
+        body = block.content.strip()
+        if not body:
+            continue
+        title = block.title.strip()
+        if block.section_type is SectionType.SUBJECT_SPECIFIC and title:
+            body = f"[{title}] {body}"
+        buckets[block.section_type].append(body)
+
+    return [(t, "\n\n".join(buckets[t])) for t in order if buckets[t]]
+
+
 class DocumentService:
     def __init__(self) -> None:
         self.graph = get_graph_store()
@@ -282,13 +311,13 @@ class DocumentService:
         now = await utcnow()
         section_ids: list[str] = []
 
-        for block in parsed.sections:
+        for section_type, content in _merge_sections_by_type(parsed.sections):
             section_ids.append(
                 await self._persist_section(
                     session,
                     user_id,
-                    section_type=block.section_type,
-                    content=block.content,
+                    section_type=section_type,
+                    content=content,
                     now=now,
                 )
             )

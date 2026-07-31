@@ -54,6 +54,37 @@ _SECTION_MARKERS: list[tuple[str, SectionType]] = [
 
 _SUBJECT_SPLIT = re.compile(rf"(?=({_SUBJECT_NAMES})\s*:)")
 
+# 세특은 "<과목명>: <내용>" 이 줄 첫머리에 오는 형태다. 과목명을 목록으로 박아두면
+# 학년이 올라가며 나오는 세부 과목("화법과 작문", "영어 독해와 작문", "확률과 통계",
+# "인공지능과 미래사회" …)을 못 잡는다. 실제 표본 19쪽에서 37개 과목 중 13개만
+# 잡혔고, 못 잡은 구간은 통째로 앞 과목(미술) 블록에 딸려 들어갔다.
+# 학기 접두사가 붙기도 한다: "(1학기)통합과학:", "(2학기)미술:".
+_SUBJECT_HEADER = re.compile(
+    r"(?m)^(?:\(\s*\d\s*학기\s*\)\s*)?"
+    r"(?P<name>[가-힣A-Za-zⅠ-Ⅹ][가-힣A-Za-zⅠ-Ⅹ0-9 ·・]{0,18}?)\s*:\s*(?=\S)"
+)
+
+# 성적표에서 그 줄만 봐도 표라고 알 수 있는 것들.
+# 원점수/과목평균(표준편차), 성취도(수강자수), 성취도만 있는 <체육ㆍ예술> 표까지 포함한다.
+_TABLE_STRONG = re.compile(
+    r"^(?:"
+    r"\d+/\d+\.\d+\(\d+\.\d+\)"
+    r"|[A-E]\(\d+\)"
+    r"|[A-E]|P"
+    r"|이수단위\s*합계.*|분포비율|해당\s*사항\s*없음"
+    r"|\(표준편차\)|\(수강자수\)"
+    r"|원점수/?\s*과목평균.*|성취도|석차등급|단위수|학기|교과|비고"
+    r"|<[^>]{1,12}>"
+    r"|기술・가정/제2외|국어/한문/교양"
+    r")$"
+)
+# 표 칸에 과목명만 홀로 놓인 줄("문학", "중국어Ⅰ")을 함께 걷어내기 위한 길이 기준.
+_TABLE_STRAY_LEN = 12
+# 표로 인정할 최소 연속 줄 수와, 그 안에 있어야 하는 확실한 표 줄 수.
+# 세특 본문은 줄이 길어서 짧은 줄이 이만큼 연달아 나오면 사실상 표다.
+_MIN_TABLE_RUN = 4
+_MIN_TABLE_STRONG = 2
+
 # 제목만 있고 내용이 없는 칸을 걸러내는 최소 길이.
 # 30자로 두면 "지역 아동센터에서 학습 멘토링 20시간을 수행함."(27자) 같은
 # 짧지만 멀쩡한 봉사활동 기록이 통째로 버려진다.
@@ -175,20 +206,81 @@ def _split_major_sections(text: str) -> list[ParsedSection]:
     return sections
 
 
+def _subject_region(text: str) -> str:
+    """교과학습발달상황 구간만 잘라낸다.
+
+    세특 과목 헤더는 "<이름>:" 이라는 흔한 모양이라, 문서 전체에 대고 찾으면
+    창체·독서·행동특성 쪽 문장까지 과목으로 오인할 수 있다. 구간을 먼저 좁힌다.
+    """
+    markers = _find_marker_positions(text)
+    start: int | None = None
+    for i, (m_start, header_end, _marker, section_type) in enumerate(markers):
+        if section_type is not SectionType.SUBJECT_SPECIFIC:
+            if start is not None:
+                return text[start:m_start]
+            continue
+        if start is None:
+            start = header_end
+        del i
+    if start is not None:
+        return text[start:]
+    return text
+
+
+def _is_table_line(line: str) -> bool:
+    """표의 한 칸으로 보이는 줄인가."""
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if _TABLE_STRONG.match(stripped):
+        return True
+    # 표 칸에 홀로 놓인 짧은 과목명. 문장이면(마침표·종결어미) 본문이므로 건드리지 않는다.
+    if ":" in stripped:
+        return False
+    return len(stripped) <= _TABLE_STRAY_LEN and not stripped.endswith((".", "함", "음", "임"))
+
+
+def _strip_grade_tables(text: str) -> str:
+    """성적표(교과·과목·원점수·석차등급) 덩어리를 걷어낸다.
+
+    성적표는 세특 사이사이에 끼어 있어서 그대로 두면 바로 앞 과목 블록에
+    통째로 딸려 들어간다. 표본에서는 미술 블록이 8,717자까지 부풀었다.
+
+    표 줄은 짧고 여러 줄이 연달아 나온다. 세특 본문은 문단이 접혀 들어와
+    줄이 길기 때문에, "짧은 줄이 연달아 나오고 그 안에 확실한 표 줄이 섞여
+    있으면" 표로 본다. 원점수가 없는 <체육ㆍ예술> 성취도 표도 이 규칙에 걸린다.
+    """
+    lines = text.splitlines()
+    keep = [True] * len(lines)
+
+    i = 0
+    while i < len(lines):
+        if not _is_table_line(lines[i]):
+            i += 1
+            continue
+        run_end = i
+        strong = 0
+        while run_end < len(lines) and _is_table_line(lines[run_end]):
+            if _TABLE_STRONG.match(lines[run_end].strip()):
+                strong += 1
+            run_end += 1
+        if run_end - i >= _MIN_TABLE_RUN and strong >= _MIN_TABLE_STRONG:
+            for k in range(i, run_end):
+                keep[k] = False
+        i = run_end
+
+    return "\n".join(line for line, kept in zip(lines, keep, strict=True) if kept)
+
+
 def _split_subject_specific_blocks(text: str) -> list[ParsedSection]:
-    cleaned = _strip_page_noise(text)
-    parts = _SUBJECT_SPLIT.split(cleaned)
+    cleaned = _strip_grade_tables(_subject_region(_strip_page_noise(text)))
     blocks: list[ParsedSection] = []
 
-    for part in parts:
-        part = part.strip()
-        if not part:
-            continue
-        match = re.match(rf"^({_SUBJECT_NAMES})\s*:\s*(.*)$", part, re.DOTALL)
-        if not match:
-            continue
-        subject = match.group(1).strip()
-        body = re.sub(r"\s+", " ", match.group(2)).strip()
+    matches = list(_SUBJECT_HEADER.finditer(cleaned))
+    for i, match in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(cleaned)
+        subject = match.group("name").strip()
+        body = re.sub(r"\s+", " ", cleaned[match.end() : end]).strip()
         if len(body) < 20:
             continue
         blocks.append(

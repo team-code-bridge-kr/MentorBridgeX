@@ -14,7 +14,11 @@
 
 from __future__ import annotations
 
-from app.parsers.pdf_extractor import _split_major_sections, parse_pdf_bytes
+from app.parsers.pdf_extractor import (
+    _split_major_sections,
+    _split_subject_specific_blocks,
+    parse_pdf_bytes,
+)
 from app.schemas.documents import SectionType
 
 # NEIS 출력물과 같은 순서로 배열한 표본.
@@ -126,3 +130,68 @@ def _blank_pdf() -> bytes:
     data = doc.tobytes()
     doc.close()
     return data
+
+
+# ── 세특 과목 분리 ────────────────────────────────────────────────────────────
+
+_SUBJECT_TEXT = """교과학습발달상황
+학기
+교과
+과목
+단위수
+원점수/과목평균
+(표준편차)
+성취도
+석차등급
+국어
+문학
+89/63.7(20.9)
+A(286)
+수학
+수학Ⅰ
+54/42.2(23.3)
+C(286)
+이수단위 합계
+화법과 작문: '일상 속 빅데이터 활용 사례'에 대해 관련 도서를 찾아 정보를 전달하는 글쓰기를 수행함.
+(1학기)통합과학: 자율주행차의 미래 전망에 대해 조사한 내용을 잘 정리하여 발표함.
+인공지능과 미래사회: 인공지능의 발전과정과 기술적 배경지식을 학습하고 활용 사례를 조사함.
+
+독서활동상황
+정의란 무엇인가(마이클 샌델)"""
+
+
+def test_subject_headers_are_not_limited_to_a_fixed_list() -> None:
+    """세부 과목명("화법과 작문", "인공지능과 미래사회")도 과목으로 잡는다.
+
+    교과명 목록을 코드에 박아 두면 학년이 올라가며 나오는 세부 과목을 놓치고,
+    놓친 구간은 통째로 앞 과목 블록에 딸려 들어간다.
+    """
+    titles = [s.title for s in _split_subject_specific_blocks(_SUBJECT_TEXT)]
+
+    assert "화법과 작문" in titles
+    assert "인공지능과 미래사회" in titles
+
+
+def test_term_prefixed_subject_headers_are_recognized() -> None:
+    """"(1학기)통합과학:" 처럼 학기가 앞에 붙어도 과목으로 잡는다."""
+    blocks = {s.title: s.content for s in _split_subject_specific_blocks(_SUBJECT_TEXT)}
+
+    assert "통합과학" in blocks
+    assert blocks["통합과학"].startswith("자율주행차")
+
+
+def test_grade_table_is_not_absorbed_into_a_subject() -> None:
+    """성적표(원점수·성취도·석차등급)가 과목 블록에 섞이지 않는다."""
+    blocks = _split_subject_specific_blocks(_SUBJECT_TEXT)
+
+    for block in blocks:
+        assert "89/63.7" not in block.content
+        assert "A(286)" not in block.content
+        assert "석차등급" not in block.content
+
+
+def test_subject_split_stays_inside_the_grades_region() -> None:
+    """독서활동 등 다른 영역 내용이 세특 과목으로 넘어오지 않는다."""
+    joined = " ".join(s.content for s in _split_subject_specific_blocks(_SUBJECT_TEXT))
+
+    assert "마이클 샌델" not in joined
