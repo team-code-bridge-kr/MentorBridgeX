@@ -40,6 +40,9 @@ export function S06({ onNav }) {
   const [research, setResearch] = useState({});
   // '이 주제로 확장' 진행 중인 추천 id
   const [expanding, setExpanding] = useState(null);
+  // 노드 이름 바꾸기
+  const [renaming, setRenaming] = useState(false);
+  const [renameText, setRenameText] = useState("");
   // 노드 위치 로컬 상태 (드래그로 변경)
   const [positions, setPositions] = useState({});
   // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
@@ -204,6 +207,21 @@ export function S06({ onNav }) {
   }, []);
 
   const handleDelete = async (id) => { await actions.deleteNode(id); };
+
+  const commitRename = useCallback(async () => {
+    const label = renameText.trim();
+    if (!sel || !label || label === sel.label) { setRenaming(false); return; }
+    try {
+      await actions.renameNode(sel.id, label);
+      setSel(s => (s ? { ...s, label } : s));
+    } catch (e) {
+      actions.toast("error", e.message);
+    }
+    setRenaming(false);
+  }, [sel, renameText, actions]);
+
+  // 다른 노드를 고르면 편집 상태는 닫는다
+  useEffect(()=>{ setRenaming(false); }, [sel?.id]);
 
   // ── 가지치기 추천 ───────────────────────────────────────
   // 1단계: 웹 검색 없이 온톨로지 기반 추천 3개를 받아 상세 패널에 표시한다.
@@ -492,8 +510,35 @@ export function S06({ onNav }) {
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${sel.color}, ${sel.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:20,fontWeight:800,color:TDS.textPrimary,marginBottom:4}}>{sel.label}</div>
+              <div style={{minWidth:0,flex:1}}>
+                {renaming ? (
+                  <form
+                    onSubmit={(e)=>{e.preventDefault(); commitRename();}}
+                    style={{display:"flex",gap:6,marginBottom:6}}
+                  >
+                    <input
+                      autoFocus
+                      value={renameText}
+                      onChange={(e)=>setRenameText(e.target.value)}
+                      onKeyDown={(e)=>{ if(e.key==="Escape") setRenaming(false); }}
+                      maxLength={200}
+                      style={{flex:1,minWidth:0,fontSize:16,fontWeight:700,color:TDS.textPrimary,padding:"6px 10px",borderRadius:8,border:`1px solid ${TDS.borderFocus}`,outline:"none"}}
+                    />
+                    <Btn v="primary" s="sm" type="submit">저장</Btn>
+                    <Btn v="ghost" s="sm" type="button" onClick={()=>setRenaming(false)}>취소</Btn>
+                  </form>
+                ) : (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <div style={{fontSize:20,fontWeight:800,color:TDS.textPrimary,minWidth:0,overflowWrap:"anywhere"}}>{sel.label}</div>
+                    <button
+                      title="이름 바꾸기"
+                      onClick={()=>{ setRenameText(sel.label); setRenaming(true); }}
+                      style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",padding:4,lineHeight:0,color:TDS.textTertiary}}
+                    >
+                      <NavIcon name="text" size={15} color={TDS.textTertiary}/>
+                    </button>
+                  </div>
+                )}
                 <Badge t="blue">{sel.cat}</Badge>
               </div>
             </div>

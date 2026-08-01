@@ -27,6 +27,17 @@ logger = logging.getLogger(__name__)
 _MAX_KEYWORD_NODES = 60
 
 
+def _document_label(owner_name: str) -> str:
+    """그래프 한가운데 놓이는 문서 노드의 이름.
+
+    예전에는 "PDF import (19p)" 였다. 화면 정중앙에 가장 크게 놓이는 노드인데
+    파일 처리 흔적이 그대로 보여서, 학생 이름을 붙인 사람이 읽는 이름으로 바꾼다.
+    이름을 모르면 사람 이름 자리를 비워 두지 않고 "내 생기부" 로 둔다.
+    """
+    name = " ".join((owner_name or "").split())
+    return f"{name}의 생기부" if name else "내 생기부"
+
+
 def _merge_sections_by_type(sections: list) -> list[tuple[SectionType, str]]:
     """파싱된 조각들을 생기부 영역 단위로 합친다.
 
@@ -214,6 +225,7 @@ class DocumentService:
         user_id: str,
         filename: str,
         file_bytes: bytes,
+        owner_name: str = "",
     ) -> str:
         now = await utcnow()
         job_id = str(uuid4())
@@ -266,7 +278,7 @@ class DocumentService:
                 status_code=422,
             )
 
-        await self._complete_pdf_import(session, user_id, job_id, parsed)
+        await self._complete_pdf_import(session, user_id, job_id, parsed, owner_name)
         return job_id
 
     async def _fail_pdf_import(
@@ -346,6 +358,7 @@ class DocumentService:
         user_id: str,
         job_id: str,
         parsed: ParsedPdf,
+        owner_name: str = "",
     ) -> None:
         now = await utcnow()
         section_ids: list[str] = []
@@ -364,7 +377,7 @@ class DocumentService:
         doc_node = await self.graph.create_node(
             user_id,
             node_type=NodeType.DOCUMENT,
-            label=f"PDF import ({parsed.page_count}p)",
+            label=_document_label(owner_name),
             description=f"sections={len(parsed.sections)}",
             external_refs={"document_section_ids": section_ids},
         )

@@ -94,6 +94,12 @@ export function StoreProvider({ children }) {
       toast("success", "노드가 추가되었습니다.");
       return n;
     },
+    async renameNode(id, label) {
+      await api.graph.renameNode(id, label);
+      const g = await api.graph.fetch();
+      dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
+      toast("success", "이름을 바꿨습니다.");
+    },
     async deleteNode(id) {
       await api.graph.removeNode(id);
       dispatch({ type: "GRAPH_DEL_NODE", id });

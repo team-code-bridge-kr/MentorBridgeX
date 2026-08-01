@@ -487,6 +487,14 @@ const api = {
       return mapEdge(data);
     },
 
+    /** ✅ LIVE — PATCH /v1/students/me/graph/nodes/{id} — 노드 이름 변경 */
+    async renameNode(id, label) {
+      return request(`/v1/students/me/graph/nodes/${id}`, {
+        method: "PATCH",
+        body: { label },
+      });
+    },
+
     /** ✅ LIVE — DELETE /v1/students/me/graph/nodes/{id} */
     async removeNode(id) {
       await request(`/v1/students/me/graph/nodes/${id}`, { method: "DELETE" });
