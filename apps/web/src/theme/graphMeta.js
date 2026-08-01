@@ -6,18 +6,40 @@ export const KIND_META = {
 };
 
 /**
+ * 그래프 캔버스(어두운 판) 색.
+ * 노드 색이 잘 튀어 보이도록 배경은 채도를 낮춘 남색 계열로 둔다.
+ */
+export const GRAPH_CANVAS = {
+  bg: "#141720",
+  bgCenter: "#1b1f2c", // 중앙만 살짝 밝게 — 문서 노드가 놓이는 자리
+  dot: "#2b3242",
+  border: "rgba(255,255,255,.07)",
+};
+
+/** 어두운 캔버스 위에서 쓰는 글자색 계층. */
+export const OVERLAY_TEXT = {
+  primary: "#e9edf4",
+  secondary: "#aab4c4",
+  tertiary: "#7c8798",
+};
+
+/**
  * 그래프 위에 떠 있는 정보 카드의 공통 표면.
  * 범례 / 통계 / 선택 라벨이 같은 재질로 보이도록 한 곳에서 관리한다.
  * 배경 그래프가 비쳐 글자가 묻히지 않도록 불투명도를 충분히 준다.
  */
 export const OVERLAY_SURFACE = {
-  background: "rgba(255,255,255,.92)",
-  border: "1px solid rgba(0,0,0,.07)",
+  background: "rgba(26,30,41,.88)",
+  border: "1px solid rgba(255,255,255,.10)",
   borderRadius: 16,
-  boxShadow: "0 6px 24px rgba(15,23,42,.10), 0 1px 3px rgba(15,23,42,.06)",
+  boxShadow: "0 8px 28px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
+  color: OVERLAY_TEXT.primary,
 };
+
+/** 줌 한계와 한 번에 움직이는 배율. */
+export const ZOOM = { min: 0.35, max: 3, step: 1.25 };
 
 /**
  * 레이어 순서. 패널과 라벨은 항상 그래프보다 위에 있어야 한다.

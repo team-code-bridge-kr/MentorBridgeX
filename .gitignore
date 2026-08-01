@@ -49,3 +49,6 @@ apps/web/.env
 # Local backups (may contain secrets — do not commit)
 *.bak
 *.bak.*
+
+# 검증 리포트 (생기부 내용 포함 — 커밋 금지)
+GRAPH_VERIFY.md

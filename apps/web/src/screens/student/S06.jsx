@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { KIND_META, OVERLAY_SURFACE, Z } from "../../theme/graphMeta.js";
+import { GRAPH_CANVAS, KIND_META, OVERLAY_SURFACE, OVERLAY_TEXT, Z, ZOOM } from "../../theme/graphMeta.js";
 import { iconForNode, SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
@@ -11,6 +11,9 @@ import api from "../../api/index.js";
 const DENSE_THRESHOLD = 30;
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
+
+// 어두운 판 위의 연결선 색. 흰색을 옅게 깔아 배경과 자연스럽게 섞이게 한다.
+const GRAPH_EDGE = "rgba(255,255,255,.26)";
 
 // 선택 노드와 무관한 노드를 살짝만 내린다. 너무 흐리면 전체 지도를 못 읽는다.
 const DIM_OPACITY = 0.34;
@@ -42,6 +45,13 @@ export function S06({ onNav }) {
   // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
   const dragging = useRef(null);
   const canvasRef = useRef(null);
+  // 줌·팬 상태. tx/ty 는 화면 픽셀 이동량, scale 은 배율.
+  const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
+  const [grabbing, setGrabbing] = useState(false);
+  const panning = useRef(null);
+  // 콜백 안에서 최신 배율을 읽기 위한 거울. state 를 의존성에 넣으면
+  // 드래그 핸들러가 매 프레임 새로 만들어진다.
+  const viewRef = useRef(view);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
@@ -112,6 +122,11 @@ export function S06({ onNav }) {
   }, [getPos]);
 
   const onCanvasMove = useCallback((e) => {
+    const pan = panning.current;
+    if (pan) {
+      setView(v => ({ ...v, tx: pan.tx0 + (e.clientX - pan.cx), ty: pan.ty0 + (e.clientY - pan.cy) }));
+      return;
+    }
     const d = dragging.current;
     if (!d) return;
     const canvas = canvasRef.current;
@@ -121,12 +136,15 @@ export function S06({ onNav }) {
     const dy = e.clientY - d.startCY;
     if (!d.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
     dragging.current.moved = true;
-    const newX = Math.max(4, Math.min(96, d.origX + (dx / rect.width) * 100));
-    const newY = Math.max(4, Math.min(96, d.origY + (dy / rect.height) * 100));
+    // 확대된 상태에서는 화면에서 1px 움직여도 그래프 좌표로는 1/scale 만 움직인다.
+    const s = viewRef.current.scale;
+    const newX = Math.max(4, Math.min(96, d.origX + (dx / rect.width) * 100 / s));
+    const newY = Math.max(4, Math.min(96, d.origY + (dy / rect.height) * 100 / s));
     setPositions(prev => ({...prev, [d.id]: {x:`${newX.toFixed(1)}%`, y:`${newY.toFixed(1)}%`}}));
   }, []);
 
   const onCanvasUp = useCallback((e) => {
+    if (panning.current) { panning.current = null; setGrabbing(false); return; }
     const d = dragging.current;
     dragging.current = null;
     if (!d) return;
@@ -135,6 +153,55 @@ export function S06({ onNav }) {
       if (n) setSel(s => s?.id===n.id ? null : n);
     }
   }, [nodes]);
+
+  // ── 줌 · 팬 ─────────────────────────────────────────────
+  useEffect(() => { viewRef.current = view; }, [view]);
+
+  const clampScale = (s) => Math.min(ZOOM.max, Math.max(ZOOM.min, s));
+
+  /** 화면의 한 점을 고정한 채 배율만 바꾼다 (커서 아래가 그대로 있게). */
+  const zoomAt = useCallback((factor, px, py) => {
+    setView(v => {
+      const scale = clampScale(v.scale * factor);
+      if (scale === v.scale) return v;
+      // 화면좌표 = 그래프좌표 * scale + t  ->  t' = px - 그래프좌표 * scale'
+      const gx = (px - v.tx) / v.scale;
+      const gy = (py - v.ty) / v.scale;
+      return { scale, tx: px - gx * scale, ty: py - gy * scale };
+    });
+  }, []);
+
+  /** 버튼용 — 캔버스 한가운데를 기준으로 확대·축소한다. */
+  const zoomByButton = useCallback((factor) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    zoomAt(factor, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2);
+  }, [zoomAt]);
+
+  const resetView = useCallback(() => setView({ scale: 1, tx: 0, ty: 0 }), []);
+
+  // 휠 줌. React 의 onWheel 은 passive 로 붙어 preventDefault 가 먹지 않으므로
+  // 직접 non-passive 로 등록한다 (안 하면 페이지가 같이 스크롤된다).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const onWheel = (e) => {
+      // 범례처럼 스스로 스크롤되는 패널 위에서는 줌을 가로채지 않는다.
+      if (e.target instanceof Element && e.target.closest("[data-graph-panel]")) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - rect.left, e.clientY - rect.top);
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [zoomAt]);
+
+  /** 빈 배경을 누르면 화면 끌기. 노드는 stopPropagation 해서 여기로 안 온다. */
+  const onCanvasDown = useCallback((e) => {
+    if (e.button !== 0) return;
+    const v = viewRef.current;
+    panning.current = { cx: e.clientX, cy: e.clientY, tx0: v.tx, ty0: v.ty };
+    setGrabbing(true);
+  }, []);
 
   const handleDelete = async (id) => { await actions.deleteNode(id); };
 
@@ -212,37 +279,51 @@ export function S06({ onNav }) {
         <div style={{flex:1,padding:20,overflow:"hidden",position:"relative"}}>
           <div
             ref={canvasRef}
+            onMouseDown={onCanvasDown}
             onMouseMove={onCanvasMove}
             onMouseUp={onCanvasUp}
             onMouseLeave={onCanvasUp}
-            style={{height:"100%",background:`radial-gradient(circle at 50% 40%, ${TDS.bgSecondary} 0%, ${TDS.bgTertiary} 100%)`,borderRadius:16,position:"relative",border:`1px solid ${TDS.borderDefault}`,overflow:"hidden",userSelect:"none"}}
+            style={{
+              height:"100%",borderRadius:16,position:"relative",overflow:"hidden",userSelect:"none",
+              border:`1px solid ${GRAPH_CANVAS.border}`,
+              cursor:grabbing?"grabbing":"grab",
+              // 도트 격자는 CSS 배경으로 둔다. 크기·위치를 줌/팬에 그대로 물려
+              // 격자가 그래프와 함께 움직여야 확대·축소가 눈에 들어온다.
+              backgroundColor:GRAPH_CANVAS.bg,
+              backgroundImage:
+                `radial-gradient(circle at 50% 45%, ${GRAPH_CANVAS.bgCenter} 0%, ${GRAPH_CANVAS.bg} 62%),`+
+                `radial-gradient(circle, ${GRAPH_CANVAS.dot} 1.1px, transparent 1.2px)`,
+              backgroundSize:`100% 100%, ${26*view.scale}px ${26*view.scale}px`,
+              backgroundPosition:`0 0, ${view.tx}px ${view.ty}px`,
+            }}
           >
-            {/* 도트 격자 배경 */}
-            <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:.5,pointerEvents:"none"}}>
+            <svg width="0" height="0" style={{position:"absolute"}} aria-hidden>
               <defs>
-                <pattern id="gdots" width="26" height="26" patternUnits="userSpaceOnUse">
-                  <circle cx="1.5" cy="1.5" r="1.5" fill={TDS.borderDefault} />
-                </pattern>
                 <linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor={TDS.blue400} stopOpacity=".9"/>
-                  <stop offset="100%" stopColor="#22c55e" stopOpacity=".7"/>
+                  <stop offset="0%" stopColor={TDS.blue400} stopOpacity=".95"/>
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity=".8"/>
                 </linearGradient>
               </defs>
-              <rect width="100%" height="100%" fill="url(#gdots)" />
             </svg>
 
             {loading && (
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:TDS.textTertiary,zIndex:Z.loading}}>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:OVERLAY_TEXT.tertiary,zIndex:Z.loading}}>
                 <div className="spinner" /><div style={{fontSize:13}}>그래프 불러오는 중…</div>
               </div>
             )}
             {!loading && !nodes.length && (
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14,color:TDS.textTertiary}}>
-                <NavIcon name="branch" size={44} color={TDS.borderStrong}/>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14,color:OVERLAY_TEXT.tertiary}}>
+                <NavIcon name="branch" size={44} color={OVERLAY_TEXT.tertiary}/>
                 <div style={{fontSize:14}}>아직 노드가 없습니다</div>
                 <Btn v="primary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="plusSeed" size={14} color="#fff"/> 첫 시드 추가하기</Btn>
               </div>
             )}
+
+            {/* 줌·팬 레이어 — 엣지와 노드만 이 안에 둔다.
+                패널·라벨은 밖에 있어야 확대해도 화면에 고정된다. */}
+            <div style={{position:"absolute",inset:0,transformOrigin:"0 0",
+                         transform:`translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,
+                         willChange:"transform"}}>
 
             {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
@@ -262,7 +343,7 @@ export function S06({ onNav }) {
                   <path key={e.id}
                     d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
                     fill="none"
-                    stroke={on?"url(#edgeGrad)":TDS.borderStrong}
+                    stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
                     strokeWidth={on?0.7:(e.branch?0.4:0.3)}
                     vectorEffect="non-scaling-stroke"
                     strokeDasharray={on||e.branch?"none":"1 1"}
@@ -297,11 +378,11 @@ export function S06({ onNav }) {
                   onMouseDown={(e)=>onNodeDown(e,n)}
                   onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
                   style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
-                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${TDS.bgPrimary}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
+                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
                     <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
                   </div>
                   {showLabel && (
-                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:TDS.textPrimary,background:"rgba(255,255,255,.92)",padding:"2px 8px",borderRadius:10,boxShadow:"0 1px 4px rgba(15,23,42,.12)",whiteSpace:"nowrap",border:"1px solid rgba(0,0,0,.06)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
+                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:OVERLAY_TEXT.primary,background:"rgba(20,23,32,.88)",padding:"2px 8px",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.45)",whiteSpace:"nowrap",border:"1px solid rgba(255,255,255,.10)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
                   )}
                 </div>
               );
@@ -320,11 +401,11 @@ export function S06({ onNav }) {
               return (
                 <div style={{position:"absolute",left:`${clampedX}%`,top:`${y}%`,zIndex:isPinned?Z.labelPinned:Z.label,pointerEvents:"none",transform:`translate(-50%, ${below?"0":"-100%"})`,marginTop:below?gap:-gap}}>
                   <div style={{...OVERLAY_SURFACE,borderRadius:12,padding:"8px 12px",maxWidth:240,textAlign:"center"}}>
-                    <div style={{fontSize:13,fontWeight:700,color:TDS.textPrimary,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",wordBreak:"break-word"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:OVERLAY_TEXT.primary,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",wordBreak:"break-word"}}>
                       {activeNode.label}
                     </div>
                     {activeNode.section && activeNode.section !== "기타" && (
-                      <div style={{fontSize:11,color:TDS.textTertiary,marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      <div style={{fontSize:11,color:OVERLAY_TEXT.tertiary,marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                         {activeNode.section}
                       </div>
                     )}
@@ -332,11 +413,12 @@ export function S06({ onNav }) {
                 </div>
               );
             })()}
+            </div>{/* 줌·팬 레이어 끝 */}
 
             {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목 */}
             {!!nodes.length && (
-              <div style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto"}}>
-                <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:10,letterSpacing:".02em"}}>
+              <div data-graph-panel style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto"}}>
+                <div style={{fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,marginBottom:10,letterSpacing:".02em"}}>
                   색 = 노드 유형
                 </div>
                 {["root","topic","leaf"].map(k=>{
@@ -344,20 +426,20 @@ export function S06({ onNav }) {
                   return (
                     <div key={k} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                       <span style={{width:12,height:12,borderRadius:"50%",background:c,flexShrink:0,boxShadow:`0 0 0 3px ${c}22`}} />
-                      <span style={{fontSize:12,color:TDS.textSecondary,flex:1}}>{m.label}</span>
-                      <span style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,fontVariantNumeric:"tabular-nums"}}>{kindCounts[k]||0}</span>
+                      <span style={{fontSize:12,color:OVERLAY_TEXT.secondary,flex:1}}>{m.label}</span>
+                      <span style={{fontSize:12,fontWeight:700,color:OVERLAY_TEXT.primary,fontVariantNumeric:"tabular-nums"}}>{kindCounts[k]||0}</span>
                     </div>
                   );
                 })}
-                <div style={{height:1,background:"rgba(0,0,0,.06)",margin:"10px -16px 10px"}} />
+                <div style={{height:1,background:"rgba(255,255,255,.10)",margin:"10px -16px 10px"}} />
                 <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>
                   모양 = 과목·분야
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>
                   {SUBJECT_LEGEND.map(s=>(
                     <div key={s.icon} style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                      <NavIcon name={s.icon} size={14} color={TDS.textSecondary}/>
-                      <span style={{fontSize:11,color:TDS.textTertiary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.label}</span>
+                      <NavIcon name={s.icon} size={14} color={OVERLAY_TEXT.secondary}/>
+                      <span style={{fontSize:11,color:OVERLAY_TEXT.tertiary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.label}</span>
                     </div>
                   ))}
                 </div>
@@ -366,25 +448,35 @@ export function S06({ onNav }) {
 
             {/* 통계 (우상단) — 범례와 같은 재질 */}
             {!!nodes.length && (
-              <div style={{position:"absolute",top:16,right:16,zIndex:Z.panel,display:"flex",gap:8}}>
+              <div data-graph-panel style={{position:"absolute",top:16,right:16,zIndex:Z.panel,display:"flex",gap:8}}>
                 {[
                   { icon:"core",   color:TDS.blue500, value:nodes.length, label:"노드" },
                   { icon:"branch", color:"#22c55e",   value:edges.length, label:"연결" },
                 ].map(s=>(
                   <div key={s.label} style={{...OVERLAY_SURFACE,borderRadius:12,padding:"9px 13px",display:"flex",alignItems:"center",gap:8}}>
                     <NavIcon name={s.icon} size={15} color={s.color}/>
-                    <span style={{fontSize:15,fontWeight:800,color:TDS.textPrimary,fontVariantNumeric:"tabular-nums",letterSpacing:"-.01em"}}>{s.value}</span>
-                    <span style={{fontSize:12,color:TDS.textTertiary}}>{s.label}</span>
+                    <span style={{fontSize:15,fontWeight:800,color:OVERLAY_TEXT.primary,fontVariantNumeric:"tabular-nums",letterSpacing:"-.01em"}}>{s.value}</span>
+                    <span style={{fontSize:12,color:OVERLAY_TEXT.tertiary}}>{s.label}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* 줌 컨트롤 */}
-            <div style={{position:"absolute",bottom:16,right:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
-              {["+","−"].map(z=>(
-                <button key={z} style={{...OVERLAY_SURFACE,borderRadius:12,width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:18,fontWeight:600,color:TDS.textSecondary}}>{z}</button>
+            {/* 줌 컨트롤 — 휠/드래그와 같은 상태를 쓴다 */}
+            <div data-graph-panel style={{position:"absolute",bottom:16,right:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                { key:"in",    text:"+", title:"확대",       onClick:()=>zoomByButton(ZOOM.step) },
+                { key:"out",   text:"−", title:"축소",       onClick:()=>zoomByButton(1/ZOOM.step) },
+                { key:"reset", text:"⤾", title:"원래 크기로", onClick:resetView },
+              ].map(b=>(
+                <button key={b.key} title={b.title} onClick={b.onClick}
+                  style={{...OVERLAY_SURFACE,borderRadius:12,width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:b.key==="reset"?15:18,fontWeight:600,color:OVERLAY_TEXT.secondary}}>
+                  {b.text}
+                </button>
               ))}
+              <div style={{...OVERLAY_SURFACE,borderRadius:10,padding:"4px 0",textAlign:"center",fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,fontVariantNumeric:"tabular-nums"}}>
+                {Math.round(view.scale*100)}%
+              </div>
             </div>
           </div>
         </div>
