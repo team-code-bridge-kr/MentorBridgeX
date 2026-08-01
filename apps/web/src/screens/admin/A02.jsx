@@ -33,7 +33,7 @@ export function A02({ onNav }) {
           ))}
         </div>
         <div style={{flex:1}} />
-        <div className="search-wrap" style={{width:240}}><span>🔍</span><input placeholder="이름, 이메일 검색..." value={q} onChange={e=>setQ(e.target.value)} /></div>
+        <div className="search-wrap" style={{width:240}}><NavIcon name="search" size={15} color={TDS.textTertiary}/><input placeholder="이름, 이메일 검색..." value={q} onChange={e=>setQ(e.target.value)} /></div>
       </div>
       <div className="tbl-wrap">
         <table>

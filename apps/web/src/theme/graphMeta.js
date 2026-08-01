@@ -1,8 +1,9 @@
 /** 그래프 노드 kind → 아이콘/라벨/링 색 */
+/* 색은 tier 척도(순서 있는 3단계)를 쓴다: 중심 -> 가지 -> 말단. */
 export const KIND_META = {
-  root:  { icon: "core",   label: "핵심 노드", ring: "rgba(49,130,246,.25)" },
-  topic: { icon: "branch", label: "연결 노드", ring: "rgba(69,147,252,.22)" },
-  leaf:  { icon: "leaf",   label: "말단 노드", ring: "rgba(34,197,94,.22)" },
+  root:  { icon: "core",   label: "핵심 노드", color: "#0969da", ring: "rgba(9,105,218,.28)" },
+  topic: { icon: "branch", label: "연결 노드", color: "#0ea5e9", ring: "rgba(14,165,233,.24)" },
+  leaf:  { icon: "leaf",   label: "말단 노드", color: "#16a34a", ring: "rgba(22,163,74,.22)" },
 };
 
 /**
@@ -10,17 +11,19 @@ export const KIND_META = {
  * 노드 색이 잘 튀어 보이도록 배경은 채도를 낮춘 남색 계열로 둔다.
  */
 export const GRAPH_CANVAS = {
-  bg: "#141720",
-  bgCenter: "#1b1f2c", // 중앙만 살짝 밝게 — 문서 노드가 놓이는 자리
-  dot: "#2b3242",
-  border: "rgba(255,255,255,.07)",
+  bg: "#0d1117",       // GitHub 다크. 밝은 페이지에 어두운 판 하나 — 이 대비가 인상의 핵심
+  bgCenter: "#161b22", // 중앙만 살짝 밝게 — 문서 노드가 놓이는 자리
+  dot: "#30363d",
+  border: "rgba(255,255,255,.10)",
 };
 
 /** 어두운 캔버스 위에서 쓰는 글자색 계층. */
+/* 어두운 판 위에서는 MD3 토큰을 쓰지 않는다. 회색 스케일 + white/N 이 규칙이다. */
 export const OVERLAY_TEXT = {
-  primary: "#e9edf4",
-  secondary: "#aab4c4",
-  tertiary: "#7c8798",
+  primary: "#ffffff",
+  secondary: "#9ca3af", // gray-400
+  tertiary: "#6b7280",  // gray-500
+  accent: "#58a6ff",    // 어두운 배경 위 강조 = secondary-container
 };
 
 /**
@@ -29,10 +32,10 @@ export const OVERLAY_TEXT = {
  * 배경 그래프가 비쳐 글자가 묻히지 않도록 불투명도를 충분히 준다.
  */
 export const OVERLAY_SURFACE = {
-  background: "rgba(26,30,41,.88)",
+  background: "rgba(22,27,34,.90)",
   border: "1px solid rgba(255,255,255,.10)",
   borderRadius: 16,
-  boxShadow: "0 8px 28px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35)",
+  boxShadow: "0 8px 24px rgba(0,0,0,.50)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
   color: OVERLAY_TEXT.primary,

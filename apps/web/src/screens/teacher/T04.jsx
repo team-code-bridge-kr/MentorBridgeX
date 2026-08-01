@@ -20,7 +20,7 @@ export function T04({ onNav }) {
       <div className="card card-p" style={{marginBottom:16}}>
         <div className="inp-group">
           <label className="inp-label">학생 검색</label>
-          <div className="search-wrap"><span>🔍</span><input placeholder="이름 또는 학번 검색..." value={q} onChange={e=>setQ(e.target.value)} /></div>
+          <div className="search-wrap"><NavIcon name="search" size={15} color={TDS.textTertiary}/><input placeholder="이름 또는 학번 검색..." value={q} onChange={e=>setQ(e.target.value)} /></div>
         </div>
         <div style={{marginTop:8}}>
           {filtered.map(s=>(

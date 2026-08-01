@@ -33,7 +33,7 @@ export function T01({ onNav }) {
         <div className="inp-group">
           <label className="inp-label">증빙 서류 첨부</label>
           <div onClick={()=>!busy&&setFile(true)} style={{border:`2px dashed ${file?TDS.blue500:TDS.borderStrong}`,borderRadius:12,padding:28,textAlign:"center",color:file?TDS.blue500:TDS.textTertiary,cursor:"pointer",background:file?TDS.blue50:"transparent"}}>
-            <div style={{fontSize:32,marginBottom:8}}>{file?"✅":"📎"}</div>
+            <div style={{marginBottom:8}}><TFI s={32} color={TDS.textTertiary}>{file?"✅":"📎"}</TFI></div>
             <div style={{fontSize:14}}>{file?"재직증명서.pdf 첨부됨 (클릭하여 변경)":"클릭하거나 파일을 드래그하세요"}</div>
             <div style={{fontSize:12,marginTop:4}}>재직증명서, 교원 자격증 (PDF, JPG, PNG · 최대 10MB)</div>
           </div>

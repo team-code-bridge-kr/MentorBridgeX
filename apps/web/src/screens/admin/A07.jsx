@@ -12,7 +12,7 @@ export function A07({ onNav }) {
         <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A06")}>← 큐</button>
         <div style={{fontSize:20,fontWeight:700}}>자격 상세 검토</div>
       </div>
-      {decision&&<Notice type={decision==="approve"?"success":"danger"} style={{marginBottom:16}}>{decision==="approve"?"✅ 승인 완료":"❌ 거부 완료"} — 감사 로그 기록됨</Notice>}
+      {decision&&<Notice type={decision==="approve"?"success":"danger"} style={{marginBottom:16}}>{decision==="approve"?"승인 완료":"거부 완료"} — 감사 로그 기록됨</Notice>}
       <div className="card card-p" style={{marginBottom:16}}>
         <div style={{display:"flex",gap:12,marginBottom:16}}>
           <Av name="김" size="md" />
@@ -26,7 +26,7 @@ export function A07({ onNav }) {
       </div>
       <div className="card card-p" style={{marginBottom:16}}>
         <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>첨부 서류</div>
-        {[["📎 교원자격증.pdf","428 KB","PDF"],["📎 재직증명서_2026.pdf","215 KB","PDF"]].map(([n,sz,t])=>(
+        {[["교원자격증.pdf","428 KB","PDF"],["재직증명서_2026.pdf","215 KB","PDF"]].map(([n,sz,t])=>(
           <div key={n} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:TDS.bgSecondary,borderRadius:8,marginBottom:8}}>
             <TFI s={20}>{n.split(" ")[0]}</TFI>
             <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{n.split(" ").slice(1).join(" ")}</div><div style={{fontSize:11,color:TDS.textTertiary}}>{sz} · {t}</div></div>

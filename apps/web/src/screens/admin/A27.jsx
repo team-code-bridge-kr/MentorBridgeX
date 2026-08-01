@@ -28,7 +28,7 @@ export function A27({ onNav }) {
             <div style={{marginTop:12,display:"flex",flexWrap:"wrap",gap:8}}>
               {e.values.map(v=>(
                 <div key={v} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 12px",background:TDS.bgSecondary,borderRadius:20,border:`1px solid ${TDS.borderDefault}`,fontSize:13}}>
-                  {v}<span style={{cursor:"pointer",color:TDS.textTertiary,fontSize:12}}>✕</span>
+                  {v}<span style={{cursor:"pointer",color:TDS.textTertiary,fontSize:12}}><NavIcon name="close" size={14} color={TDS.textTertiary}/></span>
                 </div>
               ))}
               <div style={{padding:"4px 12px",borderRadius:20,border:`2px dashed ${TDS.borderDefault}`,fontSize:13,color:TDS.textTertiary,cursor:"pointer"}}>+ 추가</div>

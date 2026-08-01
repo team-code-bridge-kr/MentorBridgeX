@@ -26,7 +26,7 @@ export function T07({ onNav }) {
       <div style={{flex:1,padding:24,overflow:"auto",background:TDS.bgSecondary}}>
         {tab==="그래프"&&(
           <>
-            <Notice type="warning" className="mb16">🔒 이 그래프는 읽기 전용입니다. 코멘트 작성만 가능합니다.</Notice>
+            <Notice type="warning" className="mb16">이 그래프는 읽기 전용입니다. 코멘트 작성만 가능합니다.</Notice>
             <div style={{height:360,background:TDS.bgTertiary,borderRadius:16,position:"relative",border:`1px solid ${TDS.borderDefault}`}}>
               {[{x:"50%",y:"45%",l:"물리학",c:TDS.blue500,sz:60},{x:"28%",y:"26%",l:"양자역학",c:TDS.blue400,sz:44},{x:"72%",y:"24%",l:"고전역학",c:TDS.success,sz:44}].map(n=>(
                 <div key={n.l} onClick={()=>onNav("T09")} style={{position:"absolute",left:n.x,top:n.y,transform:"translate(-50%,-50%)",width:n.sz,height:n.sz,borderRadius:"50%",background:n.c,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>{n.l}</div>

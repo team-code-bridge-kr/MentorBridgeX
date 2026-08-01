@@ -24,7 +24,7 @@ export function S04({ onNav }) {
         </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:8,minHeight:48,padding:"12px 0",borderBottom:`1px solid ${TDS.borderDefault}`,marginBottom:20}}>
           {kws.map(k=>(
-            <span key={k} className="chip active">{k}<span className="chip-x" onClick={()=>del(k)}>✕</span></span>
+            <span key={k} className="chip active">{k}<span className="chip-x" onClick={()=>del(k)}><NavIcon name="close" size={14} color={TDS.textTertiary}/></span></span>
           ))}
           {kws.length===0&&<span style={{color:TDS.textDisabled,fontSize:13}}>키워드를 입력하세요...</span>}
         </div>

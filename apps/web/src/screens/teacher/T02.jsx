@@ -26,7 +26,7 @@ export function T02({ onNav }) {
       </div>
       {status==="미신청" ? (
         <div className="card card-p" style={{textAlign:"center",padding:"48px 24px"}}>
-          <div style={{fontSize:40,marginBottom:12,opacity:.4}}>📄</div>
+          <div style={{marginBottom:12,opacity:.4}}><TFI s={40} color={TDS.textTertiary}>📄</TFI></div>
           <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>아직 신청 내역이 없습니다</div>
           <div style={{fontSize:13,color:TDS.textTertiary,marginBottom:20}}>교사 자격 검증을 신청하면 상태가 여기에 표시됩니다.</div>
           <Btn v="primary" s="md" onClick={()=>onNav("T01")}>자격 검증 신청하기</Btn>

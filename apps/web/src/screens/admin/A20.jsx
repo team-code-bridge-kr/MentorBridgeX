@@ -15,7 +15,7 @@ export function A20({ onNav }) {
       </div>
       <Notice type={isFailClose?"danger":"warning"} style={{marginBottom:20}}>
         {isFailClose
-          ? "⚠️ fail-close 활성화 상태: Redis 장애 시 모든 W 작업이 차단됩니다."
+          ? "fail-close 활성화 상태: Redis 장애 시 모든 W 작업이 차단됩니다."
           : "현재 fail-open 상태: Redis 장애 시 캐시 없이 DB에 직접 접근합니다."
         }
       </Notice>

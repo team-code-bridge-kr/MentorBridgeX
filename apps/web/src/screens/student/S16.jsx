@@ -86,7 +86,7 @@ export function S16({ onNav }) {
         <div style={{ fontSize: 56, fontWeight: 800, color: TDS.danger, fontVariantNumeric: "tabular-nums", marginBottom: 24 }}>{fmt2(sec)}</div>
         <div className="row g-12" style={{ gap: 12, justifyContent: "center" }}>
           {!recording
-            ? <Btn v="primary" s="md" onClick={start} disabled={busy}>🎙️ 녹음 시작</Btn>
+            ? <Btn v="primary" s="md" onClick={start} disabled={busy}>녹음 시작</Btn>
             : <Btn v="danger" s="md" onClick={stopAndSave} disabled={busy}>{busy ? "처리 중…" : "⏹️ 종료 및 STT"}</Btn>}
           <Btn v="secondary" s="md" onClick={() => onNav("S15")} disabled={busy}>목록</Btn>
         </div>

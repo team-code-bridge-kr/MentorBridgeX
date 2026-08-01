@@ -17,7 +17,7 @@ export function A05({ onNav }) {
         <div style={{fontSize:20,fontWeight:700,color:TDS.danger}}>강제 삭제 [Tier 2]</div>
       </div>
       <Notice type="danger" style={{marginBottom:20}}>
-        <div style={{fontWeight:700,marginBottom:6}}>⚠️ admin.investigation 등급 작업</div>
+        <div style={{fontWeight:700,marginBottom:6}}>admin.investigation 등급 작업</div>
         보안팀에 즉시 통보됩니다. 모든 단계가 감사 로그에 기록됩니다.
       </Notice>
       {/* 5단계 진행 표시 */}

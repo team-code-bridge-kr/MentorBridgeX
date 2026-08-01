@@ -35,7 +35,7 @@ export function A03({ onNav }) {
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <div className="card card-p">
             <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>교사 자격 정보</div>
-            <div style={{padding:"12px",background:TDS.warningBg,borderRadius:8,fontSize:13,color:TDS.warning}}>⚠️ 자격 정지 상태 - A04에서 해제 가능</div>
+            <div style={{padding:"12px",background:TDS.warningBg,borderRadius:8,fontSize:13,color:TDS.warning}}>자격 정지 상태 - A04에서 해제 가능</div>
           </div>
           <div className="card card-p">
             <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>최근 감사 로그</div>

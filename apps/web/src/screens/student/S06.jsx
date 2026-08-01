@@ -440,7 +440,7 @@ export function S06({ onNav }) {
                   색 = 노드 유형
                 </div>
                 {["root","topic","leaf"].map(k=>{
-                  const m=KIND_META[k]; const c={root:"#3182f6",topic:"#4593fc",leaf:"#22c55e"}[k];
+                  const m=KIND_META[k]; const c=m.color;
                   return (
                     <div key={k} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                       <span style={{width:12,height:12,borderRadius:"50%",background:c,flexShrink:0,boxShadow:`0 0 0 3px ${c}22`}} />
@@ -504,7 +504,7 @@ export function S06({ onNav }) {
           <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
             <div className="row-between mb16" style={{marginBottom:16}}>
               <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 상세</span>
-              <button onClick={()=>setSel(null)} style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary}}>✕</button>
+              <button onClick={()=>setSel(null)} style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${sel.color}, ${sel.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>

@@ -47,8 +47,8 @@ export function ScreenPicker({ cur, onSel }) {
   return (
     <div style={{position:"fixed",bottom:80,right:20,width:360,maxHeight:520,background:TDS.bgPrimary,borderRadius:16,boxShadow:"0 20px 60px rgba(0,0,0,.18)",border:`1px solid ${TDS.borderDefault}`,overflow:"hidden",display:"flex",flexDirection:"column",zIndex:9998}}>
       <div style={{padding:"14px 16px",borderBottom:`1px solid ${TDS.borderDefault}`}}>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:TDS.textPrimary}}>🗺 화면 목록 (76개)</div>
-        <div className="search-wrap" style={{height:36}}><span>🔍</span><input placeholder="화면 ID 또는 이름 검색..." value={q} onChange={e=>setQ(e.target.value)} autoFocus /></div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:TDS.textPrimary}}>화면 목록 (76개)</div>
+        <div className="search-wrap" style={{height:36}}><NavIcon name="search" size={15} color={TDS.textTertiary}/><input placeholder="화면 ID 또는 이름 검색..." value={q} onChange={e=>setQ(e.target.value)} autoFocus /></div>
       </div>
       <div style={{overflowY:"auto",flex:1,padding:"6px 0"}}>
         {gs.map(g=>{

@@ -26,7 +26,7 @@ export function S18({ onNav }) {
               <div style={{fontSize:12,color:TDS.textTertiary}}>{p.role}</div>
             </div>
             <div style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:600,background:p.status==="참여 중"?TDS.successBg:TDS.warningBg,color:p.status==="참여 중"?TDS.success:TDS.warning}}>{p.status}</div>
-            {p.role!=="호스트"&&<button style={{background:"none",border:"none",color:TDS.textTertiary,cursor:"pointer",fontSize:18}} onClick={()=>setParticipants(participants.filter((_,j)=>j!==i))}>✕</button>}
+            {p.role!=="호스트"&&<button style={{background:"none",border:"none",color:TDS.textTertiary,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center"}} onClick={()=>setParticipants(participants.filter((_,j)=>j!==i))}><NavIcon name="close" size={14} color={TDS.textTertiary}/></button>}
           </div>
         ))}
       </div>

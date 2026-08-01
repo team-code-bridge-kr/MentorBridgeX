@@ -17,7 +17,7 @@ export function S32({ onNav }) {
       {step===0 && (
         <>
           <Notice type="danger" style={{marginBottom:20}}>
-            <div style={{fontWeight:700,marginBottom:8}}>⚠️ 삭제 전 반드시 읽어주세요</div>
+            <div style={{fontWeight:700,marginBottom:8}}>삭제 전 반드시 읽어주세요</div>
             <ul style={{paddingLeft:18,fontSize:13,lineHeight:2}}>
               <li>삭제 요청 후 <strong>30일 이내</strong> 철회 가능</li>
               <li>30일 경과 시 모든 데이터가 <strong>완전 삭제</strong>됩니다</li>

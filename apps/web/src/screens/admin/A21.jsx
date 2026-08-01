@@ -20,7 +20,7 @@ export function A21({ onNav }) {
         <Btn v="ghost" s="sm" onClick={()=>onNav("A23")}>내보내기</Btn>
       </div>
       <div className="row g-12 mb16" style={{gap:12,marginBottom:16}}>
-        <div className="search-wrap" style={{flex:1}}><span>🔍</span><input placeholder="관리자, 액션, 대상 검색..." /></div>
+        <div className="search-wrap" style={{flex:1}}><NavIcon name="search" size={15} color={TDS.textTertiary}/><input placeholder="관리자, 액션, 대상 검색..." /></div>
         <input className="inp" style={{width:200}} type="date" defaultValue="2026-06-02" />
         <select className="inp" style={{width:160}}>
           <option>모든 심각도</option><option>High</option><option>Medium</option><option>Low</option>

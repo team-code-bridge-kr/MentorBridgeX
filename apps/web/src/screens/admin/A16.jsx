@@ -29,7 +29,7 @@ export function A16({ onNav }) {
       )}
       {step===1&&(
         <div className="card card-p" style={{textAlign:"center",padding:"40px"}}>
-          <div style={{fontSize:40,marginBottom:16}}>⚙️</div>
+          <div style={{marginBottom:16}}><TFI s={40} color={TDS.textTertiary}>⚙</TFI></div>
           <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>재임베딩 진행 중</div>
           <div style={{height:8,background:TDS.bgTertiary,borderRadius:4,marginBottom:12,overflow:"hidden"}}><div style={{height:"100%",width:"34%",background:TDS.blue500,borderRadius:4,animation:"none"}} /></div>
           <div style={{fontSize:13,color:TDS.textTertiary}}>34% 완료 · 34,201 / 100,000 노드</div>
