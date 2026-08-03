@@ -14,7 +14,7 @@
  * 백엔드 라우터 참고: services/api/app/routers/
  */
 
-import { request, setToken, clearSession } from "./client.js";
+import { API_BASE, request, setToken, getToken, clearSession } from "./client.js";
 import { mockApi } from "./mockData.js";
 
 const _uid = (p = "id") =>
@@ -815,6 +815,92 @@ const api = {
     },
     async ingestLogs() {
       return request("/v1/research/ingest/logs");
+    },
+  },
+
+  // ══ MBX AI 어시스턴트 (✅ LIVE) ══════════════════════════
+  // 백엔드: services/api/app/features/assistant/
+  assistant: {
+    /** 대시보드가 필요한 요약을 한 번에 (주간 활동 · 그래프 · 피드백 · 알림) */
+    async dashboard() {
+      return request("/v1/assistant/dashboard");
+    },
+
+    /**
+     * SSE 스트리밍 대화.
+     *
+     * EventSource 는 Authorization 헤더를 못 붙여서 fetch + ReadableStream 으로 읽는다.
+     * onEvent 로 {type:"delta"|"card"|"error"|"start"|"done"} 이 순서대로 넘어온다.
+     * 반환되는 abort() 로 중간에 끊을 수 있다.
+     */
+    chatStream({ message, conversationId = null, context = [], onEvent }) {
+      const controller = new AbortController();
+
+      const run = async () => {
+        const res = await fetch(`${API_BASE}/v1/assistant/chat`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            message,
+            conversation_id: conversationId,
+            context: context.map((c) => ({ type: c.type, id: c.id ?? null })),
+          }),
+        });
+
+        if (!res.ok || !res.body) {
+          const raw = await res.text();
+          let msg = `HTTP ${res.status}`;
+          try {
+            msg = JSON.parse(raw)?.error?.message || msg;
+          } catch { /* 본문이 JSON 이 아니면 상태코드로 */ }
+          onEvent({ type: "error", message: msg });
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        // SSE 프레임은 빈 줄로 구분된다. 청크 경계가 프레임 가운데를 자를 수
+        // 있으므로 마지막 미완성 프레임은 버퍼에 남겨둔다.
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const frames = buffer.split("\n\n");
+          buffer = frames.pop() ?? "";
+          for (const frame of frames) {
+            const line = frame.split("\n").find((l) => l.startsWith("data: "));
+            if (!line) continue;
+            try {
+              onEvent(JSON.parse(line.slice(6)));
+            } catch { /* 깨진 프레임은 버린다 */ }
+          }
+        }
+      };
+
+      const promise = run().catch((e) => {
+        if (e.name !== "AbortError") {
+          onEvent({ type: "error", message: e.message || "연결이 끊겼습니다." });
+        }
+      });
+
+      return { abort: () => controller.abort(), done: promise };
+    },
+
+    async conversations(limit = 3) {
+      const data = await request(`/v1/assistant/conversations?limit=${limit}`);
+      return data.conversations || [];
+    },
+    async conversation(id) {
+      return request(`/v1/assistant/conversations/${id}`);
+    },
+    async removeConversation(id) {
+      return request(`/v1/assistant/conversations/${id}`, { method: "DELETE" });
     },
   },
 

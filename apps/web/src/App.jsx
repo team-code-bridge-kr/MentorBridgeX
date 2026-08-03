@@ -144,7 +144,11 @@ function AppShell() {
   }
 
   const navTarget = NAV_ALIAS[screen] || screen;
-  const activeNav = sideNav.find((n) => n.id === navTarget)?.id || sideNav[0].id;
+  // 폴백은 첫 항목(새로 시작하기)이 아니라 대시보드여야 한다 — 액션 항목이 활성으로 보이면 안 된다
+  const activeNav =
+    sideNav.find((n) => n.id === navTarget)?.id ||
+    sideNav.find((n) => !n.action)?.id ||
+    sideNav[0].id;
   const showHdr = !NO_HDR.includes(screen);
 
   return (
@@ -155,7 +159,10 @@ function AppShell() {
           {showHdr && (
             <div className="hdr">
               <div className="row g-10" style={{ gap: 10 }}>
-                <span className="hdr-title">{TITLES[screen] || screen}</span>
+                {/* TITLES 에 빈 문자열이면 화면이 자체 제목을 갖고 있다는 뜻 — 화면 ID를 노출하지 않는다 */}
+                <span className="hdr-title">
+                  {TITLES[screen] === "" ? "" : (TITLES[screen] || screen)}
+                </span>
               </div>
               <div className="hdr-actions"><GlobalHeader onNav={nav} /></div>
             </div>

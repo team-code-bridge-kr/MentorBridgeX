@@ -1,17 +1,22 @@
 // 내비게이션 메뉴 설정 & 레이아웃·권한 헬퍼
 
 export const S_NAV = [
-  { id:"S05",icon:"home",label:"대시보드" },
-  { id:"S06",icon:"graph",label:"그래프" },
-  { id:"S11",icon:"text",label:"텍스트" },
-  { id:"S15",icon:"voice",label:"음성" },
-  { id:"S20",icon:"form",label:"양식" },
-  { id:"S24",icon:"comment",label:"코멘트" },
-  { id:"S25",icon:"bell",label:"알림" },
-  { id:"S41",icon:"bookOpen",label:"탐구 피드" },
-  { id:"S43",icon:"sparkle",label:"발견" },
-  { id:"S28",icon:"stats",label:"통계" },
-  { id:"S30",icon:"settings",label:"설정" },
+  { id:"__new",  icon:"plusSeed", label:"새로 시작하기", action:"newChat" },
+  { id:"S05", icon:"home",     label:"대시보드" },
+  { id:"S06", icon:"graph",    label:"지식 그래프" },
+  { id:"S41", icon:"bookOpen", label:"탐구 피드" },
+  { id:"S43", icon:"sparkle",  label:"발견" },
+  { id:"S11", icon:"text",     label:"생기부 문서" },
+  { id:"S20", icon:"form",     label:"양식" },
+  { id:"S24", icon:"comment",  label:"멘토링" },
+  { id:"S15", icon:"voice",    label:"음성 세션" },
+];
+
+/* 사이드바 하단 유틸 — 프로필 옆에 붙는다 (§3) */
+export const S_UTIL = [
+  { id:"S25", icon:"bell",     label:"알림", badge:"notifications" },
+  { id:"S28", icon:"stats",    label:"통계" },
+  { id:"S30", icon:"settings", label:"설정" },
 ];
 
 export const T_NAV = [
@@ -51,6 +56,8 @@ export function getLayout(s, sessionRole){
   if(s.startsWith("A"))return "admin";
   return "student";
 }
+/* S05 는 AI 워크스페이스 자체가 인사말·제목을 갖고 있어 헤더 제목이 중복된다.
+   단, 검색·알림·프로필은 필요하므로 헤더 자체는 유지한다 (TITLES 에서 제목만 비움). */
 export const NO_HDR=["S06","S16","T07","T08"];
 
 /* 사이드바에 항목이 없는 화면 → 활성 표시를 이어받을 메뉴.
@@ -63,11 +70,11 @@ export const NAV_ALIAS = { S40:"S41", S42:"S41" };
 
 export const TITLES = {
   S01:"",S03:"",S04:"",A00:"",
-  S05:"대시보드",S06:"그래프",S07:"노드 상세",S08:"엣지 상세",S09:"시드 추가",S10:"변경 이력",
+  S05:"",S06:"지식 그래프",S07:"노드 상세",S08:"엣지 상세",S09:"시드 추가",S10:"변경 이력",
   S11:"텍스트 영역",S12:"영역 편집",S13:"PDF 업로드",S14:"파싱 결과 검토",
   S15:"음성 활동",S16:"녹음 중",S17:"보고서 검토",S18:"참여자 관리",S19:"매칭 제안",
   S20:"양식 템플릿",S21:"양식 결과물",S22:"결과물 상세",S23:"가지치기 추천",
-  S24:"코멘트",S25:"알림",S26:"피드",S27:"통합 검색",S28:"통계",S29:"내보내기",
+  S24:"멘토링",S25:"알림",S26:"피드",S27:"통합 검색",S28:"통계",S29:"내보내기",
   S30:"설정",S31:"계정 정보",S32:"계정 삭제",
   S40:"학과 선택",S41:"탐구 피드",S42:"키워드 관리",S43:"발견",
   T01:"교사 자격 검증 신청",T02:"자격 검증 상태",T03:"교사 대시보드",

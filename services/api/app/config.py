@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # POST /v1/research/ingest/run 수동 실행만 쓴다.
     research_ingest_interval_hours: float = 6.0
 
+    # 대시보드 AI 어시스턴트. 키워드 추출용 anthropic_model 과 분리한다 —
+    # 추출은 저렴한 모델로 충분하지만 대화는 추론 품질이 곧 제품 가치다.
+    assistant_model: str = "claude-opus-5"
+
     # Daglo STT (optional — empty disables live client init)
     daglo_api_token: str = ""
     daglo_base_url: str = "https://apis.daglo.ai"
