@@ -37,6 +37,19 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
   const [open, setOpen] = useState(() => localStorage.getItem(PIN_KEY) === "open");
   const railRef = useRef(null);
   const enterTimer = useRef(null);
+  // 방금 사용자가 직접 닫았다는 표시. 커서가 레일 위에 있는 채로 닫으면
+  // 곧바로 다시 열려서 "닫히지 않는" 것처럼 보인다. 커서가 한 번 벗어날
+  // 때까지 자동 열기를 쉰다.
+  const holdClosed = useRef(false);
+
+  /** 사용자가 직접 닫는 경우(« / Esc / 바깥 클릭 / 메뉴 선택). */
+  const close = () => {
+    clearTimeout(enterTimer.current);
+    enterTimer.current = null;
+    // 커서가 레일 밖이면 어차피 mouseenter 가 새로 오므로 잠글 필요가 없다
+    holdClosed.current = !!railRef.current?.matches(":hover");
+    setOpen(false);
+  };
 
   useEffect(() => {
     localStorage.setItem(PIN_KEY, open ? "open" : "rail");
@@ -46,9 +59,9 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
-      if (!railRef.current?.contains(e.target)) setOpen(false);
+      if (!railRef.current?.contains(e.target)) close();
     };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -59,12 +72,21 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
 
   useEffect(() => () => clearTimeout(enterTimer.current), []);
 
-  const onEnter = () => {
-    if (open) return;
-    clearTimeout(enterTimer.current);
-    enterTimer.current = setTimeout(() => setOpen(true), OPEN_DELAY_MS);
+  // mouseenter 만으로는 부족하다: 사이드바가 닫히면서 폭이 줄어도 커서가
+  // 그대로면 브라우저는 mouseenter 를 다시 쏘지 않는다. 그래서 그 자리에서
+  // 마우스를 움직여도 안 열리는 "씹힘"이 생긴다. mousemove 로도 받는다.
+  const onHover = () => {
+    if (open || holdClosed.current || enterTimer.current) return;
+    enterTimer.current = setTimeout(() => {
+      enterTimer.current = null;
+      setOpen(true);
+    }, OPEN_DELAY_MS);
   };
-  const onLeave = () => clearTimeout(enterTimer.current); // 이미 열렸으면 그대로 둔다
+  const onLeave = () => {
+    clearTimeout(enterTimer.current);
+    enterTimer.current = null;
+    holdClosed.current = false; // 벗어났으니 다시 hover 로 열 수 있다
+  };
 
   // 최근 작업 — MBX 엔 프로젝트 개념이 없어 최근 AI 대화를 쓴다
   const [recent, setRecent] = useState([]);
@@ -79,7 +101,7 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
   }, [dark, role, state.session?.token]);
 
   const go = (item) => {
-    setOpen(false); // 고른 화면을 사이드바가 덮고 있으면 안 된다
+    close(); // 고른 화면을 사이드바가 덮고 있으면 안 된다
     if (item.action === "newChat") {
       // 대시보드로 이동하면서 대화를 초기화한다
       window.dispatchEvent(new CustomEvent("mbx:new-chat"));
@@ -93,7 +115,8 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
     <div
       ref={railRef}
       className={`sb-rail${open ? " sb-open" : ""}`}
-      onMouseEnter={onEnter}
+      onMouseEnter={onHover}
+      onMouseMove={onHover}
       onMouseLeave={onLeave}
     >
       <div className={`sidebar sb-${dark ? "dark" : "light"}`}>
@@ -110,7 +133,7 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
             aria-label="사이드바 접기"
             title="사이드바 접기 (Esc)"
             aria-expanded={open}
-            onClick={() => setOpen(false)}
+            onClick={close}
           >
             «
           </button>
@@ -151,7 +174,7 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
                   className="sb-recent-item"
                   title={c.title}
                   onClick={() => {
-                    setOpen(false);
+                    close();
                     window.dispatchEvent(
                       new CustomEvent("mbx:resume-chat", { detail: { id: c.id } })
                     );
@@ -183,7 +206,7 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
               key={u.id}
               type="button"
               className={`sb-util-btn${active === u.id ? " active" : ""}`}
-              onClick={() => { setOpen(false); onNav(u.id); }}
+              onClick={() => { close(); onNav(u.id); }}
               aria-label={u.label}
               title={u.label}
             >

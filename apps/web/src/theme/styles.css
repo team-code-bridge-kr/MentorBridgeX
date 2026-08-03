@@ -129,9 +129,8 @@ a { text-decoration:none; color:inherit; }
   flex-shrink:0; z-index:60;
   transition:width .18s cubic-bezier(.4,0,.2,1), min-width .18s cubic-bezier(.4,0,.2,1);
 }
-/* 고정(sb-open)일 때는 자리를 차지해 본문을 밀어낸다.
-   잠깐 스치는 hover 는 덮어도 되지만, 계속 열어두는 상태에서 본문을 가리면
-   가려진 것을 보려고 매번 사이드바를 닫아야 한다. */
+/* 펼쳐지면 자리를 차지해 본문을 밀어낸다 — 덮으면 가려진 것을 보려고
+   매번 사이드바를 닫아야 한다. */
 .sb-rail.sb-open { width:var(--sb-w-open); min-width:var(--sb-w-open); }
 .sidebar {
   position:absolute; top:0; left:0;
@@ -139,19 +138,24 @@ a { text-decoration:none; color:inherit; }
   display:flex; flex-direction:column; overflow:hidden;
   transition:width .18s cubic-bezier(.4,0,.2,1), box-shadow .18s ease;
 }
-.sb-rail:hover > .sidebar,
-.sb-rail:focus-within > .sidebar {
+/* 펼침은 **JS 상태(sb-open) 하나로만** 정한다 (Sidebar.jsx).
+   예전에는 :hover 로도 펼쳐졌는데, 그러면 « 를 눌러 닫아도 커서가 아직 위에
+   있는 동안 CSS 가 계속 펼쳐놔서 "닫아도 안 닫히는" 것처럼 보였다.
+   키보드 포커스만 예외 — 탭으로 들어오면 hover 이벤트가 없다.
+   :focus-within 이 아니라 :has(:focus-visible) 인 이유: 마우스로 « 를 누르면
+   그 버튼에 포커스가 남아 :focus-within 이 계속 참이 되고, 그러면 방금 닫은
+   사이드바가 다시 펼쳐진다. */
+.sb-rail:has(:focus-visible) { width:var(--sb-w-open); min-width:var(--sb-w-open); }
+.sb-rail:has(:focus-visible) > .sidebar {
   width:var(--sb-w-open);
   box-shadow:0 10px 30px rgba(15,23,42,.16);
 }
 .sb-dark.sidebar { box-shadow:none; }
-.sb-rail:hover > .sb-dark.sidebar,
-.sb-rail:focus-within > .sb-dark.sidebar { box-shadow:0 10px 30px rgba(0,0,0,.42); }
+.sb-rail:has(:focus-visible) > .sb-dark.sidebar { box-shadow:0 10px 30px rgba(0,0,0,.42); }
 
 /* 접힘 상태에서 감춰지는 텍스트·버튼 — 폭은 그대로 두고 페이드만 (아이콘 위치 고정) */
 .sb-fade { opacity:0; pointer-events:none; transition:opacity .12s ease; }
-.sb-rail:hover .sb-fade,
-.sb-rail:focus-within .sb-fade { opacity:1; pointer-events:auto; transition-delay:.06s; }
+.sb-rail:has(:focus-visible) .sb-fade { opacity:1; pointer-events:auto; transition-delay:.06s; }
 .sb-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ── Sidebar Light ── */
@@ -183,7 +187,7 @@ a { text-decoration:none; color:inherit; }
   background:transparent; color:var(--tt); font-size:13px; cursor:pointer; flex-shrink:0;
 }
 .sb-collapse:hover { background:var(--bg3); color:var(--tp); }
-/* 고정 펼침 — 커서가 벗어나도 유지된다 (Sidebar.jsx 가 sb-open 을 붙인다) */
+/* 펼침 — 커서가 벗어나도 유지된다 (Sidebar.jsx 가 sb-open 을 붙인다) */
 .sb-rail.sb-open > .sidebar { width:var(--sb-w-open); box-shadow:0 10px 30px rgba(15,23,42,.16); }
 .sb-rail.sb-open > .sb-dark.sidebar { box-shadow:0 10px 30px rgba(0,0,0,.42); }
 .sb-rail.sb-open .sb-fade { opacity:1; pointer-events:auto; }
@@ -538,8 +542,8 @@ tr:hover td { background:var(--surface-container-low); }
 /* 태블릿·모바일: hover 가 없으므로 접기 대신 기존 가로 바로 되돌린다. */
 @media (max-width: 768px) {
   .app { flex-direction:column; }
-  .sb-rail { position:static; width:100%; min-width:0; z-index:auto; }
-  .sidebar, .sb-rail:hover > .sidebar, .sb-rail:focus-within > .sidebar {
+  .sb-rail, .sb-rail.sb-open { position:static; width:100%; min-width:0; z-index:auto; }
+  .sidebar, .sb-rail.sb-open > .sidebar, .sb-rail:has(:focus-visible) > .sidebar {
     position:static; width:100%; min-width:0; height:auto; min-height:auto;
     flex-direction:row; align-items:center; overflow-x:auto; overflow-y:hidden;
     box-shadow:none; transition:none;
