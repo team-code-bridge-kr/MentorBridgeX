@@ -98,11 +98,24 @@ export const Av = ({ name = "?", size = "sm", src }) => (
 export const Card = ({ children, style, className = "" }) => (
   <div className={`card card-p ${className}`} style={style}>{children}</div>
 );
-export const StatCard = ({ label, value, sub, color }) => (
+/* 숫자 색은 기본이 본문색이다. 카드마다 다른 색을 칠하면 색이 아무 뜻도
+   갖지 못한다 — 조치가 필요할 때(tone="danger"/"warning")만 색을 쓴다. */
+export const StatCard = ({ label, value, sub, tone }) => (
   <div className="stat-card">
     <div className="stat-lbl">{label}</div>
-    <div className="stat-val" style={{ color }}>{value}</div>
+    <div className={`stat-val${tone ? ` stat-${tone}` : ""}`}>{value}</div>
     <div className="stat-sub">{sub}</div>
+  </div>
+);
+/* 빈 상태 — 무엇이 없는지 한 줄, 왜 그런지 한 줄, 다음 행동 하나.
+   화면마다 회색 문장 한 줄만 덩그러니 두면 "고장난 건가?"로 읽힌다.
+   (docs/design-guide.md 10절) */
+export const Empty = ({ icon, title, hint, cta, onCta }) => (
+  <div className="empty">
+    {icon && <div className="empty-icon" aria-hidden="true">{icon}</div>}
+    <div className="empty-title">{title}</div>
+    {hint && <div className="empty-sub">{hint}</div>}
+    {cta && <Btn v="secondary" s="sm" onClick={onCta}>{cta}</Btn>}
   </div>
 );
 export const Notice = ({ type = "info", children }) => (

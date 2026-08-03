@@ -144,11 +144,10 @@ function AppShell() {
   }
 
   const navTarget = NAV_ALIAS[screen] || screen;
-  // 폴백은 첫 항목(새로 시작하기)이 아니라 대시보드여야 한다 — 액션 항목이 활성으로 보이면 안 된다
-  const activeNav =
-    sideNav.find((n) => n.id === navTarget)?.id ||
-    sideNav.find((n) => !n.action)?.id ||
-    sideNav[0].id;
+  // 해당하는 메뉴가 없으면 아무것도 활성화하지 않는다. 엉뚱한 메뉴(대시보드)가
+  // 켜져 있으면 사이드바가 현재 위치를 잘못 알려주는 셈이다.
+  // 설정·알림 같은 유틸 화면은 하단 유틸 버튼이 대신 활성 표시를 갖는다.
+  const activeNav = sideNav.find((n) => n.id === navTarget)?.id || null;
   const showHdr = !NO_HDR.includes(screen);
 
   return (
@@ -164,7 +163,12 @@ function AppShell() {
                   {TITLES[screen] === "" ? "" : (TITLES[screen] || screen)}
                 </span>
               </div>
-              <div className="hdr-actions"><GlobalHeader onNav={nav} /></div>
+              {/* 검색·알림·프로필은 사이드바 하단(S_UTIL)에 있다. 두 군데에 같은
+                  버튼을 두면 어느 쪽이 진짜인지 알 수 없다. 사이드바에 유틸이
+                  없는 관리자 화면에서만 헤더에 남긴다. */}
+              {layout === "admin" && (
+                <div className="hdr-actions"><GlobalHeader onNav={nav} /></div>
+              )}
             </div>
           )}
           <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>

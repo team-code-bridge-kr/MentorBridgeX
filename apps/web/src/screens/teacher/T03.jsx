@@ -15,10 +15,10 @@ export function T03({ onNav }) {
   return (
     <div className="content">
       <div className="grid4 g-20 mb24" style={{gap:20,marginBottom:24}}>
-        <StatCard label="담당 학생" value={`${students.length}명`} sub="매핑 완료" color={TDS.blue500} />
-        <StatCard label="미처리 코멘트" value={`${pendingComments}개`} sub="빠른 피드백 필요" color={TDS.danger} />
-        <StatCard label="이번 달 코멘트" value={`${state.comments.length}개`} sub="누적" color={TDS.success} />
-        <StatCard label="매핑 대기" value="2건" sub="승인 대기 중" color={TDS.warning} />
+        <StatCard label="담당 학생" value={`${students.length}명`} sub="매핑 완료" />
+        <StatCard label="미처리 코멘트" value={`${pendingComments}개`} sub="빠른 피드백 필요" tone="danger" />
+        <StatCard label="이번 달 코멘트" value={`${state.comments.length}개`} sub="누적" />
+        <StatCard label="매핑 대기" value="2건" sub="승인 대기 중" tone="warning" />
       </div>
       <div className="grid2 g-20 mb24" style={{gap:20,marginBottom:24}}>
         <Card>

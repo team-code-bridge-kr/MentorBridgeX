@@ -24,10 +24,10 @@ export function A01({ onNav }) {
   return (
     <div className="content">
       <div className="grid4 g-20 mb24" style={{gap:20,marginBottom:24}}>
-        <StatCard label="총 사용자" value={`${totalUsers}명`} sub={`학생 ${studentCount} / 교사 ${teacherCount}`} color={TDS.blue500} />
-        <StatCard label="오늘 신규 가입" value="12명" sub="전일 대비 +3" color={TDS.success} />
-        <StatCard label="신고 처리 대기" value={`${pendingReports}건`} sub={pendingReports?"즉시 처리 필요":"모두 처리됨"} color={TDS.danger} />
-        <StatCard label="교사 검증 대기" value={`${pendingTeacherApps}건`} sub={pendingTeacherApps?"검토 필요":"대기 없음"} color={TDS.warning} />
+        <StatCard label="총 사용자" value={`${totalUsers}명`} sub={`학생 ${studentCount} / 교사 ${teacherCount}`} />
+        <StatCard label="오늘 신규 가입" value="12명" sub="전일 대비 +3" />
+        <StatCard label="신고 처리 대기" value={`${pendingReports}건`} sub={pendingReports?"즉시 처리 필요":"모두 처리됨"} tone="danger" />
+        <StatCard label="교사 검증 대기" value={`${pendingTeacherApps}건`} sub={pendingTeacherApps?"검토 필요":"대기 없음"} tone="warning" />
       </div>
       <div className="grid2 g-20 mb24" style={{gap:20,marginBottom:24}}>
         <Card>

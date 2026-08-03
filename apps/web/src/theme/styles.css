@@ -29,6 +29,9 @@
 
   /* 사이드바 — 평상시 접힌 아이콘 레일 폭 / hover 로 펼쳤을 때 폭 */
   --sb-w-rail:68px; --sb-w-open:260px;
+  /* 본문 최대 폭 — 모든 화면이 같은 폭 안에서 시작한다.
+     27인치에서 문장이 화면 끝까지 늘어나면 어느 화면이든 못 읽는다. */
+  --page-w:1280px;
 
   /* 강조 — 평상시 밝은 쪽, hover 에서 어두운 쪽. 누르려 하면 어두워진다. */
   --primary:#0051ae; --primary-container:#0969da;
@@ -74,6 +77,9 @@
 
   /* 깊이는 테두리로 낸다. 그림자는 실제로 떠 있는 것에만. */
   --shadow-sm:none;
+  /* 표면 그림자 사다리 — 카드는 테두리 대신 이것으로 구분한다 */
+  --surface-1:0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.045);
+  --surface-2:0 2px 6px rgba(15,23,42,.06), 0 14px 34px rgba(15,23,42,.09);
   --shadow-md:0 4px 12px rgba(24,28,33,.08);
   --shadow-lg:0 8px 24px rgba(24,28,33,.12);
 
@@ -218,16 +224,45 @@ a { text-decoration:none; color:inherit; }
 .sb-dark .sb-pemail { color:#6b7280; }
 
 /* ── Header ── */
-.hdr { height:56px; min-height:56px; background:var(--bg1); border-bottom:1px solid var(--brd); display:flex; align-items:center; justify-content:space-between; padding:0 24px; }
+/* 화면 제목만 담는 얇은 바. 유틸(검색·알림·프로필)은 사이드바 하단에 있다.
+   구분선은 아주 옅게 — 본문과 같은 흰 배경이라 선이 진하면 층이 생겨 보인다. */
+.hdr { height:56px; min-height:56px; background:var(--bg1); border-bottom:1px solid var(--surface-container); display:flex; align-items:center; justify-content:space-between; padding:0 clamp(16px,2vw,24px); }
 .hdr-title { font-size:17px; font-weight:700; color:var(--tp); letter-spacing:-.2px; }
 .hdr-sub { font-size:13px; color:var(--tt); margin-left:10px; }
 .hdr-actions { display:flex; align-items:center; gap:8px; }
 .icon-btn { width:34px; height:34px; border-radius:var(--r8); background:var(--bg1); border:1px solid var(--brd); display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; position:relative; transition:background .12s; }
 .icon-btn:hover { background:var(--bgd); }
+/* 알림 행 — 다른 화면의 카드와 같은 표면. 안 읽은 것만 파랗게 든다. */
+.notif-item {
+  position:relative; display:flex; gap:14px; align-items:flex-start;
+  padding:16px 18px; border-radius:18px; margin-bottom:10px; cursor:pointer;
+  background:var(--blue-50); border:none;
+  transition:box-shadow .16s, transform .16s, background .16s;
+}
+.notif-item:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
+.notif-item:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.notif-item.read { background:var(--bg1); box-shadow:var(--surface-1); }
+.notif-unread { position:absolute; left:7px; top:23px; width:7px; height:7px; border-radius:50%; background:var(--blue-500); }
+.notif-ic {
+  width:38px; height:38px; border-radius:11px; flex-shrink:0; margin-left:6px;
+  display:flex; align-items:center; justify-content:center; background:#fff;
+}
+.notif-item.read .notif-ic { background:var(--bg3); margin-left:0; }
+.notif-body { flex:1; min-width:0; }
+.notif-title { font-size:15px; font-weight:700; color:var(--tp); }
+.notif-item.read .notif-title { font-weight:500; }
+.notif-desc { font-size:13px; color:var(--ts); margin-top:3px; line-height:1.5; max-width:74ch; }
+.notif-time { font-size:12px; color:var(--tt); flex-shrink:0; white-space:nowrap; }
+
 .notif-dot { position:absolute; top:7px; right:7px; width:9px; height:9px; background:var(--danger); border-radius:50%; border:2px solid var(--bg1); }
 
-/* ── Card ── */
-.card { background:var(--bg1); border-radius:var(--r12); border:1px solid var(--brd); }
+/* ── Card ──
+   표면은 테두리 없이 그림자로만 구분한다 (docs/design-guide.md 3절).
+   테두리 상자가 겹쳐 보이면 화면이 조각조각으로 읽힌다. */
+.card {
+  background:var(--bg1); border-radius:18px; border:none;
+  box-shadow:var(--surface-1);
+}
 .card-p { padding:20px; }
 .card-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .card-title { font-size:15px; font-weight:700; color:var(--tp); }
@@ -275,7 +310,7 @@ a { text-decoration:none; color:inherit; }
 /* Tab — Pill */
 .tab-pill-wrap { display:flex; background:var(--bg3); border-radius:var(--r8); padding:3px; gap:2px; flex-wrap:wrap; }
 .tab-pill { padding:5px 16px; border-radius:6px; font-size:13px; font-weight:500; color:var(--tt); cursor:pointer; transition:all .14s; white-space:nowrap; }
-.tab-pill.active { background:var(--bg1); color:var(--primary); font-weight:700; border:1px solid var(--brd); }
+.tab-pill.active { background:var(--bg1); color:var(--primary); font-weight:700; box-shadow:0 1px 3px rgba(15,23,42,.10); }
 
 /* ── ListRow (TDS) ── */
 .list-row { display:flex; align-items:center; padding:11px 0; min-height:48px; border-bottom:1px solid var(--surface-container); gap:12px; }
@@ -323,7 +358,7 @@ a { text-decoration:none; color:inherit; }
 .prog-fill  { height:100%; border-radius:3px; transition:width .3s; }
 
 /* ── Table ── */
-.tbl-wrap { overflow-x:auto; border-radius:var(--r12); border:1px solid var(--brd); }
+.tbl-wrap { overflow-x:auto; border-radius:18px; border:none; box-shadow:var(--surface-1); background:var(--bg1); }
 table { width:100%; border-collapse:collapse; }
 thead { background:var(--surface-container-low); }
 th { padding:9px 14px; font-size:12px; font-weight:600; color:var(--outline); text-align:left; border-bottom:1px solid var(--brd); white-space:nowrap; }
@@ -366,9 +401,13 @@ tr:hover td { background:var(--surface-container-low); }
 .act-time  { font-size:12px; color:var(--td); flex-shrink:0; }
 
 /* ── Stat card ── */
-.stat-card { background:var(--bg1); border-radius:var(--r16); border:1px solid var(--brd); padding:22px 24px; box-shadow:var(--shadow-sm); }
+.stat-card { background:var(--bg1); border-radius:18px; border:none; padding:22px 24px; box-shadow:var(--surface-1); }
 .stat-lbl { font-size:13px; color:var(--tt); font-weight:500; margin-bottom:6px; }
-.stat-val { font-size:26px; font-weight:700; line-height:1.15; margin-bottom:6px; }
+.stat-val { font-size:26px; font-weight:700; line-height:1.15; margin-bottom:6px; color:var(--tp); }
+/* 색은 조치가 필요할 때만 (StatCard 의 tone) */
+.stat-val.stat-danger  { color:var(--danger); }
+.stat-val.stat-warning { color:var(--warning); }
+.stat-val.stat-success { color:var(--success); }
 .stat-sub { font-size:12px; color:var(--td); }
 
 /* ── ListHeader ── */
@@ -397,14 +436,21 @@ tr:hover td { background:var(--surface-container-low); }
 .login-box { width:100%; max-width:380px; }
 
 /* ── Area card ── */
-.area-card { padding:20px; border-radius:var(--r16); border:1px solid var(--brd); background:var(--bg1); cursor:pointer; transition:all .14s; }
-.area-card:hover { border-color:var(--blue-500); box-shadow:0 4px 16px rgba(49,130,246,.12); }
+.area-card {
+  padding:20px; border-radius:18px; border:none; background:var(--bg1); cursor:pointer;
+  box-shadow:var(--surface-1); transition:box-shadow .16s, transform .16s;
+}
+.area-card:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
 .area-card-title { font-size:17px; font-weight:700; color:var(--tp); margin-bottom:4px; }
 .area-card-desc  { font-size:13px; color:var(--tt); margin-bottom:14px; line-height:1.55; }
 
 /* ── Session card ── */
-.sess-card { padding:16px 20px; border-radius:var(--r12); border:1px solid var(--brd); background:var(--bg1); display:flex; align-items:center; gap:16px; margin-bottom:10px; transition:all .14s; }
-.sess-card:hover { border-color:var(--blue-100); box-shadow:var(--shadow-sm); }
+.sess-card {
+  padding:16px 20px; border-radius:18px; border:none; background:var(--bg1);
+  display:flex; align-items:center; gap:16px; margin-bottom:10px;
+  box-shadow:var(--surface-1); transition:box-shadow .16s, transform .16s;
+}
+.sess-card:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
 .sess-icon { width:44px; height:44px; border-radius:var(--r12); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
 
 /* ── Flex helpers ── */
@@ -426,28 +472,33 @@ tr:hover td { background:var(--surface-container-low); }
 @media(max-width:900px){  .grid4{grid-template-columns:1fr;} .grid3{grid-template-columns:1fr;} .grid2{grid-template-columns:1fr;} }
 
 /* ── Content auto-layout ──
-   모든 화면은 .content(스크롤·패딩 프레임) 안에서 아래 폭 컨벤션 중 하나를 사용:
-   .content-inner  → 대시보드·표 등 넓은 레이아웃(최대 1600)
-   .content-wide   → 통계·검색 등(최대 960)
-   .content-narrow → 코멘트·설정·폼 등 읽기 중심(최대 720) */
-.content { flex:1; overflow-y:auto; padding:clamp(16px,2.5vw,32px); background:var(--bg2); min-width:0; }
-.content-inner  { max-width:1600px; margin:0 auto; width:100%; }
-.content-wide   { max-width:960px;  margin:0 auto; width:100%; }
-.content-narrow { max-width:720px;  margin:0 auto; width:100%; }
+   .content / .rs-wrap / .dash-wrap 은 스크롤·패딩 프레임이고, 그 안의 내용은
+   자동으로 --page-w 폭 안에 들어간다. 더 좁게 쓰고 싶은 화면만
+   .content-wide(960) / .content-narrow(720) 를 직접 붙인다. */
+/* 배경은 흰색이다 — 카드가 테두리 없이 그림자로만 떠 있으므로, 회색 판 위에
+   흰 카드를 얹으면 그림자가 묻혀 경계가 사라진다. (대시보드와 같은 규칙) */
+.content { flex:1; overflow-y:auto; padding:clamp(16px,2.5vw,32px) clamp(16px,2vw,24px) 40px; background:var(--bg1); min-width:0; }
+/* 폭은 컨테이너가 잡는다 — 화면마다 따로 감싸지 않아도 같은 폭이 나온다.
+   (예전에는 .content-inner/-wide/-narrow 를 붙이기로 했는데 아무도 안 붙였다) */
+.content > *, .rs-wrap > *, .dash-wrap > * { max-width:var(--page-w); margin-left:auto; margin-right:auto; }
+.content-wide   { max-width:960px !important; }
+.content-narrow { max-width:720px !important; }
 
 /* ── Section titles ── */
 .sec-title { font-size:22px; font-weight:700; color:var(--tp); letter-spacing:-.3px; margin-bottom:4px; }
-.sec-sub   { font-size:14px; color:var(--tt); margin-bottom:24px; }
+.sec-sub   { font-size:14px; color:var(--ts); margin-bottom:22px; line-height:1.6; max-width:74ch; word-break:keep-all; }
 
 /* ── Chart area ── */
 .chart-bg { position:relative; background:var(--bg3); border-radius:var(--r12); overflow:hidden; }
 .chart-svg { width:100%; }
 
-/* ── Empty state ── */
-.empty { text-align:center; padding:60px 40px; }
-.empty-icon  { font-size:48px; margin-bottom:16px; }
-.empty-title { font-size:18px; font-weight:700; margin-bottom:8px; }
-.empty-sub   { font-size:14px; color:var(--tt); margin-bottom:24px; }
+/* ── Empty state ──
+   크게 비우지 않는다. 무엇이 없는지 한 줄, 왜 그런지 한 줄, 행동 하나. */
+.empty { text-align:center; padding:44px 24px; }
+.empty-icon  { font-size:34px; margin-bottom:12px; opacity:.5; }
+.empty-title { font-size:15px; font-weight:700; color:var(--tp); margin-bottom:6px; }
+.empty-sub   { font-size:13px; color:var(--tt); line-height:1.65; margin-bottom:16px; }
+.rs-empty { padding:44px 24px; text-align:center; color:var(--tt); font-size:13px; line-height:1.7; }
 
 /* ── Toolbar ── */
 .toolbar { background:var(--bg1); border-bottom:1px solid var(--brd); padding:10px 24px; display:flex; align-items:center; gap:10px; }
@@ -806,7 +857,7 @@ tr:hover td { background:var(--surface-container-low); }
   background:var(--blue-50); color:var(--blue-500);
   font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
 }
-.ai-card-draft { margin-top:12px; padding:11px 12px; border-radius:10px; background:var(--bg1); border:1px solid var(--brd); }
+.ai-card-draft { margin-top:12px; padding:11px 12px; border-radius:10px; background:var(--bg1); border:none; }
 .ai-card-draft-hdr { font-size:11.5px; font-weight:700; color:var(--tt); margin-bottom:5px; }
 .ai-card-draft p { font-size:13px; color:var(--ts); line-height:1.6; margin-bottom:9px; }
 
@@ -926,9 +977,11 @@ tr:hover td { background:var(--surface-container-low); }
    학생용 화면이라 밝고 가볍게. 다만 장식은 최소로 하고 읽기에 집중시킨다.
    모바일 우선 — 기본이 1열이고 넓어지면 늘어난다.
 ────────────────────────────────────────────────────────────── */
-.rs-wrap { padding:20px; overflow-y:auto; height:100%; }
-.rs-lead { font-size:14px; color:var(--ts); margin-bottom:20px; line-height:1.6; }
-.rs-empty { padding:48px 20px; text-align:center; color:var(--tt); font-size:14px; line-height:1.7; }
+.rs-wrap {
+  padding:clamp(16px,2.5vw,32px) clamp(16px,2vw,24px) 40px;
+  overflow-y:auto; height:100%; background:var(--bg1);
+}
+.rs-lead { font-size:14px; color:var(--ts); margin-bottom:22px; line-height:1.6; max-width:74ch; word-break:keep-all; }
 
 /* ── 온보딩: 학과 카드 ── */
 .rs-field-label { font-size:12px; font-weight:700; color:var(--tt); letter-spacing:.04em; margin:24px 0 10px; }
@@ -962,25 +1015,26 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .rs-chip-x:hover { opacity:1; }
 
-/* ── 피드 탭 ── */
-.rs-tabs { display:flex; gap:4px; border-bottom:1px solid var(--brd); margin-bottom:16px; overflow-x:auto; }
+/* ── 피드 탭 — 공용 밑줄 탭(.tab-bar/.tab-item)과 같은 모양 ── */
+.rs-tabs { display:flex; gap:0; border-bottom:1.5px solid var(--brd); margin-bottom:20px; overflow-x:auto; }
 .rs-tab {
   border:none; background:transparent; font-family:inherit; cursor:pointer;
-  padding:10px 14px; font-size:14px; font-weight:600; color:var(--tt);
-  border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;
-  transition:color .12s, border-color .12s;
+  padding:9px 14px; font-size:14px; font-weight:500; color:var(--ts);
+  border-bottom:2px solid transparent; margin-bottom:-1.5px; white-space:nowrap;
+  transition:color .14s, border-color .14s;
 }
-.rs-tab:hover { color:var(--tp); }
-.rs-tab.on { color:var(--primary); border-bottom-color:var(--blue-500); }
+.rs-tab:hover { color:var(--primary); }
+.rs-tab.on { color:var(--primary); font-weight:700; border-bottom-color:var(--primary); }
 
 /* ── 글 카드 ── */
 .rs-list { display:flex; flex-direction:column; gap:10px; }
 .rs-article {
-  border:1px solid var(--brd); border-radius:var(--r12); background:var(--bg1);
-  padding:16px; transition:border-color .12s, box-shadow .12s;
+  border:none; border-radius:18px; background:var(--bg1);
+  padding:18px; box-shadow:var(--surface-1); transition:box-shadow .16s, transform .16s;
 }
-.rs-article:hover { border-color:var(--blue-400); box-shadow:0 2px 10px rgba(15,23,42,.06); }
-.rs-article.read { background:var(--bg2); }
+.rs-article:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
+/* 읽은 글은 표면을 한 단계 낮춘다 — 목록에서 남은 것이 먼저 눈에 들어온다 */
+.rs-article.read { background:var(--bg2); box-shadow:none; }
 .rs-article.read .rs-article-title { color:var(--ts); font-weight:600; }
 .rs-article-meta { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--tt); margin-bottom:7px; flex-wrap:wrap; }
 .rs-article-title {
@@ -988,20 +1042,26 @@ tr:hover td { background:var(--surface-container-low); }
   text-decoration:none; display:block; margin-bottom:7px;
 }
 .rs-article-title:hover { color:var(--primary); text-decoration:underline; }
-.rs-article-sum { font-size:13.5px; color:var(--ts); line-height:1.65; margin-bottom:11px; }
+.rs-article-sum { font-size:13.5px; color:var(--ts); line-height:1.65; margin-bottom:11px; max-width:74ch; word-break:keep-all; }
 .rs-article-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+/* 공용 버튼(.btn.btn-secondary.btn-sm)과 같은 모양으로 맞춘다 —
+   같은 일을 하는 버튼이 화면마다 다르게 생기지 않게. */
 .rs-save {
-  border:1px solid var(--brd); background:var(--bg1); border-radius:var(--r8);
-  padding:5px 11px; font-size:12.5px; font-weight:600; color:var(--ts);
-  cursor:pointer; font-family:inherit; white-space:nowrap; transition:all .12s;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  height:34px; padding:0 12px; border-radius:var(--r8);
+  border:1px solid var(--brd); background:var(--bg1);
+  font-family:inherit; font-size:13px; font-weight:700; color:var(--tp);
+  cursor:pointer; white-space:nowrap; transition:background-color .14s, border-color .14s, color .14s;
 }
 .rs-save:hover { background:var(--bg3); }
-.rs-save.on { background:var(--blue-50); border-color:var(--blue-400); color:var(--blue-500); }
+.rs-save:disabled { background:var(--bgd); color:var(--td); cursor:not-allowed; }
+.rs-save.on { background:var(--blue-500); border-color:var(--blue-500); color:#fff; }
+.rs-save.on:hover { background:var(--blue-600); border-color:var(--blue-600); }
 
 /* ── Discover ── */
 .rs-term {
-  display:flex; align-items:center; gap:12px; padding:12px 14px;
-  border:1px solid var(--brd); border-radius:var(--r8); background:var(--bg1);
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  border:none; border-radius:14px; background:var(--bg1); box-shadow:var(--surface-1);
 }
 .rs-term-count {
   flex-shrink:0; min-width:44px; text-align:center; font-size:12px; font-weight:700;
@@ -1022,8 +1082,8 @@ tr:hover td { background:var(--surface-container-low); }
 .fill { flex:1; min-width:0; }
 .shrink-0 { flex-shrink:0; }
 
-/* ── Stat card value clamp ── */
-.stat-val { font-size:clamp(18px,2vw,26px); font-weight:700; line-height:1.15; margin-bottom:6px; }
+/* ── Stat card value clamp ── (색은 위쪽 정의를 그대로 쓴다) */
+.stat-val { font-size:clamp(18px,2vw,26px); }
 
 /* 통계 화면 — 대시보드에서 옮겨온 누적 지표 5개 */
 .stat-row { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; }

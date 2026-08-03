@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { Btn, Badge, Av, Card } from "../../components/ui.jsx";
+import { Btn, Badge, Av, Card, Empty } from "../../components/ui.jsx";
 import { timeAgo } from "../../utils/time.js";
 
 export function S24({ onNav }) {
@@ -40,7 +40,12 @@ export function S24({ onNav }) {
         </div>
       </Card>
 
-      {!comments.length && <div style={{textAlign:"center",padding:"48px 0",color:TDS.textTertiary,fontSize:14}}>아직 코멘트가 없습니다</div>}
+      {!comments.length && (
+        <Empty
+          title="아직 코멘트가 없습니다."
+          hint="선생님이 남긴 피드백과 내가 적은 메모가 이곳에 모입니다. 위 입력창에서 먼저 메모를 남겨볼 수도 있어요."
+        />
+      )}
 
       {comments.map(c=>(
         <Card key={c.id} className="mb16" style={{marginBottom:16}}>

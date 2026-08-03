@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge } from "../../components/ui.jsx";
+import { TFI, Btn, Badge, Empty } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S15({ onNav }) {
@@ -48,7 +48,12 @@ export function S15({ onNav }) {
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}
       {loading && <div style={{ color: TDS.textTertiary }}>불러오는 중…</div>}
       {!loading && !sessions.length && (
-        <div style={{ textAlign: "center", padding: 48, color: TDS.textTertiary }}>아직 녹음 세션이 없습니다</div>
+        <Empty
+          title="아직 녹음 세션이 없습니다."
+          hint="멘토링이나 발표를 녹음하면 STT로 글로 옮겨 탐구 기록에 쓸 수 있습니다."
+          cta="새 녹음 시작"
+          onCta={startNew}
+        />
       )}
       {sessions.map((s) => (
         <div key={s.id} className="sess-card">

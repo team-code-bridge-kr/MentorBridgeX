@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Card, StatCard } from "../../components/ui.jsx";
+import { Card, StatCard, Empty } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S28() {
@@ -22,11 +22,11 @@ export function S28() {
       </div>
       {err && <div style={{ color: TDS.danger }}>{err}</div>}
       <div className="stat-row mb24" style={{ marginBottom: 24 }}>
-        <StatCard label="총 노드" value={`${s.node_count}개`} sub={`엣지 ${s.edge_count}`} color={TDS.blue500} />
-        <StatCard label="텍스트 영역" value={`${sectionDone} / 8`} sub={sectionDone === 8 ? "모든 영역 입력됨" : `${8 - sectionDone}개 미작성`} color={TDS.success} />
-        <StatCard label="음성 세션" value={`${s.voice_count || 0}회`} sub={`${Math.floor((s.voice_duration_sec || 0) / 60)}분`} color={TDS.success} />
-        <StatCard label="코멘트" value={`${s.comment_count}개`} sub="내 코멘트" color={TDS.warning} />
-        <StatCard label="양식 생성" value={`${s.form_count}개`} sub="생성 이력" color={TDS.textPrimary} />
+        <StatCard label="총 노드" value={`${s.node_count}개`} sub={`엣지 ${s.edge_count}`} />
+        <StatCard label="텍스트 영역" value={`${sectionDone} / 8`} sub={sectionDone === 8 ? "모든 영역 입력됨" : `${8 - sectionDone}개 미작성`} />
+        <StatCard label="음성 세션" value={`${s.voice_count || 0}회`} sub={`${Math.floor((s.voice_duration_sec || 0) / 60)}분`} />
+        <StatCard label="코멘트" value={`${s.comment_count}개`} sub="내 코멘트" tone="warning" />
+        <StatCard label="양식 생성" value={`${s.form_count}개`} sub="생성 이력" />
       </div>
       <div className="grid2 g-20" style={{ gap: 20 }}>
         <Card>
@@ -53,7 +53,9 @@ export function S28() {
               </div>
             </div>
           ))}
-          {!s.top_nodes?.length && <div style={{ fontSize: 13, color: TDS.textTertiary }}>그래프 노드가 없습니다</div>}
+          {!s.top_nodes?.length && (
+            <Empty title="그래프 노드가 없습니다." hint="지식 그래프를 만들면 어떤 주제에 집중했는지 여기서 보입니다." />
+          )}
         </Card>
       </div>
     </div>

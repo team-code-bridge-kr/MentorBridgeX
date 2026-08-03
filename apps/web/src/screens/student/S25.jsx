@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Btn } from "../../components/ui.jsx";
+import { Btn, Empty } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import { useStore } from "../../store/StoreProvider.jsx";
 
@@ -52,19 +52,31 @@ export function S25() {
         ))}
       </div>
 
-      {!shown.length && <div style={{ textAlign: "center", padding: "48px 0", color: TDS.textTertiary, fontSize: 14 }}>알림이 없습니다</div>}
+      {!shown.length && (
+        <Empty
+          title="알림이 없습니다."
+          hint="멘토 코멘트, 검증 결과 같은 소식이 생기면 이곳에서 알려드릴게요."
+        />
+      )}
 
       {shown.map((n) => (
-        <div key={n.id} onClick={() => markOne(n.id)} style={{ padding: "16px 18px", borderRadius: 14, marginBottom: 10, background: n.read ? TDS.bgPrimary : TDS.blue50, border: `1px solid ${n.read ? TDS.borderDefault : TDS.blue100}`, display: "flex", gap: 14, cursor: "pointer", alignItems: "flex-start", position: "relative" }}>
-          {!n.read && <div style={{ position: "absolute", left: 6, top: 22, width: 7, height: 7, borderRadius: "50%", background: TDS.blue500 }} />}
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: n.read ? TDS.bgTertiary : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: n.read ? 0 : 6 }}>
+        <div
+          key={n.id}
+          className={`notif-item${n.read ? " read" : ""}`}
+          onClick={() => markOne(n.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); markOne(n.id); } }}
+        >
+          {!n.read && <span className="notif-unread" aria-label="읽지 않음" />}
+          <span className="notif-ic">
             <NavIcon name={n.ic} size={20} color={n.read ? TDS.textTertiary : TDS.blue500} />
+          </span>
+          <div className="notif-body">
+            <div className="notif-title">{n.t}</div>
+            <div className="notif-desc">{n.d}</div>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: n.read ? 500 : 700, color: TDS.textPrimary }}>{n.t}</div>
-            <div style={{ fontSize: 13, color: TDS.textSecondary, marginTop: 3, lineHeight: 1.5 }}>{n.d}</div>
-          </div>
-          <div style={{ fontSize: 12, color: TDS.textTertiary, flexShrink: 0, whiteSpace: "nowrap" }}>{n.time}</div>
+          <span className="notif-time">{n.time}</span>
         </div>
       ))}
     </div>

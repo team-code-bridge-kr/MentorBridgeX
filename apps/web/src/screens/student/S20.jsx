@@ -42,7 +42,9 @@ export function S20({ onNav }) {
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{tmpl.title}</div>
             <div style={{ fontSize: 13, color: TDS.textTertiary, marginBottom: 18, lineHeight: 1.6 }}>{tmpl.description}</div>
-            <Btn v="primary" s="sm" style={{ width: "100%" }} disabled={busy === tmpl.id}>
+            {/* 카드 전체가 클릭 대상이라 버튼은 보조로 둔다 — 같은 무게의 파란
+                버튼이 6개면 어디를 눌러야 할지 오히려 알기 어렵다 */}
+            <Btn v="secondary" s="sm" style={{ width: "100%" }} disabled={busy === tmpl.id}>
               {busy === tmpl.id ? "생성 중…" : "이 템플릿으로 생성"}
             </Btn>
           </Card>
