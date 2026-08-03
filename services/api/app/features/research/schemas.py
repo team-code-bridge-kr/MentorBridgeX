@@ -13,6 +13,9 @@ class TrackOut(BaseModel):
     field: str
     description: str = ""
     keywords: list[str] = Field(default_factory=list)
+    # 같은 개념의 한국어·영어를 묶은 것 — 화면에서 칩 하나로 보여주기 위한 것이다.
+    # 검색에는 묶인 낱말을 **모두** 쓴다(묶었다고 결과가 줄면 안 된다).
+    keyword_groups: list[list[str]] = Field(default_factory=list)
 
 
 class TrackListOut(BaseModel):

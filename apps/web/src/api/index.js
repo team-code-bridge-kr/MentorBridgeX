@@ -300,6 +300,7 @@ function mapEdge(e) {
 }
 
 // ── 역할 추론 (email 기반 데모용) ─────────────────────────
+// 서버가 역할을 모를 때만 쓴다. 온보딩에서 한 번 고르면 서버 값이 이긴다.
 function inferRole(email) {
   const e = email.toLowerCase();
   if (e.includes("admin"))   return "admin";
@@ -326,11 +327,12 @@ const api = {
       return {
         token: data.access_token,
         user: {
-          id:       data.user_id,
-          email:    data.email,
-          name:     displayName,
-          role:     inferRole(email),
-          provider: "password",
+          id:        data.user_id,
+          email:     data.email,
+          name:      displayName,
+          role:      data.role || inferRole(email),
+          onboarded: Boolean(data.onboarded),
+          provider:  "password",
         },
       };
     },
@@ -361,7 +363,8 @@ const api = {
             id: data.user_id,
             email: data.email,
             name: data.display_name || "김학생",
-            role: "student",
+            role: data.role || "student",
+            onboarded: Boolean(data.onboarded),
             provider: "google",
           },
         };
@@ -412,7 +415,8 @@ const api = {
           email: data.email,
           name,
           picture: data.picture || null,
-          role: inferRole(data.email),
+          role: data.role || inferRole(data.email),
+          onboarded: Boolean(data.onboarded),
           provider: "google",
         },
       };
@@ -942,6 +946,54 @@ const api = {
     },
     async removeConversation(id) {
       return request(`/v1/assistant/conversations/${id}`, { method: "DELETE" });
+    },
+  },
+
+  // ══ 온보딩 (✅ LIVE) ═════════════════════════════════════
+  // 백엔드: services/api/app/features/onboarding/
+  onboarding: {
+    /** 서버가 기억하는 진행 상태. 화면을 닫았다 들어와도 여기서부터 이어간다. */
+    async state() {
+      return request("/v1/onboarding");
+    },
+    /**
+     * 바뀐 것만 보낸다. 보내지 않은 항목은 서버에서 그대로 둔다.
+     * majors 는 `[]` 도 뜻이 있다("아직 모르겠어요") — undefined 와 구분해서 보낼 것.
+     */
+    async patch(patch) {
+      return request("/v1/onboarding", { method: "PATCH", body: patch });
+    },
+    /** STEP 4 — 프리셋에서 고른 것 + 직접 적은 것 */
+    async setKeywords(preset, manual) {
+      return request("/v1/onboarding/keywords", {
+        method: "POST",
+        body: { preset, manual },
+      });
+    },
+    /** 완료 직전 미리보기. matched=false 면 최신글로 대신 채운 것이다. */
+    async preview() {
+      return request("/v1/onboarding/preview");
+    },
+    async complete() {
+      return request("/v1/onboarding/complete", { method: "POST" });
+    },
+  },
+
+  // ══ 학급 (✅ LIVE) ═══════════════════════════════════════
+  classrooms: {
+    async mine() {
+      const data = await request("/v1/classrooms");
+      return data.classrooms || [];
+    },
+    /** 교사만. 6자리 참여 코드를 서버가 만들어 준다. */
+    async create(name, school) {
+      return request("/v1/classrooms", { method: "POST", body: { name, school } });
+    },
+    async join(joinCode) {
+      return request("/v1/classrooms/join", {
+        method: "POST",
+        body: { join_code: joinCode },
+      });
     },
   },
 

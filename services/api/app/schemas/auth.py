@@ -28,3 +28,10 @@ class TokenResponse(BaseModel):
     email: str
     display_name: str | None = None
     picture: str | None = None
+    # 온보딩에서 고른 역할. **아직 안 골랐으면 None** 이다 — 서버가 모르는 것을
+    # "학생"이라고 단정하지 않는다(프런트에 이메일로 추측하는 데모 경로가 남아 있다).
+    role: str | None = None
+    # 학년 — 1학년은 '발견'을, 3학년은 논문을 먼저 보여주는 데 쓴다.
+    grade: str | None = None
+    # 온보딩을 끝냈는지. 로그인 직후 어디로 보낼지 정하는 데 쓴다.
+    onboarded: bool = False

@@ -190,9 +190,9 @@ TRACKS: list[tuple[str, str, str, str, list[str]]] = [
     ),
     (
         "psych",
-        "심리 / 교육",
+        "심리 / 인지",
         "사회",
-        "심리학, 교육학, 인지·발달",
+        "심리학, 인지·발달, 행동",
         [
             "심리학", "psychology", "인지", "cognition",
             "교육", "education", "발달심리", "developmental psychology",
@@ -226,6 +226,32 @@ TRACKS: list[tuple[str, str, str, str, list[str]]] = [
             "번역", "translation", "문화연구", "cultural studies",
             "윤리", "ethics", "미디어", "media studies",
             "디지털인문학", "digital humanities", "고전",
+        ],
+    ),
+    (
+        "edu",
+        "교육 / 교육학",
+        "교육",
+        "교육과정, 교수법, 학습, 교육정책",
+        [
+            "교육과정", "curriculum", "교수법", "pedagogy",
+            "학습동기", "learning motivation", "교육평가", "assessment",
+            "문해력", "literacy", "특수교육", "special education",
+            "진로교육", "career education", "교육정책", "education policy",
+            "에듀테크", "교실수업",
+        ],
+    ),
+    (
+        "arts",
+        "예술 / 체육",
+        "예체능",
+        "디자인, 음악, 미술, 체육",
+        [
+            "디자인", "design", "시각예술", "visual art",
+            "음악", "music", "체육", "sports science",
+            "공연예술", "performing arts", "영상제작", "film production",
+            "게임그래픽", "game design", "운동생리", "exercise physiology",
+            "전시기획", "무용",
         ],
     ),
 ]
@@ -443,6 +469,58 @@ SOURCES: list[tuple[str, str, str, str, str | None, str, bool]] = [
         True,
     ),
 ]
+
+
+def _is_ascii(word: str) -> bool:
+    return all(ord(c) < 128 for c in word)
+
+
+def keyword_pairs(keywords: list[str]) -> list[list[str]]:
+    """한국어 낱말과 바로 뒤의 영어 낱말을 한 묶음으로 본다.
+
+    시드는 "촉매", "catalysis" 처럼 같은 개념의 한국어·영어를 나란히 적는다(파일
+    맨 위 규칙). 화면에서는 이 둘이 따로 뜨면 같은 걸 두 번 고르게 되므로 묶어서
+    내려준다. **순서가 곧 짝**이라 DB 로 내려갔다 오면(정렬이 바뀐다) 알 수 없다.
+    그래서 여기, 시드 상수에서 만든다.
+    """
+    groups: list[list[str]] = []
+    i = 0
+    while i < len(keywords):
+        word = keywords[i]
+        nxt = keywords[i + 1] if i + 1 < len(keywords) else None
+        if nxt and not _is_ascii(word) and _is_ascii(nxt):
+            groups.append([word, nxt])
+            i += 2
+        else:
+            groups.append([word])
+            i += 1
+    return groups
+
+
+def _english_to_korean() -> dict[str, str]:
+    idx: dict[str, str] = {}
+    for _id, _name, _field, _desc, keywords in TRACKS:
+        for group in keyword_pairs(keywords):
+            if len(group) == 2:
+                idx[group[1].lower()] = group[0]
+    return idx
+
+
+ENGLISH_TO_KOREAN = _english_to_korean()
+
+
+def display_keywords(words: list[str]) -> list[str]:
+    """보여주기용으로 한국어·영어 짝을 하나로 줄인다.
+
+    저장된 키워드는 줄이지 않는다 — 매칭에는 둘 다 필요하다. 화면에
+    "algorithm"과 "알고리즘"이 나란히 뜨면 두 개를 등록한 것처럼 보일 뿐이다.
+    """
+    out: list[str] = []
+    for word in words:
+        head = ENGLISH_TO_KOREAN.get(word.lower(), word)
+        if head not in out:
+            out.append(head)
+    return out
 
 
 def track_keyword_rows() -> list[tuple[str, str, float]]:

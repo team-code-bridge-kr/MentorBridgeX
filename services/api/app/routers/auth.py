@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.db.factory import is_offline_demo
 from app.dependencies import create_access_token, ensure_dev_user, get_db_session
 from app.errors import AppError
+from app.features.onboarding.service import login_state
 from app.schemas.auth import (
     DevLoginRequest,
     GoogleAuthConfig,
@@ -26,11 +27,15 @@ async def dev_login(
 ) -> TokenResponse:
     user = await ensure_dev_user(session, body.email, body.display_name)
     token = create_access_token(user.id, user.email)
+    onboarding = await login_state(session, user.id)
     return TokenResponse(
         access_token=token,
         user_id=user.id,
         email=user.email,
         display_name=user.display_name,
+        role=onboarding.role,
+        grade=onboarding.grade,
+        onboarded=onboarding.onboarded,
     )
 
 
@@ -135,10 +140,14 @@ async def google_callback(
             await session.refresh(user)
 
     jwt_token = create_access_token(user.id, user.email)
+    onboarding = await login_state(session, user.id)
     return TokenResponse(
         access_token=jwt_token,
         user_id=user.id,
         email=user.email,
         display_name=user.display_name,
         picture=picture,
+        role=onboarding.role,
+        grade=onboarding.grade,
+        onboarded=onboarding.onboarded,
     )

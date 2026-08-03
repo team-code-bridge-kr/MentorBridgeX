@@ -77,6 +77,18 @@ export function StoreProvider({ children }) {
         throw e;
       }
     },
+    /**
+     * 세션의 사용자 정보를 부분 갱신한다 (온보딩에서 역할·학년을 정한 직후).
+     * 다시 로그인하지 않아도 사이드바·게이팅이 바로 새 역할을 따르게 하려는 것.
+     */
+    updateSessionUser(patch) {
+      const cur = stateRef.current.session;
+      if (!cur) return null;
+      const next = { ...cur, user: { ...cur.user, ...patch } };
+      saveSession(next);
+      dispatch({ type: "AUTH_OK", session: next });
+      return next;
+    },
     async signOut() {
       await api.auth.signOut();
       clearSession();

@@ -3,6 +3,7 @@ import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
+import { ClassroomJoinCard } from "../../components/onboarding/ClassroomJoinCard.jsx";
 
 export function S30({ onNav }) {
   const { state } = useStore();
@@ -78,12 +79,14 @@ export function S30({ onNav }) {
                 </div>
               ))}
             </div>
+            <ClassroomJoinCard />
             <div className="card card-p">
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>빠른 이동</div>
               <div className="grid2" style={{ gap: 8 }}>
                 {[
                   { ic: "📊", t: "활동 통계", s: "S28" }, { ic: "💬", t: "코멘트 목록", s: "S24" },
                   { ic: "🔔", t: "알림 목록", s: "S25" }, { ic: "📝", t: "양식", s: "S20" },
+                  { ic: "🎯", t: "관심 설정 다시 하기", s: "S03" },
                 ].map((item) => (
                   <div key={item.t} onClick={() => onNav(item.s)} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: 10, background: TDS.bgSecondary, cursor: "pointer", border: `1px solid ${TDS.borderDefault}` }}>
                     <TFI s={18} color={TDS.textSecondary}>{item.ic}</TFI>

@@ -28,7 +28,9 @@ import { InterestKeywordSection } from "../../components/research/InterestKeywor
 import { KeywordManagementDrawer } from "../../components/research/KeywordManagementDrawer.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import { useExplorationFeed } from "../../hooks/useExplorationFeed.js";
+import { defaultFeedTab } from "../../lib/onboardingData.js";
 import { useInterestKeywords } from "../../hooks/useInterestKeywords.js";
+import { useStore } from "../../store/StoreProvider.jsx";
 
 const FEATURED = 4; // 히어로 1 + 카드 3
 
@@ -78,8 +80,12 @@ function SaveButton({ item, onToggle }) {
 }
 
 export function S41({ onNav }) {
+  const { state } = useStore();
   const interests = useInterestKeywords();
-  const feed = useExplorationFeed({ groups: interests.groups });
+  const feed = useExplorationFeed({
+    groups: interests.groups,
+    defaultTab: defaultFeedTab(state.session?.user?.grade),
+  });
   const { filters, patch } = feed;
 
   const [draft, setDraft] = useState(filters.query);
@@ -87,11 +93,11 @@ export function S41({ onNav }) {
   const [checkedProfile, setCheckedProfile] = useState(false);
   const sentinel = useRef(null);
 
-  // 온보딩 게이트 — 트랙을 아직 고르지 않았으면 S40 으로 보낸다
+  // 온보딩 게이트 — 관심 분야를 아직 고르지 않았으면 온보딩으로 보낸다
   useEffect(() => {
     api.research
       .profile()
-      .then((p) => { if (!p.onboarded) onNav("S40"); else setCheckedProfile(true); })
+      .then((p) => { if (!p.onboarded) onNav("S03"); else setCheckedProfile(true); })
       .catch(() => setCheckedProfile(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

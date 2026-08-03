@@ -16,6 +16,7 @@ import { renderScreen } from "./screens/index.jsx";
 import { S_NAV, T_NAV, A_NAV, TITLES, NO_HDR, NAV_ALIAS,
          SHARED_SCREENS, getLayout } from "./nav/menus.js";
 import {
+  ONBOARDING_SCREEN,
   PUBLIC_SCREENS,
   screenToPath,
   pathToScreen,
@@ -28,7 +29,9 @@ function requiredRole(s, sessionRole) {
   if (SHARED_SCREENS.includes(s) && sessionRole) return sessionRole;
   if (s === "A00" || s.startsWith("A")) return "admin";
   if (s.startsWith("T")) return "teacher";
-  return "student";
+  // 멘토는 아직 전용 화면이 없어서 학생 화면을 함께 쓴다. 여기서 "student" 를
+  // 그대로 돌려주면 멘토가 홈으로 튕기고, 그 홈이 또 S 화면이라 무한히 돈다.
+  return sessionRole === "mentor" ? "mentor" : "student";
 }
 
 export default function App() {
@@ -51,7 +54,10 @@ export default function App() {
 function RootRedirect() {
   const { state } = useStore();
   if (state.session?.user) {
-    return <Navigate to={screenToPath(homeScreenForRole(state.session.user.role))} replace />;
+    const u = state.session.user;
+    const target =
+      u.onboarded === false ? ONBOARDING_SCREEN : homeScreenForRole(u.role, u.grade);
+    return <Navigate to={screenToPath(target)} replace />;
   }
   return <Navigate to="/login" replace />;
 }
@@ -64,7 +70,9 @@ function AppShell() {
   const [picker, setPicker] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  const screen = pathToScreen(location.pathname) || (session ? homeScreenForRole(session.user.role) : "S01");
+  const screen =
+    pathToScreen(location.pathname) ||
+    (session ? homeScreenForRole(session.user.role, session.user.grade) : "S01");
 
   const nav = useCallback((id, opts = {}) => {
     if (opts.preview) setPreview(true);
@@ -82,9 +90,24 @@ function AppShell() {
       return;
     }
     if (session) {
+      // 온보딩을 끝내지 않았으면 어디로 가든 온보딩부터. 역할·관심사가 없으면
+      // 나머지 화면이 전부 빈 상태로 나온다 — 그 빈 화면을 보여줄 이유가 없다.
+      if (
+        session.user.onboarded === false &&
+        screen !== ONBOARDING_SCREEN &&
+        screen !== "S02"
+      ) {
+        navigate(screenToPath(ONBOARDING_SCREEN), { replace: true });
+        return;
+      }
+      // 온보딩 중에는 역할이 아직 정해지지 않았거나 방금 바뀌었다. 여기서
+      // 역할 검사를 하면 교사를 고른 사람이 교사 대시보드로 튕겨 나간다.
+      if (screen === ONBOARDING_SCREEN) return;
       const need = requiredRole(screen, session.user.role);
       if (need !== session.user.role && !PUBLIC_SCREENS.includes(screen)) {
-        navigate(screenToPath(homeScreenForRole(session.user.role)), { replace: true });
+        navigate(screenToPath(homeScreenForRole(session.user.role, session.user.grade)), {
+          replace: true,
+        });
       }
     }
   }, [session, screen, preview, navigate]);
@@ -97,7 +120,11 @@ function AppShell() {
       const onLoginOrOAuth = screen === "S01" || screen === "S02" || location.pathname === "/";
       if (onLoginOrOAuth) {
         setPreview(false);
-        navigate(screenToPath(homeScreenForRole(session.user.role)), { replace: true });
+        const target =
+          session.user.onboarded === false
+            ? ONBOARDING_SCREEN
+            : homeScreenForRole(session.user.role, session.user.grade);
+        navigate(screenToPath(target), { replace: true });
       }
     }
     if (!session && prevSession.current) {

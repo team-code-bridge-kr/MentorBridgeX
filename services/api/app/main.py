@@ -22,6 +22,7 @@ from app.errors import (
     validation_error_handler,
 )
 from app.features.assistant import routes as assistant_routes
+from app.features.onboarding import routes as onboarding_routes
 from app.features.research import routes as research_routes
 from app.features.research.scheduler import scheduler_loop
 from app.features.research.seed import seed_sources, seed_tracks
@@ -119,6 +120,8 @@ def create_app() -> FastAPI:
     app.include_router(product.stats_router)
     app.include_router(stt_routes.router)
     app.include_router(research_routes.router)
+    app.include_router(onboarding_routes.router)
+    app.include_router(onboarding_routes.classroom_router)
     app.include_router(assistant_routes.router)
 
     if STATIC_DIR.exists():

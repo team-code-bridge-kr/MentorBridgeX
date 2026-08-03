@@ -58,8 +58,17 @@ function writeToUrl(filters) {
   }
 }
 
-export function useExplorationFeed({ groups }) {
-  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...readFromUrl() }));
+/**
+ * @param defaultTab 처음 열 탭. 3학년은 논문부터 본다(온보딩에서 고른 학년).
+ *                   주소에 탭이 적혀 있으면 그쪽이 이긴다 — 링크로 들어온
+ *                   사람이 다른 탭을 보게 되면 안 된다.
+ */
+export function useExplorationFeed({ groups, defaultTab }) {
+  const [filters, setFilters] = useState(() => ({
+    ...DEFAULT_FILTERS,
+    ...(defaultTab ? { tab: defaultTab } : {}),
+    ...readFromUrl(),
+  }));
   const [items, setItems] = useState([]);
   const [cursor, setCursor] = useState(null);
   const [done, setDone] = useState(false);

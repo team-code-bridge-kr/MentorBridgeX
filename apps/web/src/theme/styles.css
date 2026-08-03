@@ -1586,3 +1586,201 @@ tr:hover td { background:var(--surface-container-low); }
 @media (max-width:1200px){ .stat-row{ grid-template-columns:repeat(3,1fr); } }
 @media (max-width:768px){  .stat-row{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:480px){  .stat-row{ grid-template-columns:1fr; } }
+
+/* ══════════════════════════════════════════════════════════════
+   온보딩 (S03) — 가입 직후 역할·학년·관심 분야
+   설계 원칙은 docs/onboarding.md, 화면 규격은 design-guide 를 따른다.
+   - 모바일이 기본이다. 카드 1열, 칩 자동 줄바꿈, 탭 영역 최소 44px.
+   - 필수 표시는 별표가 아니라 비활성 버튼으로 한다(학생용 화면).
+══════════════════════════════════════════════════════════════ */
+
+.ob-wrap {
+  min-height:100vh; background:var(--bg2);
+  display:flex; align-items:center; justify-content:center;
+  padding:32px 16px; overflow-y:auto;
+}
+.ob-card {
+  width:100%; max-width:680px; background:var(--bg1);
+  border-radius:24px; padding:40px 44px 32px;
+  box-shadow:var(--surface-1);
+}
+.ob-card-loading { text-align:center; color:var(--tt); font-size:14px; padding:60px 20px; }
+
+/* 진행바 — 완료 칸은 파랑, 남은 칸은 연회색 */
+.ob-progress { display:flex; gap:6px; margin-bottom:28px; }
+.ob-progress-cell {
+  flex:1; height:4px; border-radius:2px; background:var(--bg3);
+  transition:background-color .2s;
+}
+.ob-progress-cell.is-done { background:var(--blue-500); }
+
+.ob-title {
+  font-size:26px; font-weight:700; line-height:1.34; color:var(--tp);
+  margin:0 0 8px; word-break:keep-all;
+}
+.ob-title-accent { color:var(--blue-500); }
+.ob-title-emoji { font-family:'TossFace', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-style:normal; }
+.ob-sub { font-size:14px; color:var(--tt); margin:0 0 24px; word-break:keep-all; }
+.ob-body { margin-bottom:24px; }
+.ob-hint { font-size:13px; color:var(--tt); margin:10px 0 0; word-break:keep-all; }
+.ob-warn { font-size:13px; color:var(--danger); margin:10px 0 0; word-break:keep-all; }
+.ob-optional { font-weight:400; color:var(--tt); }
+
+.ob-foot {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding-top:20px; border-top:1px solid var(--bg3);
+}
+.ob-foot-actions { display:flex; align-items:center; gap:10px; }
+.ob-back, .ob-skip, .ob-restart {
+  background:none; border:none; font-family:inherit; font-size:13px;
+  color:var(--tt); cursor:pointer; padding:10px 6px; min-height:44px;
+}
+.ob-back:hover, .ob-skip:hover, .ob-restart:hover { color:var(--ts); }
+.ob-note { text-align:center; font-size:12.5px; color:var(--tt); margin:16px 0 0; }
+
+/* ── STEP 0 역할 ─────────────────────────────────────────── */
+/* 학생 카드가 넓다 — 세 칸이 똑같으면 어느 쪽이 보통인지 안 보인다 */
+.ob-role-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.ob-role {
+  display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+  padding:20px 18px; border-radius:16px; border:1.5px solid var(--brd);
+  background:var(--bg1); cursor:pointer; text-align:left;
+  font-family:inherit; transition:border-color .14s, background-color .14s;
+}
+.ob-role.is-wide { grid-column:1 / -1; }
+.ob-role:hover:not(:disabled) { border-color:var(--blue-300); background:var(--bg2); }
+.ob-role.is-on { border-color:var(--blue-500); background:var(--blue-50); }
+.ob-role:disabled { opacity:.6; cursor:default; }
+.ob-role-emoji { font-family:'TossFace', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-size:26px; line-height:1; }
+.ob-role-label { font-size:16px; font-weight:700; color:var(--tp); }
+.ob-role-desc { font-size:13px; color:var(--tt); line-height:1.55; word-break:keep-all; }
+
+/* ── STEP 1 학년 ─────────────────────────────────────────── */
+.ob-grade-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ob-grade {
+  display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+  padding:16px 18px; border-radius:14px; border:1.5px solid var(--brd);
+  background:var(--bg1); cursor:pointer; text-align:left; font-family:inherit;
+  transition:border-color .14s, background-color .14s;
+}
+.ob-grade:hover:not(:disabled) { border-color:var(--blue-300); }
+.ob-grade.is-on { border-color:var(--blue-500); background:var(--blue-50); }
+.ob-grade-label { font-size:15px; font-weight:700; color:var(--tp); }
+.ob-grade-effect { font-size:12.5px; color:var(--tt); word-break:keep-all; }
+
+/* ── STEP 2 계열 ─────────────────────────────────────────── */
+.ob-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ob-field {
+  display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+  padding:16px; border-radius:14px; border:1.5px solid var(--brd);
+  background:var(--bg1); cursor:pointer; text-align:left; font-family:inherit;
+  transition:border-color .14s, background-color .14s;
+}
+.ob-field:hover:not(:disabled) { border-color:var(--blue-300); }
+.ob-field.is-on { border-color:var(--blue-500); background:var(--blue-50); }
+.ob-field:disabled { opacity:.45; cursor:not-allowed; }
+.ob-field-label { font-size:14.5px; font-weight:700; color:var(--tp); }
+.ob-field-sample { font-size:12px; color:var(--tt); word-break:keep-all; }
+.ob-multi-toggle {
+  margin-top:12px; background:none; border:none; font-family:inherit;
+  font-size:13px; font-weight:600; color:var(--blue-500); cursor:pointer;
+  padding:10px 0; min-height:44px;
+}
+
+/* ── STEP 3·4 칩 ─────────────────────────────────────────── */
+.ob-major-row, .ob-kw-row { display:flex; flex-wrap:wrap; gap:8px; }
+.ob-major, .ob-kw {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:9px 14px; min-height:40px; border-radius:var(--rfull);
+  border:1.5px solid var(--brd); background:var(--bg1);
+  font-family:inherit; font-size:13.5px; font-weight:500; color:var(--ts);
+  cursor:pointer; transition:border-color .14s, background-color .14s, color .14s;
+}
+.ob-major:hover:not(:disabled), .ob-kw:hover:not(:disabled) { border-color:var(--blue-300); }
+/* 선택은 옅은 파랑이다. 진하게 채우면 '시작하기'와 같은 무게가 된다 */
+.ob-major.is-on, .ob-kw.is-on {
+  border-color:var(--blue-500); background:var(--blue-50); color:var(--blue-500); font-weight:600;
+}
+.ob-kw.is-static { cursor:default; border-style:dashed; }
+.ob-check { font-size:11px; }
+
+.ob-unsure {
+  display:flex; flex-direction:column; gap:3px; align-items:flex-start;
+  width:100%; margin-top:18px; padding:16px 18px; border-radius:14px;
+  border:1.5px dashed var(--brd); background:var(--bg2);
+  font-family:inherit; font-size:14.5px; font-weight:700; color:var(--tp);
+  cursor:pointer; text-align:left; transition:border-color .14s, background-color .14s;
+}
+.ob-unsure:hover:not(:disabled) { border-color:var(--blue-400); background:var(--blue-50); }
+.ob-unsure-sub { font-size:12.5px; font-weight:400; color:var(--tt); word-break:keep-all; }
+
+.ob-kw-add { display:flex; gap:8px; margin-top:16px; }
+.ob-kw-add .inp { flex:1; }
+.ob-kw-manual { margin-top:10px; }
+.ob-kw-summary { margin-top:18px; }
+
+/* ── STEP 5 미리보기 ─────────────────────────────────────── */
+.ob-prev-list { display:flex; flex-direction:column; gap:10px; }
+.ob-prev {
+  display:flex; gap:12px; padding:14px; border-radius:14px;
+  background:var(--bg1); box-shadow:var(--surface-1);
+}
+.ob-prev-img {
+  width:76px; height:76px; flex-shrink:0; object-fit:cover; border-radius:10px;
+  background:var(--bg3);
+}
+.ob-prev-text { min-width:0; }
+.ob-prev-title {
+  font-size:14.5px; font-weight:700; color:var(--tp); margin:0 0 4px;
+  line-height:1.4; word-break:keep-all;
+}
+.ob-prev-sum {
+  font-size:13px; color:var(--ts); margin:0 0 6px; line-height:1.6;
+  word-break:keep-all;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.ob-prev-meta { font-size:11.5px; color:var(--tt); margin:0; }
+.ob-prev-skel { height:104px; border-radius:14px; background:var(--bg3); }
+
+/* ── 학급 ────────────────────────────────────────────────── */
+.ob-class-list { list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:8px; }
+.ob-class {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; border-radius:12px; background:var(--bg1); box-shadow:var(--surface-1);
+}
+.ob-class-name { font-size:14px; font-weight:700; color:var(--tp); }
+.ob-class-school, .ob-class-count { font-size:12.5px; color:var(--tt); margin-left:8px; }
+/* 칠판에 적어 주는 값이라 크고 또렷하게 */
+.ob-class-code {
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:17px; font-weight:700; letter-spacing:.14em; color:var(--blue-500);
+  background:var(--blue-50); padding:6px 12px; border-radius:8px; white-space:nowrap;
+}
+.ob-class-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ob-class-btn {
+  display:flex; flex-direction:column; gap:4px; align-items:flex-start;
+  padding:16px 18px; border-radius:14px; border:1.5px solid var(--brd);
+  background:var(--bg1); cursor:pointer; text-align:left; font-family:inherit;
+  transition:border-color .14s, background-color .14s;
+}
+.ob-class-btn:hover:not(:disabled) { border-color:var(--blue-300); background:var(--bg2); }
+.ob-class-btn-title { font-size:14.5px; font-weight:700; color:var(--tp); }
+.ob-class-btn-sub { font-size:12.5px; color:var(--tt); word-break:keep-all; }
+.ob-class-form { display:flex; align-items:center; gap:8px; }
+.ob-class-form .inp { flex:1; }
+.ob-code-inp {
+  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing:.16em; text-transform:uppercase;
+}
+.ob-set-title { font-size:14px; font-weight:700; color:var(--tp); margin-bottom:12px; }
+
+/* ── 모바일 ──────────────────────────────────────────────── */
+@media (max-width:600px) {
+  .ob-wrap { padding:0; align-items:flex-start; background:var(--bg1); }
+  .ob-card { max-width:none; border-radius:0; padding:24px 16px 32px; box-shadow:none; min-height:100vh; }
+  .ob-title { font-size:22px; }
+  /* 폰에서는 한 줄에 하나씩 — 두 칸으로 쪼개면 예시 학과가 잘린다 */
+  .ob-role-grid, .ob-grade-grid, .ob-field-grid, .ob-class-actions { grid-template-columns:1fr; }
+  .ob-class-form { flex-wrap:wrap; }
+  .ob-prev-img { width:60px; height:60px; }
+}

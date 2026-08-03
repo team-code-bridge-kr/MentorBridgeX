@@ -23,6 +23,8 @@ from app.db.factory import is_offline_demo
 from app.db.postgres import UserRow, utcnow
 from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
+from app.features.onboarding.models import UserMajorRow, UserProfileRow
+from app.features.onboarding.service import login_state
 
 from .feed import (
     DEFAULT_LIMIT,
@@ -71,7 +73,7 @@ from .schemas import (
     TrackListOut,
     TrackOut,
 )
-from .seed_data import TRACKS
+from .seed_data import TRACKS, keyword_pairs
 from .terms.service import recompute_terms
 
 logger = logging.getLogger("research.api")
@@ -103,7 +105,14 @@ async def list_tracks(session: DbSession) -> TrackListOut:
     if session is None or is_offline_demo():
         return TrackListOut(
             tracks=[
-                TrackOut(id=t[0], name=t[1], field=t[2], description=t[3], keywords=t[4])
+                TrackOut(
+                    id=t[0],
+                    name=t[1],
+                    field=t[2],
+                    description=t[3],
+                    keywords=t[4],
+                    keyword_groups=keyword_pairs(t[4]),
+                )
                 for t in TRACKS
             ]
         )
@@ -119,6 +128,9 @@ async def list_tracks(session: DbSession) -> TrackListOut:
     for track_id, keyword in kw_rows.all():
         by_track.setdefault(track_id, []).append(keyword)
 
+    # 한국어·영어 짝은 **시드의 나열 순서**가 정한다. DB 에서 읽으면 정렬이
+    # 바뀌어 짝을 알 수 없으므로, 묶음만 시드 상수에서 만든다.
+    seed_keywords = {t[0]: t[4] for t in TRACKS}
     return TrackListOut(
         tracks=[
             TrackOut(
@@ -127,6 +139,7 @@ async def list_tracks(session: DbSession) -> TrackListOut:
                 field=t.field,
                 description=t.description,
                 keywords=by_track.get(t.id, []),
+                keyword_groups=keyword_pairs(seed_keywords.get(t.id, [])),
             )
             for t in tracks
         ]
@@ -146,7 +159,12 @@ async def get_profile(user: CurrentUser, session: DbSession) -> ProfileOut:
         select(func.count()).select_from(UserKeywordRow).where(UserKeywordRow.user_id == user.id)
     )
     if not found:
-        return ProfileOut(onboarded=False, keyword_count=count or 0)
+        # 대표 학과가 없어도 온보딩을 끝냈을 수 있다 — "아직 모르겠어요"로
+        # 계열만 고른 경우다. 그 사람을 다시 온보딩으로 돌려보내면 안 된다.
+        return ProfileOut(
+            onboarded=(await login_state(db, user.id)).onboarded,
+            keyword_count=count or 0,
+        )
     profile, track_name = found
     return ProfileOut(
         onboarded=True,
@@ -419,13 +437,27 @@ async def toggle_save(body: SaveIn, user: CurrentUser, session: DbSession) -> Ok
 async def delete_my_research_data(user: CurrentUser, session: DbSession) -> OkOut:
     """관심 키워드와 읽기 이력은 개인정보다. 요청하면 전부 지운다.
 
-    지우는 것: research_profiles, user_keywords, user_reads.
+    지우는 것: research_profiles, user_keywords, user_reads, user_majors.
     articles 는 공용 수집 데이터라 개인과 무관하므로 남는다.
+
+    관심 설정을 지웠으면 온보딩도 되돌린다. 키워드가 하나도 없는 채로 "온보딩
+    완료" 상태를 남겨 두면 다음 로그인에 **빈 피드**로 떨어지고, 다시 고를 길이
+    없다. 역할과 학년은 관심사와 무관하므로 남긴다.
+
+    계정 삭제를 만들 때는 이 경로에 더해 user_profiles·classroom_members·
+    mentor_profiles 까지 함께 지워야 한다.
     """
     db = _require_db(session)
     await db.execute(delete(UserReadRow).where(UserReadRow.user_id == user.id))
     await db.execute(delete(UserKeywordRow).where(UserKeywordRow.user_id == user.id))
     await db.execute(delete(ResearchProfileRow).where(ResearchProfileRow.user_id == user.id))
+    await db.execute(delete(UserMajorRow).where(UserMajorRow.user_id == user.id))
+    profile = await db.get(UserProfileRow, user.id)
+    if profile is not None:
+        profile.track_group = None
+        profile.completed_at = None
+        profile.step = 1
+        profile.updated_at = await utcnow()
     await db.commit()
     # 로그에 이메일·키워드 같은 식별 정보를 남기지 않는다
     logger.info("research data deleted user=%s", user.id)
