@@ -1,0 +1,241 @@
+"""학과/계열 프리셋 시드 데이터.
+
+키워드는 한국어와 영어를 함께 넣는다 — 한국 뉴스 RSS 와 영어 논문 API 를
+같은 키워드 집합으로 매칭해야 하기 때문이다.
+
+키워드 선정 규칙:
+- 1글자 키워드 금지. pg_trgm 부분일치라서 "암" 은 "프로그램"·"암호" 에 걸린다.
+- 2글자도 최소화. 대신 "종양"·"항암" 처럼 분야가 드러나는 말을 쓴다.
+- 영어 약어는 3글자 이상만 (ESG 는 되고 AI 는 "said"·"AIDS" 에 걸려서 뺐다).
+
+각 트랙의 앞 4개는 그 분야의 중심 개념이라 가중치를 높였다.
+"""
+
+from __future__ import annotations
+
+CORE_WEIGHT = 1.5
+BASE_WEIGHT = 1.0
+
+# (id, name, field, description, [keywords])
+TRACKS: list[tuple[str, str, str, str, list[str]]] = [
+    (
+        "cs",
+        "컴퓨터공학 / 소프트웨어",
+        "공학",
+        "프로그래밍, 시스템, 소프트웨어 개발 전반",
+        [
+            "알고리즘", "algorithm", "자료구조", "data structure",
+            "운영체제", "operating system", "컴파일러", "compiler",
+            "분산시스템", "distributed system", "클라우드", "cloud computing",
+            "사이버보안", "cybersecurity", "오픈소스", "open source",
+            "소프트웨어공학", "software engineering", "데이터베이스", "database",
+        ],
+    ),
+    (
+        "ai",
+        "인공지능 / 데이터사이언스",
+        "공학",
+        "머신러닝, 딥러닝, 데이터 분석",
+        [
+            "인공지능", "artificial intelligence", "머신러닝", "machine learning",
+            "딥러닝", "deep learning", "강화학습", "reinforcement learning",
+            "트랜스포머", "transformer", "언어모델", "language model",
+            "컴퓨터비전", "computer vision", "자연어처리",
+            "natural language processing", "생성형", "generative model",
+            "추천시스템", "recommender system", "데이터사이언스",
+        ],
+    ),
+    (
+        "ee",
+        "전기전자 / 반도체",
+        "공학",
+        "반도체 소자, 회로, 통신",
+        [
+            "반도체", "semiconductor", "집적회로", "integrated circuit",
+            "트랜지스터", "transistor", "파운드리", "foundry",
+            "전력전자", "power electronics", "신호처리", "signal processing",
+            "이동통신", "wireless communication", "회로설계", "circuit design",
+            "광전자", "photonics", "메모리반도체",
+        ],
+    ),
+    (
+        "mech",
+        "기계 / 로봇",
+        "공학",
+        "로보틱스, 제어, 기계 설계",
+        [
+            "로봇", "robotics", "자율주행", "autonomous driving",
+            "제어시스템", "control system", "메카트로닉스", "mechatronics",
+            "유체역학", "fluid dynamics", "열역학", "thermodynamics",
+            "구조해석", "finite element", "적층제조", "additive manufacturing",
+            "액추에이터", "actuator", "드론",
+        ],
+    ),
+    (
+        "chem",
+        "화학 / 화학공학",
+        "자연",
+        "촉매, 합성, 소재, 공정",
+        [
+            "촉매", "catalysis", "유기합성", "organic synthesis",
+            "고분자", "polymer", "전기화학", "electrochemistry",
+            "나노소재", "nanomaterial", "반응공학", "reaction engineering",
+            "분광", "spectroscopy", "분리공정", "separation process",
+            "그린케미스트리", "green chemistry",
+        ],
+    ),
+    (
+        "bio",
+        "생명과학 / 생명공학",
+        "자연",
+        "유전자, 세포, 단백질, 바이오테크",
+        [
+            "유전자", "gene editing", "크리스퍼", "CRISPR",
+            "단백질", "protein structure", "세포", "cell biology",
+            "미생물", "microbiome", "면역", "immunology",
+            "합성생물학", "synthetic biology", "유전체", "genomics",
+            "신경과학", "neuroscience", "바이오의약품",
+        ],
+    ),
+    (
+        "med",
+        "의예 / 치의예 / 약학",
+        "의약",
+        "질병, 치료, 신약, 임상",
+        [
+            "종양", "cancer", "신약개발", "drug discovery",
+            "임상시험", "clinical trial", "정밀의료", "precision medicine",
+            "백신", "vaccine", "감염병", "infectious disease",
+            "의료영상", "medical imaging", "약물전달", "drug delivery",
+            "항생제", "antibiotic resistance", "항암",
+        ],
+    ),
+    (
+        "nursing",
+        "간호 / 보건",
+        "의약",
+        "간호, 공중보건, 보건정책",
+        [
+            "간호", "nursing", "공중보건", "public health",
+            "감염관리", "infection control", "환자안전", "patient safety",
+            "만성질환", "chronic disease", "역학조사", "epidemiology",
+            "정신건강", "mental health", "보건정책", "health policy",
+            "건강불평등", "health equity", "노인돌봄",
+        ],
+    ),
+    (
+        "math",
+        "수학 / 통계",
+        "자연",
+        "순수수학, 응용수학, 통계학",
+        [
+            "통계", "statistics", "확률", "probability",
+            "미분방정식", "differential equation", "최적화", "optimization",
+            "위상수학", "topology", "정수론", "number theory",
+            "그래프이론", "graph theory", "선형대수", "linear algebra",
+            "수치해석", "numerical analysis", "베이즈", "Bayesian",
+        ],
+    ),
+    (
+        "physics",
+        "물리 / 천문",
+        "자연",
+        "양자, 입자, 우주, 응집물질",
+        [
+            "양자", "quantum", "양자컴퓨팅", "quantum computing",
+            "입자물리", "particle physics", "우주", "astrophysics",
+            "중력파", "gravitational wave", "블랙홀", "black hole",
+            "응집물질", "condensed matter", "초전도", "superconductivity",
+            "외계행성", "exoplanet", "암흑물질", "dark matter", "광학",
+        ],
+    ),
+    (
+        "civil",
+        "건축 / 토목",
+        "공학",
+        "건축 설계, 구조, 도시",
+        [
+            "건축", "architecture", "구조공학", "structural engineering",
+            "도시계획", "urban planning", "스마트시티", "smart city",
+            "지반공학", "geotechnical", "교량", "bridge design",
+            "내진", "seismic design", "건설재료", "concrete",
+            "인프라", "infrastructure",
+        ],
+    ),
+    (
+        "env",
+        "환경 / 에너지",
+        "공학",
+        "기후, 재생에너지, 환경 문제",
+        [
+            "기후변화", "climate change", "탄소중립", "carbon neutrality",
+            "신재생에너지", "renewable energy", "이차전지", "battery",
+            "태양광", "solar cell", "수소에너지", "hydrogen energy",
+            "대기오염", "air pollution", "미세먼지", "탄소포집",
+            "carbon capture", "생태계", "ecosystem", "재활용", "recycling",
+        ],
+    ),
+    (
+        "biz",
+        "경영 / 경제",
+        "사회",
+        "경영학, 경제학, 금융",
+        [
+            "경영", "management", "경제", "economics",
+            "스타트업", "startup", "금융", "finance",
+            "마케팅", "marketing", "공급망", "supply chain",
+            "소비자행동", "consumer behavior", "물가", "inflation",
+            "노동시장", "labor market", "핀테크", "fintech", "ESG",
+        ],
+    ),
+    (
+        "psych",
+        "심리 / 교육",
+        "사회",
+        "심리학, 교육학, 인지·발달",
+        [
+            "심리학", "psychology", "인지", "cognition",
+            "교육", "education", "발달심리", "developmental psychology",
+            "학습동기", "motivation", "상담", "counseling",
+            "청소년", "adolescent", "정신건강", "mental health",
+            "교육격차", "educational inequality", "행동경제학",
+            "behavioral economics",
+        ],
+    ),
+    (
+        "social",
+        "사회 / 정치외교",
+        "사회",
+        "사회학, 정치학, 국제관계",
+        [
+            "사회학", "sociology", "정치", "politics",
+            "국제관계", "international relations", "외교", "diplomacy",
+            "불평등", "inequality", "인구구조", "demography",
+            "저출산", "고령화", "aging society", "이민", "migration",
+            "복지정책", "welfare policy", "여론", "public opinion",
+        ],
+    ),
+    (
+        "humanities",
+        "인문 / 어문",
+        "인문",
+        "문학, 역사, 철학, 언어",
+        [
+            "문학", "literature", "역사", "history",
+            "철학", "philosophy", "언어학", "linguistics",
+            "번역", "translation", "문화연구", "cultural studies",
+            "윤리", "ethics", "미디어", "media studies",
+            "디지털인문학", "digital humanities", "고전",
+        ],
+    ),
+]
+
+
+def track_keyword_rows() -> list[tuple[str, str, float]]:
+    """(track_id, keyword, weight) 목록으로 펼친다."""
+    rows: list[tuple[str, str, float]] = []
+    for track_id, _name, _field, _desc, keywords in TRACKS:
+        for idx, keyword in enumerate(keywords):
+            weight = CORE_WEIGHT if idx < 4 else BASE_WEIGHT
+            rows.append((track_id, keyword, weight))
+    return rows
