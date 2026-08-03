@@ -1,32 +1,36 @@
 /**
  * S41 — 탐구 피드
  *
- * 블로그처럼 읽힌다: 맨 위 한 편(히어로) + 카드 세 편 + 나머지는 줄글 목록.
- * 목록만 길게 늘어놓으면 "오늘 무엇부터 볼지"를 스스로 정해야 해서 딱딱하다.
+ * 상단이 세 가지를 **따로** 말한다. 예전에는 관심 키워드·기간 버튼·관리 버튼이
+ * 전부 같은 알약으로 한 줄에 섞여 있어서, 무엇이 내 관심사이고 무엇이 지금 걸린
+ * 조건인지 구분되지 않았다.
  *
- * 저작권상 제목 + 요약 2~3문장 + 원문 링크까지만 보여준다. 전문은 저장하지도
- * 표시하지도 않는다. 이미지도 갖고 있지 않아서(남의 이미지를 끌어다 쓰지도
- * 않는다) 썸네일 자리는 키워드로 만든 판(ArticleVisual)으로 채운다.
+ *   1. 내 관심 키워드 — 내가 등록해 둔 것 (제목 있는 별도 구역)
+ *   2. 필터          — 기간·정렬 (버튼 + 팝오버)
+ *   3. 현재 적용 중   — 지금 결과에 걸린 조건 (없으면 통째로 숨김)
  *
- * 페이지네이션은 백엔드의 keyset 커서를 그대로 이어받는다. 히어로·카드는
- * **첫 페이지의 앞 4개**로 고정된다 — 스크롤로 더 불러올 때마다 맨 위가
- * 바뀌면 읽던 자리를 잃는다.
+ * 블로그형 배치(히어로 1 + 카드 3 + 줄글)와 기사 데이터 연결은 그대로 둔다.
+ * 히어로·카드는 첫 페이지의 앞 4개로 고정된다 — 스크롤로 더 불러올 때마다 맨
+ * 위가 바뀌면 읽던 자리를 잃는다.
+ *
+ * 저작권상 제목 + 요약 2~3문장 + 원문 링크까지만 보여준다.
+ *
+ * **백엔드가 지원하지 않는 필터는 만들지 않았다.** 관련도순(글마다 점수를 매기는
+ * 구조가 없다), 출처 국내/해외(구분 데이터가 없다), 그래프 기반 추천 이유
+ * (기사↔노드 연관 API 가 없다). 있는 척하면 고른 대로 걸렸다고 착각하게 된다.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../../api/index.js";
 import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
+import { DateRangeFilter } from "../../components/research/DateRangeFilter.jsx";
+import { InterestKeywordSection } from "../../components/research/InterestKeywordSection.jsx";
+import { KeywordManagementDrawer } from "../../components/research/KeywordManagementDrawer.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
+import { useExplorationFeed } from "../../hooks/useExplorationFeed.js";
+import { useInterestKeywords } from "../../hooks/useInterestKeywords.js";
 
 const FEATURED = 4; // 히어로 1 + 카드 3
-
-// 기간 필터. 값은 일 단위이고 0 은 제한 없음 (백엔드 feed.PERIODS 와 같아야 한다)
-const PERIODS = [
-  { days: 0, label: "전체 기간" },
-  { days: 7, label: "최근 1주" },
-  { days: 30, label: "최근 1개월" },
-  { days: 90, label: "최근 3개월" },
-];
 
 const TABS = [
   { id: "all", label: "전체" },
@@ -43,24 +47,43 @@ function fmtDate(iso) {
   if (days <= 0) return "오늘";
   if (days === 1) return "어제";
   if (days < 7) return `${days}일 전`;
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 왜 이 글이 보이는지. 근거가 없으면 아무 말도 하지 않는다. */
+function Reason({ item }) {
+  const hits = item.matched_keywords || [];
+  if (!hits.length) return null;
+  return (
+    <p className="reco-why" title={`내 관심 키워드와 겹치는 말: ${hits.join(", ")}`}>
+      <span className="reco-why-label">추천 이유</span>
+      내 키워드 {hits.slice(0, 3).map((k) => `‘${k}’`).join(" · ")}와 관련
+    </p>
+  );
+}
+
+function SaveButton({ item, onToggle }) {
+  return (
+    <button
+      type="button"
+      className={`save-btn${item.saved ? " is-saved" : ""}`}
+      onClick={() => onToggle(item)}
+      aria-pressed={!!item.saved}
+      aria-label={item.saved ? `${item.title} 저장 해제` : `${item.title} 저장`}
+    >
+      <span aria-hidden="true">{item.saved ? "✔" : "🔖"}</span>
+      {item.saved ? "저장됨" : "저장"}
+    </button>
+  );
 }
 
 export function S41({ onNav }) {
-  const [tab, setTab] = useState("all");
-  // 입력 중인 글자(draft)와 실제로 조회에 쓰는 검색어(query)를 나눈다.
-  // 타이핑마다 서버를 부르면 한 글자씩 칠 때마다 피드가 깜빡인다.
-  const [draft, setDraft] = useState("");
-  const [query, setQuery] = useState("");
-  const [days, setDays] = useState(0);
-  const [keywords, setKeywords] = useState([]);
-  const [items, setItems] = useState([]);
-  const [cursor, setCursor] = useState(null);
-  const [done, setDone] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const interests = useInterestKeywords();
+  const feed = useExplorationFeed({ groups: interests.groups });
+  const { filters, patch } = feed;
+
+  const [draft, setDraft] = useState(filters.query);
+  const [drawer, setDrawer] = useState(false);
   const [checkedProfile, setCheckedProfile] = useState(false);
   const sentinel = useRef(null);
 
@@ -68,314 +91,235 @@ export function S41({ onNav }) {
   useEffect(() => {
     api.research
       .profile()
-      .then((p) => {
-        if (!p.onboarded) onNav("S40");
-        else setCheckedProfile(true);
-      })
-      .catch((e) => {
-        setErr(e.message || "프로필을 불러오지 못했습니다.");
-        setCheckedProfile(true);
-      });
+      .then((p) => { if (!p.onboarded) onNav("S40"); else setCheckedProfile(true); })
+      .catch(() => setCheckedProfile(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const load = useCallback(
-    async (nextTab, nextCursor, nextQuery = "", nextDays = 0) => {
-      setLoading(true);
-      setErr("");
-      try {
-        const data = await api.research.feed({
-          tab: nextTab,
-          cursor: nextCursor,
-          query: nextQuery,
-          days: nextDays,
-        });
-        setItems((prev) => (nextCursor ? [...prev, ...data.items] : data.items));
-        setCursor(data.next_cursor);
-        setDone(!data.next_cursor);
-      } catch (e) {
-        setErr(e.message || "피드를 불러오지 못했습니다.");
-        setDone(true);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!checkedProfile) return;
-    setItems([]);
-    setCursor(null);
-    setDone(false);
-    load(tab, null, query, days);
-  }, [tab, query, days, checkedProfile, load]);
-
-  // 내 키워드 — 칩으로 눌러 바로 모아볼 수 있게 한다
-  useEffect(() => {
-    if (!checkedProfile) return;
-    api.research.keywords().then(setKeywords).catch(() => {});
-  }, [checkedProfile]);
-
-  // 무한 스크롤 — 바닥 센티넬이 보이면 다음 페이지
+  // 무한 스크롤
   useEffect(() => {
     const node = sentinel.current;
-    if (!node || done || loading) return;
+    if (!node || feed.done || feed.loading) return undefined;
     const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && cursor) load(tab, cursor, query, days);
-      },
+      (entries) => { if (entries[0].isIntersecting) feed.loadMore(); },
       { rootMargin: "300px" }
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [cursor, done, loading, tab, query, days, load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed.done, feed.loading, feed.cursor]);
 
   const openArticle = (item) => {
-    // 낙관적 표시 — 읽음 기록 실패가 링크 이동을 막을 이유는 없다
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, read: true } : i)));
+    feed.setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, read: true } : i)));
     api.research.markRead(item.id).catch(() => {});
   };
 
   const toggleSave = async (item) => {
     const next = !item.saved;
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, saved: next } : i)));
+    feed.setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, saved: next } : i)));
     try {
       await api.research.setSaved(item.id, next);
-      if (tab === "saved" && !next) {
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
+      if (filters.tab === "saved" && !next) {
+        feed.setItems((prev) => prev.filter((i) => i.id !== item.id));
       }
     } catch {
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, saved: !next } : i)));
+      // 실패하면 되돌린다 — 저장된 줄 알고 넘어가면 안 된다
+      feed.setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, saved: !next } : i)));
     }
   };
 
-  // 히어로·카드는 앞 4개 고정. 4개가 안 되면 굳이 큰 판을 만들지 않고
-  // 전부 줄글로 보여준다 — 한두 개짜리 히어로는 허전하기만 하다.
-  const featured = items.length >= FEATURED ? items.slice(0, FEATURED) : [];
+  /** 이 글을 문맥으로 달아 대시보드 AI 로 넘긴다 (S05 가 듣는 신호). */
+  const askMbx = (item) => {
+    window.dispatchEvent(new CustomEvent("mbx:ask-article", {
+      detail: {
+        prompt: "이 자료를 요약하고 내 탐구 주제와 어떻게 연결할지 알려줘.",
+        context: { type: "article", id: item.id, label: item.title },
+      },
+    }));
+    onNav("S05");
+  };
+
+  const toggleKeyword = useCallback((id) => {
+    patch({
+      keywords: filters.keywords.includes(id)
+        ? filters.keywords.filter((k) => k !== id)
+        : [...filters.keywords, id],
+    });
+  }, [filters.keywords, patch]);
+
+  const submitSearch = (e) => {
+    e.preventDefault();
+    patch({ query: draft.trim() });
+  };
+
+  const searchedRegistered =
+    !!filters.query &&
+    interests.keywords.some((k) => k.keyword.toLowerCase() === filters.query.toLowerCase());
+
+  const featured = feed.items.length >= FEATURED ? feed.items.slice(0, FEATURED) : [];
   const hero = featured[0] || null;
   const cards = featured.slice(1);
-  const rest = items.slice(featured.length);
+  const rest = feed.items.slice(featured.length);
 
-  const search = (term) => {
-    const next = term.trim();
-    setDraft(next);
-    setQuery(next);
-  };
-  const clearSearch = () => { setDraft(""); setQuery(""); };
-
-  const registered = keywords.some((k) => k.keyword === query);
-  const addCurrentKeyword = async () => {
-    try {
-      setKeywords(await api.research.addKeyword(query));
-    } catch (e) {
-      setErr(e.message || "키워드를 추가하지 못했습니다.");
-    }
-  };
-
-  // 왜 비었는지까지 말해준다. 특히 영문 키워드는 국내 기사에 거의 안 나와서
-  // "검색이 고장났나" 로 읽히기 쉽다.
-  const asciiQuery = /^[\x00-\x7F]+$/.test(query);
-  const emptyMessage =
-    tab === "saved"
-      ? "저장한 글이 없습니다.\n피드에서 마음에 드는 글의 ‘저장’을 눌러보세요."
-      : query
-        ? `‘${query}’로 찾은 글이 없습니다.\n` +
-          (days ? "기간을 넓혀보거나, " : "") +
-          (asciiQuery
-            ? "한글 표현으로도 찾아보세요 (예: cloud computing → 클라우드).\n국내 기사에는 영문 용어가 거의 그대로 쓰이지 않습니다."
-            : "영문 표현으로도 찾아보세요 — 논문은 대부분 영어입니다.")
-        : "아직 보여드릴 글이 없습니다.\n키워드를 늘리거나 잠시 후 다시 확인해 주세요.";
+  if (!checkedProfile) {
+    return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
+  }
 
   return (
     <div className="rs-wrap">
-      <div className="rs-tabs">
+      <div className="rs-tabs" role="tablist" aria-label="콘텐츠 유형">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
-            className={`rs-tab${tab === t.id ? " on" : ""}`}
-            onClick={() => setTab(t.id)}
+            role="tab"
+            aria-selected={filters.tab === t.id}
+            className={`rs-tab${filters.tab === t.id ? " on" : ""}`}
+            onClick={() => patch({ tab: t.id })}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <form
-        className="feed-search"
-        onSubmit={(e) => { e.preventDefault(); search(draft); }}
-        role="search"
-      >
+      <form className="feed-search" onSubmit={submitSearch} role="search">
         <NavIcon name="search" size={19} color="var(--tt)" />
         <input
           className="feed-search-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="핵심 키워드로 기사 모아보기 (예: 반도체, 기후변화)"
-          aria-label="키워드로 기사 검색"
+          placeholder="새롭게 탐구할 주제나 키워드를 입력하세요"
+          aria-label="탐구 주제 검색"
           maxLength={60}
         />
         {draft && (
-          <button type="button" className="feed-search-x" onClick={clearSearch} aria-label="검색어 지우기">
-            ×
-          </button>
+          <button type="button" className="feed-search-x" aria-label="검색어 지우기"
+            onClick={() => { setDraft(""); patch({ query: "" }); }}>×</button>
         )}
-        <button type="submit" className="feed-search-go" aria-label="검색">
+        <button type="submit" className="feed-search-go" aria-label="검색" disabled={feed.loading}>
           <NavIcon name="arrowRight" size={18} color="#fff" />
         </button>
       </form>
 
-      <div className="feed-kw-row">
-        {keywords.slice(0, 12).map((k) => (
-          <button
-            key={k.keyword}
-            type="button"
-            className={`quick-chip${query === k.keyword ? " on" : ""}`}
-            onClick={() => (query === k.keyword ? clearSearch() : search(k.keyword))}
-          >
-            {k.keyword}
-          </button>
-        ))}
-        <button type="button" className="quick-chip is-manage" onClick={() => onNav("S42")}>
-          ＋ 키워드 수정
-        </button>
+      <InterestKeywordSection
+        groups={interests.groups}
+        selected={filters.keywords}
+        onToggle={toggleKeyword}
+        onManage={() => setDrawer(true)}
+        onRegister={() => setDrawer(true)}
+        loading={interests.loading}
+      />
+
+      <div className="filter-bar" role="group" aria-label="검색 필터">
+        <DateRangeFilter
+          days={filters.days}
+          from={filters.from}
+          to={filters.to}
+          onApply={(v) => patch(v)}
+        />
+        <label className="filter-btn as-select">
+          정렬
+          <select value={filters.sort} onChange={(e) => patch({ sort: e.target.value })}
+            aria-label="정렬 기준">
+            <option value="latest">최신순</option>
+            <option value="oldest">오래된순</option>
+          </select>
+        </label>
       </div>
 
-      <div className="feed-period" role="group" aria-label="검색 기간">
-        {PERIODS.map((p) => (
-          <button
-            key={p.days}
-            type="button"
-            className={`quick-chip${days === p.days ? " on" : ""}`}
-            aria-pressed={days === p.days}
-            onClick={() => setDays(p.days)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {query && (
-        <div className="feed-search-state" role="status">
-          <span>
-            <strong>‘{query}’</strong> 검색 결과
-            {/* 등록하지 않은 말로 찾을 때만 알려준다. 내 키워드를 눌렀는데
-                "키워드 밖까지 찾는다"고 하면 무슨 말인지 알 수 없다. */}
-            {!registered && (
-              <span className="feed-search-hint"> · 내 키워드 밖의 글까지 찾습니다</span>
-            )}
-          </span>
-          <span className="feed-search-acts">
-            {!registered && (
-              <button type="button" className="rs-save on" onClick={addCurrentKeyword}>
-                내 키워드로 추가
+      {feed.active.length > 0 && (
+        <section className="applied">
+          <h2 className="applied-title">현재 적용 중</h2>
+          <div className="applied-row">
+            {feed.active.map((chip) => (
+              <button
+                key={`${chip.type}:${chip.value}`}
+                type="button"
+                className="applied-chip"
+                onClick={() => { if (chip.type === "query") setDraft(""); feed.removeFilter(chip); }}
+                aria-label={`${chip.label} 조건 제거`}
+              >
+                {chip.label} <span aria-hidden="true">×</span>
               </button>
-            )}
-            <button type="button" className="rs-save" onClick={clearSearch}>검색 지우기</button>
-          </span>
+            ))}
+            <button type="button" className="applied-reset"
+              onClick={() => { feed.reset(); setDraft(""); }}>전체 초기화</button>
+          </div>
+        </section>
+      )}
+
+      {filters.query && (
+        <div className="feed-search-state" role="status">
+          <span><strong>“{filters.query}”</strong> 검색 결과</span>
+          {!searchedRegistered && (
+            <button type="button" className="rs-save on"
+              onClick={() => interests.add(filters.query).catch(() => {})}>
+              관심 키워드에 추가
+            </button>
+          )}
         </div>
       )}
 
-      {err && <div className="rs-empty" style={{ color: "var(--danger)" }}>{err}</div>}
+      {feed.error && (
+        <div className="feed-error" role="alert">
+          <span>{feed.error}</span>
+          <button type="button" className="rs-save" onClick={feed.retry}>다시 시도</button>
+        </div>
+      )}
 
-      {hero && (
+      {feed.loading && <FeedSkeleton />}
+
+      {!feed.loading && hero && (
         <article className={`feed-hero${hero.read ? " read" : ""}`}>
-          <a
-            className="feed-hero-visual"
-            href={hero.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => openArticle(hero)}
-            aria-label={hero.title}
-          >
+          <a className="feed-hero-visual" href={hero.url} target="_blank" rel="noopener noreferrer"
+            onClick={() => openArticle(hero)} aria-label={hero.title}>
             <ArticleVisual item={hero} size="lg" />
           </a>
           <div className="feed-hero-body">
-            {/* 검색 중이면 검색어가 곧 이 글을 고른 이유다 */}
-            <div className="feed-kicker">{hero.matched_keywords?.[0] || query || hero.outlet}</div>
-            <a
-              className="feed-hero-title"
-              href={hero.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => openArticle(hero)}
-            >
-              {hero.title}
-            </a>
+            <div className="feed-kicker">{hero.matched_keywords?.[0] || filters.query || hero.outlet}</div>
+            <a className="feed-hero-title" href={hero.url} target="_blank" rel="noopener noreferrer"
+              onClick={() => openArticle(hero)}>{hero.title}</a>
             {hero.summary && <p className="feed-hero-sum">{hero.summary}</p>}
-            {/* 출처와 발행일은 어떤 경우에도 함께 보인다 — 대표 이미지가 원
-                매체 것이라 더더욱 뺄 수 없다 */}
             <div className="feed-meta">
-              {hero.outlet}
-              {` / ${fmtDate(hero.published_at) || "발행일 미상"}`}
-              {hero.read && " / 읽음"}
+              {hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}
             </div>
+            <Reason item={hero} />
             <div className="feed-hero-actions">
-              <a
-                className="btn btn-primary btn-sm"
-                href={hero.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => openArticle(hero)}
-              >
-                원문 보기
-              </a>
-              <button
-                type="button"
-                className={`rs-save${hero.saved ? " on" : ""}`}
-                onClick={() => toggleSave(hero)}
-              >
-                {hero.saved ? "저장됨" : "저장"}
+              <a className="btn btn-primary btn-sm" href={hero.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => openArticle(hero)}>원문 보기</a>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => askMbx(hero)}>
+                MBX에게 질문
               </button>
+              <SaveButton item={hero} onToggle={toggleSave} />
             </div>
           </div>
         </article>
       )}
 
-      {cards.length > 0 && (
+      {!feed.loading && cards.length > 0 && (
         <div className="feed-cards">
           {cards.map((item) => (
             <article key={item.id} className={`feed-card${item.read ? " read" : ""}`}>
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => openArticle(item)}
-                aria-label={item.title}
-              >
+              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => openArticle(item)} aria-label={item.title}>
                 <ArticleVisual item={item} />
               </a>
-              <div className="feed-kicker">{item.matched_keywords?.[0] || query || item.outlet}</div>
-              <a
-                className="feed-card-title"
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => openArticle(item)}
-              >
-                {item.title}
-              </a>
+              <div className="feed-kicker">{item.matched_keywords?.[0] || filters.query || item.outlet}</div>
+              <a className="feed-card-title" href={item.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => openArticle(item)}>{item.title}</a>
+              <Reason item={item} />
               <div className="feed-card-foot">
                 <span className="feed-meta">
-                  {item.outlet}
-                  {` / ${fmtDate(item.published_at) || "발행일 미상"}`}
-                  {item.read && " / 읽음"}
+                  {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}
                 </span>
-                <button
-                  type="button"
-                  className={`rs-save${item.saved ? " on" : ""}`}
-                  onClick={() => toggleSave(item)}
-                >
-                  {item.saved ? "저장됨" : "저장"}
-                </button>
+                <SaveButton item={item} onToggle={toggleSave} />
               </div>
             </article>
           ))}
         </div>
       )}
 
-      {rest.length > 0 && (
+      {!feed.loading && rest.length > 0 && (
         <>
           <h2 className="feed-rest-hdr">더 읽을거리</h2>
           <div className="feed-rows">
@@ -386,52 +330,112 @@ export function S41({ onNav }) {
                     <span className={`badge badge-${item.kind === "paper" ? "blue" : "grey"}`}>
                       {item.kind === "paper" ? "논문" : "뉴스"}
                     </span>
-                    {item.outlet}
-                    {item.published_at && ` / ${fmtDate(item.published_at)}`}
-                    {item.read && " / 읽음"}
+                    {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
                   </div>
-                  <a
-                    className="feed-row-title"
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => openArticle(item)}
-                  >
-                    {item.title}
-                  </a>
+                  <a className="feed-row-title" href={item.url} target="_blank" rel="noopener noreferrer"
+                    onClick={() => openArticle(item)}>{item.title}</a>
                   {item.summary && <p className="feed-row-sum">{item.summary}</p>}
+                  <Reason item={item} />
                 </div>
-                <button
-                  type="button"
-                  className={`rs-save${item.saved ? " on" : ""}`}
-                  onClick={() => toggleSave(item)}
-                >
-                  {item.saved ? "저장됨" : "저장"}
-                </button>
+                <div className="feed-row-acts">
+                  <button type="button" className="rs-save" onClick={() => askMbx(item)}>MBX에게 질문</button>
+                  <SaveButton item={item} onToggle={toggleSave} />
+                </div>
               </article>
             ))}
           </div>
         </>
       )}
 
-      {!loading && items.length === 0 && !err && (
-        <div className="rs-empty" style={{ whiteSpace: "pre-line" }}>
-          {emptyMessage}
-          {tab !== "saved" && (
-            <div style={{ marginTop: 14 }}>
-              <button type="button" className="btn-inline" onClick={() => onNav("S42")}>
-                키워드 관리로 이동
-              </button>
-            </div>
-          )}
-        </div>
+      {!feed.loading && feed.items.length === 0 && !feed.error && (
+        <EmptyFeed
+          tab={filters.tab}
+          hasFilter={feed.active.length > 0}
+          hasKeywords={interests.groups.length > 0}
+          onReset={() => { feed.reset(); setDraft(""); }}
+          onManage={() => setDrawer(true)}
+        />
       )}
 
-      {loading && <div className="rs-empty">불러오는 중…</div>}
-      {!done && <div ref={sentinel} style={{ height: 1 }} />}
-      {done && items.length > 0 && (
-        <div className="rs-empty" style={{ fontSize: 13 }}>마지막 글까지 봤습니다.</div>
+      {feed.paging && <div className="rs-empty">더 불러오는 중…</div>}
+      {!feed.done && <div ref={sentinel} style={{ height: 1 }} />}
+      {feed.done && feed.items.length > 0 && (
+        <div className="rs-empty" style={{ fontSize: 13 }}>마지막 자료까지 봤습니다.</div>
       )}
+
+      <KeywordManagementDrawer
+        open={drawer}
+        onClose={() => setDrawer(false)}
+        groups={interests.groups}
+        suggestions={interests.suggestions}
+        onAdd={interests.add}
+        onRemove={interests.remove}
+        onSearch={(term) => { setDraft(term); patch({ query: term }); }}
+      />
+    </div>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="feed-hero">
+        <div className="skel-block skel-hero" />
+        <div>
+          <div className="skel-line skel-w40" />
+          <div className="skel-line skel-w90" style={{ height: 22, marginTop: 12 }} />
+          <div className="skel-line skel-w70" style={{ height: 22, marginTop: 8 }} />
+          <div className="skel-line skel-w90" style={{ marginTop: 16 }} />
+          <div className="skel-line skel-w70" style={{ marginTop: 6 }} />
+        </div>
+      </div>
+      <div className="feed-cards">
+        {[0, 1, 2].map((i) => (
+          <div key={i}>
+            <div className="skel-block skel-card" />
+            <div className="skel-line skel-w40" style={{ marginTop: 14 }} />
+            <div className="skel-line skel-w90" style={{ marginTop: 8 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmptyFeed({ tab, hasFilter, hasKeywords, onReset, onManage }) {
+  if (tab === "saved") {
+    return (
+      <div className="empty">
+        <div className="empty-title">저장한 자료가 없습니다.</div>
+        <div className="empty-sub">기사나 논문의 ‘저장’을 누르면 이곳에 모입니다.</div>
+      </div>
+    );
+  }
+  if (!hasKeywords) {
+    return (
+      <div className="empty">
+        <div className="empty-title">아직 등록된 관심 키워드가 없습니다.</div>
+        <div className="empty-sub">관심 분야를 등록하면 관련 뉴스와 논문을 추천해드려요.</div>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onManage}>
+          관심 키워드 등록하기
+        </button>
+      </div>
+    );
+  }
+  if (hasFilter) {
+    return (
+      <div className="empty">
+        <div className="empty-title">조건에 맞는 자료를 찾지 못했습니다.</div>
+        <div className="empty-sub">검색어를 줄이거나, 기간을 넓히거나, 다른 키워드를 골라보세요.</div>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onReset}>필터 초기화</button>
+      </div>
+    );
+  }
+  return (
+    <div className="empty">
+      <div className="empty-title">새로운 추천 자료를 준비하고 있습니다.</div>
+      <div className="empty-sub">관심 키워드와 지식 그래프가 많아질수록 추천이 정교해집니다.</div>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={onManage}>키워드 관리</button>
     </div>
   );
 }

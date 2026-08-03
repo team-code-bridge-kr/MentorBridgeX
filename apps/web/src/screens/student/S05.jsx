@@ -77,11 +77,23 @@ export function S05({ onNav }) {
   useEffect(() => {
     const onNew = () => { chat.reset(); ctx.clear(); setDraft(""); };
     const onResume = (e) => { if (e.detail?.id) chat.resume(e.detail.id); };
+    // 탐구 피드에서 "MBX에게 질문"으로 넘어온 자료 — 문맥을 달고 바로 묻는다
+    const onArticle = (e) => {
+      const { prompt, context } = e.detail || {};
+      if (!prompt) return;
+      const items = context ? [context] : [];
+      lastSent.current = { text: prompt, context: items };
+      chat.send(prompt, items);
+      setDraft("");
+      ctx.clear();
+    };
     window.addEventListener("mbx:new-chat", onNew);
     window.addEventListener("mbx:resume-chat", onResume);
+    window.addEventListener("mbx:ask-article", onArticle);
     return () => {
       window.removeEventListener("mbx:new-chat", onNew);
       window.removeEventListener("mbx:resume-chat", onResume);
+      window.removeEventListener("mbx:ask-article", onArticle);
     };
   }, [chat, ctx]);
 

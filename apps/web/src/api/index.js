@@ -819,12 +819,20 @@ const api = {
      * 피드. cursor 는 이전 응답의 next_cursor 를 그대로 넘긴다 (keyset 페이지네이션).
      * OFFSET 이 아니라서 수집이 도는 중에도 중복·누락이 생기지 않는다.
      */
-    async feed({ tab = "all", cursor = null, limit = 20, query = "", days = 0 } = {}) {
+    async feed({
+      tab = "all", cursor = null, limit = 20,
+      query = "", days = 0, keywords = [], from = "", to = "", sort = "latest",
+    } = {}) {
       const q = new URLSearchParams({ tab, limit: String(limit) });
       if (cursor) q.set("cursor", cursor);
       // 검색어가 있으면 내 키워드 울타리를 넘어 전체에서 찾는다 (백엔드 규칙)
       if (query) q.set("q", query);
       if (days) q.set("days", String(days));
+      if (from) q.set("from", from);
+      if (to) q.set("to", to);
+      if (sort && sort !== "latest") q.set("sort", sort);
+      // 고른 키워드는 반복 파라미터로 — 서버가 OR 로 묶는다
+      for (const k of keywords) q.append("keyword", k);
       return request(`/v1/research/feed?${q}`);
     },
     async markRead(articleId) {

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -28,6 +29,8 @@ from .feed import (
     MAX_LIMIT,
     MAX_QUERY_LEN,
     PERIODS,
+    SORT_LATEST,
+    SORTS,
     TAB_ALL,
     TAB_SAVED,
     TABS,
@@ -241,6 +244,17 @@ async def add_keyword(
     return await list_keywords(user, db)
 
 
+def _parse_day(raw: str | None, *, end_of_day: bool = False) -> datetime | None:
+    """YYYY-MM-DD → UTC datetime. 형식이 틀리면 조건을 걸지 않는다(무시)."""
+    if not raw:
+        return None
+    try:
+        day = datetime.strptime(raw.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
+    except ValueError:
+        return None
+    return day.replace(hour=23, minute=59, second=59) if end_of_day else day
+
+
 @router.get("/feed", response_model=FeedOut, summary="개인화 피드")
 async def get_feed(
     user: CurrentUser,
@@ -250,6 +264,12 @@ async def get_feed(
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
     q: Annotated[str, Query(description="검색어 (제목·요약 부분일치)", max_length=MAX_QUERY_LEN)] = "",
     days: Annotated[int, Query(description="최근 N일 (0=전체)", ge=0, le=365)] = 0,
+    keywords_selected: Annotated[
+        list[str] | None, Query(alias="keyword", description="화면에서 고른 키워드(여러 개면 OR)")
+    ] = None,
+    date_from: Annotated[str | None, Query(alias="from", description="시작일 YYYY-MM-DD")] = None,
+    date_to: Annotated[str | None, Query(alias="to", description="종료일 YYYY-MM-DD")] = None,
+    sort: Annotated[str, Query(description="latest | oldest")] = SORT_LATEST,
 ) -> FeedOut:
     db = _require_db(session)
     if tab not in TABS:
@@ -269,6 +289,11 @@ async def get_feed(
         limit=limit,
         query=query,
         days=days if days in PERIODS else 0,
+        selected=[k for k in (keywords_selected or []) if k.strip()][:20],
+        date_from=_parse_day(date_from),
+        # 종료일은 그날 하루를 포함해야 한다 — 23:59:59 까지 본다
+        date_to=_parse_day(date_to, end_of_day=True),
+        sort=sort if sort in SORTS else SORT_LATEST,
     )
     rows = (await db.execute(stmt)).all()
 

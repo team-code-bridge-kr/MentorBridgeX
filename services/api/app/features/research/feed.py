@@ -29,7 +29,12 @@ MAX_LIMIT = 50
 # 검색어 상한 — trgm LIKE 는 길수록 느려지고, 이보다 긴 건 검색어가 아니라 문장이다
 MAX_QUERY_LEN = 60
 # 기간 필터로 받는 값(일). 0 이면 제한 없음.
-PERIODS = {0, 7, 30, 90, 365}
+PERIODS = {0, 1, 7, 30, 90, 365}
+# 정렬. **관련도순은 없다** — 글마다 점수를 매기는 구조가 아직 없어서,
+# 있는 척하면 사용자가 고른 대로 정렬됐다고 착각한다.
+SORT_LATEST = "latest"
+SORT_OLDEST = "oldest"
+SORTS = {SORT_LATEST, SORT_OLDEST}
 
 
 def encode_cursor(published_at: datetime, article_id: str) -> str:
@@ -110,6 +115,10 @@ def build_feed_query(
     limit: int,
     query: str = "",
     days: int = 0,
+    selected: list[str] | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    sort: str = SORT_LATEST,
 ) -> Select:
     stmt = select(ArticleRow, UserReadRow).join(
         UserReadRow,
@@ -127,7 +136,11 @@ def build_feed_query(
         # 검색 중에는 **내 키워드 울타리를 걷는다.** 아직 등록하지 않은 개념을
         # 찾아보려고 검색하는 것인데 등록된 키워드로 한 번 더 거르면
         # "검색해도 안 나오는" 화면이 된다.
-        if not query:
+        if selected:
+            # 화면에서 고른 키워드만으로 좁힌다. 내 키워드 전체(OR)와 같은 방식이라
+            # 검색 로직을 새로 만들지 않는다 — 대상 집합만 줄어든다.
+            stmt = stmt.where(keyword_filter(selected))
+        elif not query:
             stmt = stmt.where(keyword_filter(keywords))
         if tab == TAB_NEWS:
             stmt = stmt.where(ArticleRow.kind == KIND_NEWS)
@@ -140,17 +153,28 @@ def build_feed_query(
         if condition is not None:
             stmt = stmt.where(condition)
 
-    if days:
-        # 발행일 기준. 수집 시각으로 자르면 "오래된 글을 오늘 수집한" 경우가
-        # 최근 글로 보인다.
+    # 발행일 기준으로 자른다. 수집 시각으로 자르면 "오래된 글을 오늘 수집한"
+    # 경우가 최근 글로 보인다.
+    if date_from is not None:
+        stmt = stmt.where(ArticleRow.published_at >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(ArticleRow.published_at <= date_to)
+    if days and date_from is None and date_to is None:
         stmt = stmt.where(
             ArticleRow.published_at >= datetime.now(UTC) - timedelta(days=days)
         )
 
+    # keyset 커서는 정렬 방향과 짝이 맞아야 한다. 방향이 뒤집히면 비교도 뒤집는다.
+    ascending = sort == SORT_OLDEST
     if cursor is not None:
         published_at, article_id = cursor
-        stmt = stmt.where(
-            tuple_(ArticleRow.published_at, ArticleRow.id) < tuple_(published_at, article_id)
-        )
+        pair = tuple_(ArticleRow.published_at, ArticleRow.id)
+        target = tuple_(published_at, article_id)
+        stmt = stmt.where(pair > target if ascending else pair < target)
 
-    return stmt.order_by(ArticleRow.published_at.desc(), ArticleRow.id.desc()).limit(limit)
+    order = (
+        (ArticleRow.published_at.asc(), ArticleRow.id.asc())
+        if ascending
+        else (ArticleRow.published_at.desc(), ArticleRow.id.desc())
+    )
+    return stmt.order_by(*order).limit(limit)
