@@ -32,6 +32,20 @@ export function AIComposer({
   const fileRef = useRef(null);
   const [files, setFiles] = useState([]);
 
+  /**
+   * 화면을 열자마자 커서를 여기 둔다. 단, **폰에서는 두지 않는다** — 들어오자마자
+   * 자판이 올라와 화면 절반을 가린다.
+   *
+   * 브라우저 기본 autoFocus 속성 대신 직접 부르는 이유는 preventScroll 때문이다.
+   * 기본 동작은 입력창을 보이게 하려고 조상 스크롤을 전부 움직이는데, 그 바람에
+   * 위쪽 카드 가로 스크롤이 14px 밀려서 첫 카드가 화면 끝에 붙어 보였다.
+   */
+  useEffect(() => {
+    if (!autoFocus) return;
+    if (!window.matchMedia("(min-width: 769px)").matches) return;
+    areaRef.current?.focus({ preventScroll: true });
+  }, [autoFocus]);
+
   // 내용에 맞춰 높이를 늘리되 4줄에서 멈추고 그 다음부터 스크롤
   useEffect(() => {
     const el = areaRef.current;
@@ -103,7 +117,6 @@ export function AIComposer({
         className="composer-input"
         rows={1}
         value={value}
-        autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder="질문하거나 기사·논문·영상 링크를 입력하세요"

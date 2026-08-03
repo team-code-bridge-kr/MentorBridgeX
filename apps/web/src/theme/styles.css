@@ -592,7 +592,9 @@ tr:hover td { background:var(--surface-container-low); }
    AI 영역이 화면의 약 2/3를 차지하되, 스크롤 없이 하단 카드 상단이 보이도록
    --hero-h 로 높이를 잡는다. 입력창이 화면을 다 덮으면 단순 챗봇처럼 보인다.
 ────────────────────────────────────────────────────────────── */
-:root { --hero-h: 66vh; --ai-accent:#6366f1; }
+/* 문맥 카드가 위에 서므로 예전(66vh)보다 낮춘다. flex:1 이 남는 높이를
+   가져가니 실제로는 화면의 3분의 2쯤을 차지한다. */
+:root { --hero-h: 52vh; --ai-accent:#6366f1; }
 
 /* 시각적으로는 감추고 스크린리더에는 읽히는 텍스트 */
 .sr-only {
@@ -601,16 +603,26 @@ tr:hover td { background:var(--surface-container-low); }
 }
 
 /* S05 는 헤더가 없다 (NO_HDR) — 콘텐츠가 창 상단에 바로 닿으므로 위 여백을 더 준다 */
-.dash-wrap { height:100%; overflow-y:auto; padding:32px 24px 40px; background:var(--bg1); }
+.dash-wrap { height:100%; overflow-y:auto; padding:24px 24px 28px; background:var(--bg1); }
 
-/* ── 상단 AI 시작 영역 ── */
+/* 인사 → 문맥 카드 → AI 영역. AI 영역이 남는 높이를 전부 가져가므로
+   페이지 아래에 큰 빈 칸이 남지 않는다. */
+.dash-home { display:flex; flex-direction:column; min-height:calc(100% - 52px); }
+.dash-ai { flex:1; display:flex; flex-direction:column; min-height:0; }
+.dash-hello { margin-bottom:12px; }
+.dash-hello-line { font-size:19px; font-weight:700; color:var(--tp); }
+.dash-hello-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
+.dash-hello-sub { font-size:13px; color:var(--tt); margin-top:3px; }
+@media (prefers-reduced-motion:reduce) { .dash-hello-wave { animation:none; } }
+
+/* ── AI 탐구 영역 ── */
 /* 테두리와 배경 박스를 없애 페이지와 이어지게 한다 — 섹션이 카드처럼
    떠 있으면 AI 영역이 별개 위젯처럼 보인다. 구분은 그라데이션만으로. */
 .hero {
-  position:relative; min-height:var(--hero-h);
+  position:relative; flex:1; min-height:var(--hero-h);
   display:flex; align-items:center; justify-content:center;
   border-radius:24px; background:transparent;
-  border:none; overflow:hidden; margin-bottom:12px;
+  border:none; overflow:hidden;
 }
 /* 입력창 뒤 아주 옅은 블루~청보라. 가독성을 해치지 않을 만큼만. */
 .hero-glow {
@@ -625,53 +637,28 @@ tr:hover td { background:var(--surface-container-low); }
    입력창은 원래 폭을 유지해 비율이 흐트러지지 않게 한다. */
 .hero-inner { position:relative; width:100%; max-width:980px; padding:40px 24px; text-align:center; }
 .hero-inner .composer { max-width:880px; margin-left:auto; margin-right:auto; }
-.hero-greeting { font-size:14.5px; font-weight:600; color:var(--tp); margin-bottom:10px; }
-.hero-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
 @keyframes handWave {
   0%,60%,100% { transform:rotate(0deg); }
   70% { transform:rotate(14deg); } 80% { transform:rotate(-8deg); } 90% { transform:rotate(12deg); }
 }
-/* Black 은 문장이 무거워 보인다 — Bold 로 낮춘다.
-   설명 문장을 걷어냈으므로 아래 여백은 이 제목이 갖는다. */
-.hero-title { font-size:30px; font-weight:700; color:var(--tp); letter-spacing:-.02em; line-height:1.34; margin-bottom:24px; }
-
-/* 회전 단어 — 파란 그라데이션이 글자 위를 훑고 지나가는 물결 효과.
-   폭이 바뀌면 문장이 덜컹이므로 슬롯 폭을 글자 수 기준으로 고정한다. */
-/* 폭은 JS 가 실측해 넣는다 (AIWorkspaceHero). 여기서는 전환만 담당해
-   단어가 바뀔 때 문장이 부드럽게 늘고 준다. */
-.hero-word-slot {
-  display:inline-block; text-align:center; vertical-align:bottom;
-  transition:width .34s cubic-bezier(.22,.8,.28,1);
-  white-space:nowrap;
-}
-.hero-word {
-  display:inline-block;
-  background:linear-gradient(100deg,
-    #0969da 0%, #4f46e5 22%, #38bdf8 42%, #6366f1 62%, #0969da 100%);
-  background-size:220% 100%;
-  -webkit-background-clip:text; background-clip:text;
-  color:transparent; -webkit-text-fill-color:transparent;
-  animation:heroWave 3.4s linear infinite, heroWordIn .42s cubic-bezier(.2,.8,.3,1);
-}
-.hero-word.is-static { animation:none; background-position:22% 0; }
-@keyframes heroWave { to { background-position:-220% 0; } }
-@keyframes heroWordIn {
-  from { opacity:0; transform:translateY(.32em); filter:blur(3px); }
-  to   { opacity:1; transform:none; filter:none; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .hero-word, .hero-wave { animation:none; }
-  .hero-word { background-position:22% 0; }
-  .hero-word-slot { transition:none; }
-}
+/* 설명 문장을 걷어냈으므로 아래 여백은 이 제목이 갖는다.
+   Black 은 문장이 무거워 보여서 Bold 로 낮춘다. */
+.hero-title { font-size:30px; font-weight:700; color:var(--tp); letter-spacing:-.02em; line-height:1.34; margin-bottom:22px; }
+/* 강조는 핵심 단어 하나에만. 예전에는 이 자리에서 단어가 계속 회전했는데,
+   위쪽 기사 카드가 이미 8초마다 도는 화면에서 움직이는 자리가 둘이면
+   글을 쓰려던 사람의 시선이 계속 끌려간다. */
+.hero-accent { color:var(--blue-500); }
 
 /* ── AI 입력창 — 카드보다 조금 더 강조 ── */
+/* 기본은 **연한 테두리 + 약한 그림자**다. 예전에는 홀로그램 윤곽선이 늘 켜져
+   있어서, 포커스가 없는데도 지금 입력 중인 것처럼 보였다. 강조는 실제로
+   포커스했을 때만 준다. */
 .composer {
   position:relative;
-  text-align:left; background:var(--bg1); border:1px solid transparent;
+  text-align:left; background:var(--bg1); border:1px solid var(--brd);
   border-radius:18px; padding:16px 18px 12px;
-  box-shadow:0 6px 22px rgba(15,23,42,.07);
-  transition:box-shadow .16s;
+  box-shadow:0 2px 10px rgba(15,23,42,.05);
+  transition:box-shadow .16s, border-color .16s;
 }
 /* 홀로그램 윤곽선 — 그라데이션을 테두리 두께만 남기고 마스크로 도려낸다.
    평소엔 옅게 흐르고, 포커스하면 또렷해져 입력 중임을 알린다. */
@@ -683,13 +670,15 @@ tr:hover td { background:var(--surface-container-low); }
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite:exclude;
-  opacity:.42; pointer-events:none;
-  animation:holoFlow 7s linear infinite;
+  /* 평소엔 완전히 감춘다 — 켜지는 순간이 "지금 여기에 쓰는 중"이라는 신호다 */
+  opacity:0; pointer-events:none;
+  animation:holoFlow 7s linear infinite; animation-play-state:paused;
   transition:opacity .18s;
 }
-.composer:focus-within::before { opacity:1; }
+.composer:focus-within::before { opacity:1; animation-play-state:running; }
 .composer:focus-within {
-  box-shadow:0 0 0 4px rgba(99,102,241,.11), 0 12px 34px rgba(15,23,42,.11);
+  border-color:transparent;
+  box-shadow:0 0 0 3px rgba(99,102,241,.10), 0 10px 28px rgba(15,23,42,.09);
 }
 @keyframes holoFlow { to { background-position:-280% 0; } }
 @media (prefers-reduced-motion:reduce) { .composer::before { animation:none; } }
@@ -749,41 +738,24 @@ tr:hover td { background:var(--surface-container-low); }
 .ctx-chip-x { border:none; background:transparent; cursor:pointer; font-size:14px; line-height:1; color:inherit; opacity:.55; padding:0; }
 .ctx-chip-x:hover { opacity:1; }
 
-/* ── 빠른 실행 ── */
-/* 한 줄로 유지한다 — 줄바꿈되면 마지막 한두 개만 아래로 떨어져 어색하다.
-   좁은 화면에서는 가로 스크롤로 넘긴다. */
-.quick-actions {
-  display:flex; flex-wrap:nowrap; gap:8px;
-  /* justify-content:center 는 내용이 넘칠 때 양끝을 잘라내고 스크롤이
-     시작점까지 가지 못한다. fit-content + auto 마진이면 좁을 땐 가운데,
-     넘칠 땐 왼쪽 정렬 + 정상 스크롤이 된다. */
-  width:fit-content; max-width:100%; margin:16px auto 0;
-  overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
-}
-.quick-actions::-webkit-scrollbar { display:none; }
-.quick-chip {
-  flex:0 0 auto;
-  padding:7px 14px; border-radius:9999px; border:1px solid var(--brd);
-  background:var(--bg1); color:var(--ts); font-family:inherit;
-  font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
-  transition:background .12s, border-color .12s, color .12s;
-}
-.quick-chip:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
-.quick-chip:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
-
 /* ── 최근 대화 ── */
-.recent-convos { margin-top:22px; text-align:left; }
-.recent-convos-hdr { font-size:12px; font-weight:700; color:var(--tt); margin-bottom:7px; }
-.recent-convos ul { list-style:none; display:flex; flex-direction:column; gap:2px; }
+/* 예전에는 제목이 왼쪽 끝, 시간이 오른쪽 끝이라 넓은 화면일수록 둘이 멀어져서
+   어느 시간이 어느 대화의 것인지 눈으로 이어 붙여야 했다. 지금은 제목 바로
+   아래에 붙여 한 덩어리로 읽힌다. */
+.recent-convos { max-width:880px; width:100%; margin:20px auto 0; text-align:left; }
+.recent-convos-hdr { font-size:11px; font-weight:700; color:var(--tt); margin-bottom:5px; }
+.recent-convos ul { list-style:none; display:flex; flex-direction:column; gap:1px; }
 .recent-convo {
-  width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:8px 10px; border-radius:10px; border:none; background:transparent;
+  width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  padding:7px 10px; border-radius:9px; border:none; background:transparent;
   font-family:inherit; text-align:left; cursor:pointer; transition:background .12s;
 }
-.recent-convo:hover { background:var(--bg3); }
-.recent-convo-title { font-size:13.5px; color:var(--tp); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.recent-convo-meta { display:flex; gap:8px; align-items:center; flex-shrink:0; font-size:11.5px; color:var(--tt); }
-.recent-convo-subject { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.recent-convo:hover { background:var(--bg2); }
+.recent-convo:focus-visible { outline:2px solid var(--blue-400); outline-offset:-2px; }
+.recent-convo-title { max-width:100%; font-size:13.5px; color:var(--tp); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.recent-convo-meta { display:flex; gap:5px; align-items:center; font-size:11.5px; color:var(--tt); max-width:100%; }
+.recent-convo-subject { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.recent-convo-skel { display:block; height:30px; border-radius:9px; margin-bottom:3px; background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 37%,var(--bg2) 63%); background-size:400% 100%; animation:skel 1.3s ease infinite; }
 
 /* ── 대화 모드 ──
    답변이 시작되면 하단 카드 3개를 숨기고 대화만 남긴다. 화면이 바뀌는 것을
@@ -803,7 +775,8 @@ tr:hover td { background:var(--surface-container-low); }
 }
 @media (prefers-reduced-motion:reduce) { .chat-mode { animation:none; } }
 .chat-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.chat-head-ctx { font-size:12px; color:var(--tt); }
+.chat-head-ctx { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ts); }
+.chat-head-ctx-label { font-size:11px; font-weight:700; color:var(--tt); }
 .chat-composer { margin-top:14px; }
 /* 대화 판이 화면 높이를 채우므로 목록은 남는 공간을 그대로 쓴다.
    max-height 를 따로 두면 입력창이 화면 중간에 뜬다. */
@@ -892,115 +865,208 @@ tr:hover td { background:var(--surface-container-low); }
 .ai-card-draft-hdr { font-size:11.5px; font-weight:700; color:var(--tt); margin-bottom:5px; }
 .ai-card-draft p { font-size:13px; color:var(--ts); line-height:1.6; margin-bottom:9px; }
 
-/* ── 하단 핵심 기능 카드 3개 ── */
-.dash-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:start; }
-/* 높이는 내용이 정한다. 빈 카드까지 억지로 늘리면(예전 min-height:330px)
-   "확인할 피드백"처럼 한 줄짜리 카드가 쓸데없이 길어진다. */
-.dash-card {
-  display:flex; flex-direction:column;
-  background:var(--bg1); border:none; border-radius:18px;
-  box-shadow:0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.045);
-  transition:box-shadow .16s, transform .16s;
+/* ── 상단 문맥 카드 3장 ──
+   셋은 서로 경쟁하지 않아야 한다. 하나가 더 크거나 진하면 학생은 그것만 본다.
+   그래서 높이·여백·제목 크기·버튼 크기를 여기서 한 벌로 정한다.
+   높이를 고정하는 이유: 기사 제목 길이나 피드백 유무에 따라 카드가 늘고 줄면
+   아래 AI 영역이 위아래로 흔들린다. */
+/* 146px 으로는 기사 제목 2줄 + 추천 이유가 안 들어가 마지막 줄이 잘렸다.
+   설계안의 권장치(112~140)를 조금 넘지만, 적으라고 한 내용이 다 들어가는
+   최소 높이가 이쪽이다. */
+:root { --ctx-h:152px; }
+/* minmax(0,1fr) — 그냥 1fr 이면 최소폭이 '내용이 안 잘리는 폭'이라
+   제목이 긴 기사 카드만 넓어진다. 세 카드는 언제나 같은 폭이어야 한다. */
+.ctx-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:8px; }
+.ctx-card {
+  height:var(--ctx-h);
+  /* 가로 스크롤로 바뀌는 좁은 화면에서 flex 아이템의 최소폭은 '내용이 안 잘리는
+     폭'이다. 제목이 긴 기사 카드만 넓어지므로 0 으로 눌러 둔다. */
+  min-width:0;
+  display:flex; flex-direction:column; gap:6px;
+  padding:12px 14px; border-radius:14px;
+  background:var(--bg1); border:1px solid var(--brd);
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+  overflow:hidden;
+  transition:border-color .14s, box-shadow .14s;
 }
-.dash-card:hover { box-shadow:0 2px 6px rgba(15,23,42,.06), 0 14px 34px rgba(15,23,42,.09); transform:translateY(-1px); }
-.dash-card-hdr { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 10px; }
-.dash-card-title { display:flex; align-items:center; gap:7px; font-size:14.5px; font-weight:700; color:var(--tp); }
-.dash-badge {
-  min-width:19px; height:19px; padding:0 5px; border-radius:9999px;
-  background:var(--blue-500); color:#fff; font-size:11px; font-weight:700;
-  display:inline-flex; align-items:center; justify-content:center;
+.ctx-card:hover { border-color:var(--blue-200); box-shadow:0 2px 10px rgba(15,23,42,.06); }
+.ctx-card-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; }
+.ctx-card-title { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--tp); }
+/* 개수는 파란 알약이 아니라 옅은 회색 — 카드마다 색이 튀면 위계가 무너진다 */
+.ctx-card-count {
+  padding:1px 6px; border-radius:9999px; background:var(--bg3);
+  font-size:11px; font-weight:700; color:var(--ts);
 }
-.dash-link { border:none; background:transparent; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--primary); cursor:pointer; }
-.dash-link:hover { text-decoration:underline; }
-.dash-card-body { flex:1; padding:0 16px 16px; overflow:hidden; }
+.ctx-card-meta { font-size:11.5px; color:var(--tt); font-variant-numeric:tabular-nums; }
+.ctx-card-link {
+  border:none; background:transparent; font-family:inherit;
+  font-size:11.5px; font-weight:600; color:var(--primary); cursor:pointer; padding:0;
+}
+.ctx-card-link:hover { text-decoration:underline; }
+.ctx-card-body { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; gap:2px; }
+.ctx-card-foot { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; }
 
-.dash-item { padding:11px 0; border-bottom:1px solid var(--bg3); }
-.dash-item:last-child { border-bottom:none; }
-.dash-item-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:11.5px; color:var(--tt); margin-bottom:5px; }
-.dash-item-outlet { font-weight:600; color:var(--ts); }
-.dash-item-title {
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  font-size:13.5px; font-weight:700; color:var(--tp); line-height:1.45; text-decoration:none; margin-bottom:5px;
+/* 카드 안 버튼 — 세 카드가 같은 크기를 쓴다 */
+.ctx-btn {
+  height:26px; padding:0 10px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--brd); background:var(--bg1); color:var(--ts);
+  font-family:inherit; font-size:12px; font-weight:600; white-space:nowrap;
+  transition:background .12s, border-color .12s, color .12s;
 }
-.dash-item-title:hover { color:var(--primary); text-decoration:underline; }
-.dash-item-sum {
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-  font-size:12.5px; color:var(--ts); line-height:1.55; margin-bottom:5px;
-}
-.dash-item-why { font-size:11.5px; color:var(--primary); margin-bottom:8px; }
-.dash-item-actions { display:flex; gap:6px; flex-wrap:wrap; }
-.dash-avatar {
-  width:20px; height:20px; border-radius:50%; background:var(--blue-50); color:var(--blue-500);
-  font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
-}
+.ctx-btn:hover { background:var(--bg2); border-color:var(--blue-200); color:var(--primary); }
+.ctx-btn.is-primary { background:var(--blue-50); border-color:transparent; color:var(--blue-500); }
+.ctx-btn.is-primary:hover { background:var(--blue-100); }
+.ctx-card-foot .ctx-btn + .ctx-btn { margin-left:6px; }
 
-/* 그래프 미리보기 — 지식 그래프 화면(S06)을 그대로 축소한 지도.
-   같은 어두운 판·같은 배치·같은 색이라 카드에서 본 모양 그대로 S06 이 열린다. */
-.graph-preview {
-  position:relative; height:150px; border-radius:14px; margin-bottom:12px;
+/* 카드 본문 조각 */
+.ctx-kicker {
+  display:flex; align-items:center; gap:6px; flex-shrink:0;
+  font-size:11.5px; color:var(--tt); overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.ctx-kind {
+  padding:1px 6px; border-radius:5px; background:var(--bg3); color:var(--ts);
+  font-size:10.5px; font-weight:700; flex-shrink:0;
+}
+.ctx-kind.is-paper { background:var(--blue-50); color:var(--blue-500); }
+.ctx-title-link, .ctx-strong {
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  font-size:13.5px; font-weight:700; color:var(--tp); line-height:1.35;
+  text-decoration:none; word-break:keep-all;
+}
+.ctx-title-link:hover { color:var(--primary); text-decoration:underline; }
+.ctx-clamp-1 { -webkit-line-clamp:1; }
+.ctx-clamp-2 { -webkit-line-clamp:2; }
+.ctx-sub {
+  font-size:11.5px; color:var(--ts); line-height:1.45;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ctx-sub.ctx-clamp-2 {
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal;
+}
+.ctx-sub-dim { color:var(--tt); }
+
+/* 내용만 바뀐다 — 카드는 움직이지 않는다 */
+.ctx-slide {
+  display:flex; flex-direction:column; gap:3px; min-height:0;
+  animation:ctxSlide .26s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes ctxSlide {
+  from { opacity:0; transform:translateX(7px); }
+  to   { opacity:1; transform:none; }
+}
+@media (prefers-reduced-motion:reduce) { .ctx-slide { animation:none; } }
+
+/* 그래프 축소판 — 글자보다 강해지지 않도록 작게 둔다 */
+.ctx-graph-row { display:flex; align-items:center; gap:10px; min-height:0; }
+.ctx-graph-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.ctx-graph {
+  position:relative; width:66px; height:52px; flex-shrink:0; border-radius:9px; overflow:hidden;
   background-color:#0d1117;
   background-image:
     radial-gradient(circle at 50% 45%, #161b22 0%, #0d1117 62%),
     radial-gradient(circle, #30363d 1px, transparent 1.1px);
-  background-size:100% 100%, 18px 18px;
-  border:none; overflow:hidden;
+  background-size:100% 100%, 14px 14px;
 }
-.graph-preview svg { position:absolute; inset:0; width:100%; height:100%; }
-.graph-dot {
-  position:absolute; transform:translate(-50%,-50%);
-  border-radius:50%; border:1px solid rgba(255,255,255,.3);
+.ctx-graph svg { position:absolute; inset:0; width:100%; height:100%; }
+.ctx-graph-dot {
+  position:absolute; transform:translate(-50%,-50%); border-radius:50%;
   display:flex; align-items:center; justify-content:center;
 }
-/* 중심 노드(생기부)만 이름을 남긴다 — 나머지는 점만으로 밀도를 보여준다 */
-.graph-preview-root {
-  position:absolute; left:50%; bottom:9px; transform:translateX(-50%);
-  max-width:86%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  padding:2px 8px; border-radius:7px;
-  background:rgba(22,27,34,.9); border:1px solid rgba(255,255,255,.1);
-  font-size:10.5px; font-weight:600; color:#fff;
+
+/* 회전 조작부 */
+.carousel-ctl { display:flex; align-items:center; gap:4px; }
+.carousel-arrow {
+  width:22px; height:22px; border-radius:6px; border:none; background:transparent;
+  color:var(--tt); font-size:15px; line-height:1; cursor:pointer; font-family:inherit;
+  transition:background .12s, color .12s;
 }
-.graph-stats { display:flex; gap:18px; margin-bottom:10px; }
-.graph-stats div { display:flex; flex-direction:column; gap:2px; }
-.graph-stats dt { font-size:11px; color:var(--tt); }
-.graph-stats dd { font-size:15px; font-weight:700; color:var(--tp); }
+.carousel-arrow:hover { background:var(--bg3); color:var(--tp); }
+.carousel-arrow:focus-visible { outline:2px solid var(--blue-400); outline-offset:1px; }
+.carousel-dots { display:inline-flex; align-items:center; gap:4px; }
+.carousel-dot {
+  width:6px; height:6px; padding:0; border-radius:50%; border:none; cursor:pointer;
+  background:var(--bgd); transition:background .14s, transform .14s;
+}
+.carousel-dot.is-on { background:var(--blue-500); transform:scale(1.18); }
+.carousel-dot:focus-visible { outline:2px solid var(--blue-400); outline-offset:2px; }
 
-/* ── 빈 상태 / 오류 / 스켈레톤 ── */
-.dash-empty { padding:26px 8px; text-align:center; }
-.dash-empty-title { font-size:13.5px; font-weight:600; color:var(--tp); margin-bottom:5px; }
-.dash-empty-hint { font-size:12.5px; color:var(--tt); line-height:1.6; margin-bottom:12px; }
-.dash-empty-done { padding:18px 8px; }
-.dash-empty-done .dash-empty-title { color:var(--success); }
+/* 빈 상태 / 오류 — 카드 높이는 그대로 두고 안쪽만 바꾼다 */
+.ctx-empty { display:flex; flex-direction:column; gap:3px; align-items:flex-start; justify-content:center; height:100%; }
+.ctx-empty-title { display:flex; align-items:center; gap:5px; font-size:13px; font-weight:600; color:var(--tp); }
+.ctx-empty-check {
+  width:15px; height:15px; border-radius:50%; background:var(--bg3); color:var(--ts);
+  font-size:9px; display:inline-flex; align-items:center; justify-content:center;
+}
+.ctx-empty-hint { font-size:11.5px; color:var(--tt); line-height:1.45; word-break:keep-all; }
+.ctx-empty .ctx-btn { margin-top:5px; }
 
-.skel-list { display:flex; flex-direction:column; gap:14px; }
-.skel-row { display:flex; flex-direction:column; gap:7px; }
-.skel-tall { height:74px; }
-.skel-line { height:10px; border-radius:5px; background:linear-gradient(90deg,var(--bg3) 25%,var(--bgd) 37%,var(--bg3) 63%); background-size:400% 100%; animation:skel 1.3s ease infinite; }
-.skel-w40 { width:40%; } .skel-w70 { width:70%; } .skel-w90 { width:90%; }
+.ctx-skel { display:block; height:11px; border-radius:5px; background:linear-gradient(90deg,var(--bg3) 25%,var(--bgd) 37%,var(--bg3) 63%); background-size:400% 100%; animation:skel 1.3s ease infinite; }
+.ctx-skel-sm { width:38%; margin-bottom:8px; }
+.ctx-skel-lg { width:92%; margin-bottom:6px; }
+.ctx-skel-md { width:64%; }
 @keyframes skel { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+/* ── 추천 탐구 질문 (수동 회전) ── */
+.rp {
+  max-width:880px; margin:14px auto 0; text-align:left;
+  border-radius:12px; background:var(--bg2); padding:10px 12px;
+}
+.rp-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+.rp-label { font-size:11px; font-weight:700; color:var(--tt); }
+.rp-count { font-size:11px; color:var(--tt); font-variant-numeric:tabular-nums; }
+.rp-row { display:flex; align-items:center; gap:10px; }
+.rp-text {
+  flex:1; min-width:0; text-align:left; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; font-size:14px; font-weight:600; color:var(--tp); line-height:1.45;
+  padding:2px 0; word-break:keep-all;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  animation:ctxSlide .22s cubic-bezier(.2,.8,.3,1);
+}
+.rp-text:hover { color:var(--primary); }
+.rp-text:focus-visible { outline:2px solid var(--blue-400); outline-offset:2px; border-radius:6px; }
+@media (prefers-reduced-motion:reduce) { .rp-text { animation:none; } }
+
+/* ── 기능 분류 pill ── */
+.cat-pills {
+  display:flex; gap:8px; width:fit-content; max-width:100%;
+  margin:12px auto 0; overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
+}
+.cat-pills::-webkit-scrollbar { display:none; }
+.cat-pill {
+  flex:0 0 auto; padding:7px 14px; border-radius:9999px;
+  border:1px solid var(--brd); background:var(--bg1); color:var(--ts);
+  font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+  transition:background .12s, border-color .12s, color .12s;
+}
+.cat-pill:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
+.cat-pill.is-on { background:var(--blue-50); border-color:var(--blue-500); color:var(--blue-500); }
+.cat-pill:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
 
 /* ── 반응형 ── */
 @media (max-width:1100px) {
-  .dash-grid { grid-template-columns:repeat(2,1fr); }
-  .dash-card:last-child { grid-column:1 / -1; }
-}
-@media (max-width:768px) {
-  :root { --hero-h:auto; }
-  .dash-wrap { padding:16px 14px 32px; }
-  .hero { min-height:auto; border-radius:16px; }
-  .hero-inner { padding:26px 16px; }
-  .hero-title { font-size:22px; margin-bottom:18px; }
-  .dash-grid { grid-template-columns:1fr; }
-  .ai-bubble { max-width:88%; }
-  .chat-mode { min-height:auto; padding:12px; }
-  .ai-thread { max-height:none; }
-  /* 빠른 실행은 가로 스크롤 */
-  .quick-actions {
-    flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start;
-    margin-left:-16px; margin-right:-16px; padding:0 16px 4px;
+  /* 셋째 카드가 혼자 넓어지면 위계가 깨진다 — 가로로 넘겨 크기를 유지한다 */
+  .ctx-grid {
+    display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
+    margin-left:-24px; margin-right:-24px; padding:0 24px 4px;
+    /* 스냅 기준을 안쪽 여백까지 밀어 준다. 없으면 첫 카드가 화면 끝에
+       딱 붙도록 스스로 스크롤해서, 왼쪽 여백이 사라진 것처럼 보인다. */
+    scroll-padding-left:24px;
     scrollbar-width:none;
   }
-  .quick-actions::-webkit-scrollbar { display:none; }
-  .quick-chip { flex:0 0 auto; }
+  .ctx-grid::-webkit-scrollbar { display:none; }
+  .ctx-card { flex:0 0 300px; scroll-snap-align:start; }
+}
+@media (max-width:768px) {
+  .dash-wrap { padding:16px 14px 32px; }
+  .dash-home { min-height:auto; }
+  .hero { min-height:auto; border-radius:16px; }
+  .hero-inner { padding:22px 4px 8px; }
+  .hero-title { font-size:22px; margin-bottom:16px; }
+  .ctx-grid { margin-left:-14px; margin-right:-14px; padding:0 14px 4px; scroll-padding-left:14px; }
+  /* 한 화면에 카드 한 장씩 */
+  .ctx-card { flex:0 0 calc(100% - 28px); }
+  .ai-bubble { max-width:88%; }
+  .chat-mode { min-height:auto; padding:12px; }
   .composer-send, .composer-tool { min-width:38px; min-height:38px; }
 }
 

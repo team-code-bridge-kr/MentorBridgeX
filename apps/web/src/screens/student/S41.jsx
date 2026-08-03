@@ -31,6 +31,7 @@ import { useExplorationFeed } from "../../hooks/useExplorationFeed.js";
 import { defaultFeedTab } from "../../lib/onboardingData.js";
 import { useInterestKeywords } from "../../hooks/useInterestKeywords.js";
 import { useStore } from "../../store/StoreProvider.jsx";
+import { queueAsk } from "../../lib/handoff.js";
 
 const FEATURED = 4; // 히어로 1 + 카드 3
 
@@ -136,12 +137,12 @@ export function S41({ onNav }) {
 
   /** 이 글을 문맥으로 달아 대시보드 AI 로 넘긴다 (S05 가 듣는 신호). */
   const askMbx = (item) => {
-    window.dispatchEvent(new CustomEvent("mbx:ask-article", {
-      detail: {
-        prompt: "이 자료를 요약하고 내 탐구 주제와 어떻게 연결할지 알려줘.",
-        context: { type: "article", id: item.id, label: item.title },
-      },
-    }));
+    // 이벤트만 쏘면 대시보드가 아직 안 그려져 있어서 아무도 못 듣는다.
+    // queueAsk 가 값을 놔두고, 대시보드가 뜨면서 가져간다.
+    queueAsk({
+      prompt: "이 자료를 요약하고 내 탐구 주제와 어떻게 연결할지 알려줘.",
+      context: { type: "article", id: item.id, label: item.title },
+    });
     onNav("S05");
   };
 

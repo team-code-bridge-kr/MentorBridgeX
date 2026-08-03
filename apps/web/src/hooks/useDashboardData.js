@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/index.js";
+import { displayKeyword } from "../lib/keywordAliases.js";
 
 /** 공통 비동기 리소스 훅. deps 가 바뀌면 다시 불러온다. */
 function useResource(loader, deps = [], { enabled = true } = {}) {
@@ -71,7 +72,9 @@ export function useRecommendedArticles(limit = 3) {
 }
 
 function reasonFor(item) {
-  const matched = item.matched_keywords || [];
+  // 등록된 낱말 그대로 쓰면 "algorithm 과 관련된 글입니다"가 된다.
+  // 걸린 결과는 그대로 두고 표기만 한국어 쪽으로 바꾼다.
+  const matched = [...new Set((item.matched_keywords || []).map(displayKeyword))];
   if (!matched.length) return "관심 분야와 관련된 글입니다.";
   if (matched.length === 1) return `내 키워드 ‘${matched[0]}’와 관련된 글입니다.`;
   return `내 키워드 ‘${matched[0]}’, ‘${matched[1]}’와 관련된 글입니다.`;

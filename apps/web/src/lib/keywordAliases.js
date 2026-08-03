@@ -98,6 +98,18 @@ export function groupKeywords(keywords = []) {
   return out.map((g) => ({ ...g, sources: [...g.sources] }));
 }
 
+/**
+ * 낱말 하나를 화면에 적을 이름으로 바꾼다.
+ *
+ * 서버가 준 매칭 키워드는 등록된 그대로라 "algorithm"처럼 영어가 섞인다.
+ * 학생에게 보여줄 때는 같은 뜻의 한국어 쪽을 쓴다 — 매칭 결과는 그대로 두고
+ * 표기만 바꾸는 것이라 무엇이 걸렸는지는 달라지지 않는다.
+ */
+export function displayKeyword(word) {
+  if (!word) return "";
+  return TO_GROUP.get(String(word).toLowerCase())?.display || word;
+}
+
 /** 대표 이름 하나가 감춘 낱말이 몇 개인지 — 툴팁에 쓴다. */
 export function aliasHint(group) {
   return group.searchTerms.length > 1 ? group.searchTerms.join(" · ") : "";
