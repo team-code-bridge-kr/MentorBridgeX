@@ -69,11 +69,12 @@ arXiv 에 cs.AI/cs.CV 밖에 없어서였다.
 ### 트랙별 커버리지 (2026-08-03 실측, 상한 50건)
 
 cs 50 / ai 50 / mech 49 / math 50 / physics 50 / civil 50 / biz 50 / psych 50 /
-humanities 50 / env 27 / ee 26 / social 24 / med 18 / nursing 18 / bio 14 / **chem 3**
+humanities 50 / env 27 / ee 26 / social 24 / med 18 / nursing 18 / bio 14 / **chem 5**
 
-소스를 늘리기 전에는 cs 가 0건이었다. 화학은 arXiv 에 전용 카테고리가 없어
-여전히 얇다 — `physics.chem-ph` + `cond-mat.mtrl-sci` 를 넣어 두었지만
-국내 화학 기사 자체가 드물다.
+소스를 늘리기 전에는 cs 가 0건이었다. 화학은 `physics.chem-ph` +
+`cond-mat.mtrl-sci` 를 넣어 38건을 받았는데도 5건밖에 안 걸린다 — 논문 초록이
+"촉매/catalysis" 같은 트랙 키워드를 그대로 쓰지 않기 때문이다. 국내 화학 기사도
+드물다. 화학 트랙은 키워드를 초록에서 실제로 쓰는 말로 손보는 게 다음 숙제다.
 
 ## 키워드가 걸리는 방식
 
