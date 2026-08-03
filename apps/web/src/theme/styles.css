@@ -1227,6 +1227,62 @@ tr:hover td { background:var(--surface-container-low); }
   .feed-hero-title { font-size:24px; }
 }
 
+/* ── 생기부 PDF 구획 뷰어 (S13) ──────────────────────────── */
+.pdf-viewer { display:flex; flex-direction:column; gap:14px; }
+.pdf-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.pdf-count { font-size:13.5px; font-weight:700; color:var(--success); }
+.pdf-count.warn { color:var(--warning); }
+.pdf-pager { display:flex; align-items:center; gap:8px; }
+.pdf-page-no { font-size:13px; color:var(--ts); font-variant-numeric:tabular-nums; }
+.pdf-notice {
+  padding:12px 16px; border-radius:14px; background:var(--blue-50);
+  font-size:13px; color:var(--ts); line-height:1.6;
+}
+.pdf-notice-warn { background:var(--warningbg); color:#8a3a00; display:flex; flex-direction:column; gap:4px; }
+
+.pdf-stage { display:flex; justify-content:center; background:var(--bg2); border-radius:18px; padding:20px; overflow:auto; }
+/* 캔버스와 오버레이가 같은 좌표계를 쓰도록 감싼다 */
+.pdf-page-wrap { position:relative; display:inline-block; line-height:0; }
+.pdf-canvas { display:block; border-radius:8px; box-shadow:var(--surface-1); background:#fff; }
+.pdf-overlay { position:absolute; inset:0; }
+
+/* 구획 박스 — 평소엔 투명하고 커서를 올릴 때만 드러난다.
+   문서를 읽는 데 방해되지 않으면서 "누를 수 있다"는 건 알려야 한다. */
+.pdf-region {
+  position:absolute; left:0; right:0;
+  border:1.5px solid transparent; border-radius:6px;
+  background:transparent; cursor:zoom-in; padding:0;
+  transition:background .12s, border-color .12s;
+}
+.pdf-region:hover { border-color:var(--blue-500); background:rgba(9,105,218,.06); }
+.pdf-region:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.pdf-region[aria-current="true"] { border-color:var(--primary); background:rgba(9,105,218,.10); }
+.pdf-region-tag {
+  position:absolute; left:6px; top:4px; padding:2px 8px; border-radius:9999px;
+  background:var(--blue-500); color:#fff; font-size:11px; font-weight:700;
+  opacity:0; transition:opacity .12s; white-space:nowrap; line-height:1.6;
+}
+.pdf-region:hover .pdf-region-tag,
+.pdf-region:focus-visible .pdf-region-tag { opacity:1; }
+
+.pdf-zoom {
+  position:fixed; inset:0; z-index:1000; background:rgba(25,31,40,.62);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.pdf-zoom-box {
+  background:var(--bg1); border-radius:18px; box-shadow:var(--shadow-lg);
+  width:min(1000px,100%); max-height:90vh; display:flex; flex-direction:column; overflow:hidden;
+}
+.pdf-zoom-hdr {
+  display:flex; align-items:center; gap:12px; padding:14px 18px;
+  border-bottom:1px solid var(--surface-container);
+}
+.pdf-zoom-hdr strong { font-size:15px; color:var(--tp); }
+.pdf-zoom-hdr .rs-save { margin-left:auto; }
+.pdf-zoom-body { overflow:auto; padding:16px; }
+.pdf-zoom-body canvas { display:block; width:100%; border-radius:8px; }
+@media (prefers-reduced-motion:reduce) { .pdf-region { transition:none; } }
+
 /* ── Discover ── */
 .rs-term {
   display:flex; align-items:center; gap:12px; padding:14px 16px;

@@ -1,6 +1,16 @@
+/**
+ * S13 — 생기부 PDF 업로드.
+ *
+ * 파일을 고르면 **올리기 전에 브라우저에서 먼저 열어** 구획을 보여준다.
+ * 서버는 추출된 텍스트·키워드만 보관하고 PDF 원본은 오래 두지 않으므로,
+ * 원본을 눈으로 확인할 수 있는 시점은 여기뿐이다. 뷰어는 전부 클라이언트에서
+ * 돌아서 파일이 이 단계에서 서버로 나가지 않는다.
+ */
+
 import { useState } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Notice } from "../../components/ui.jsx";
+import { PdfRegionViewer } from "../../components/pdf/PdfRegionViewer.jsx";
 import api from "../../api/index.js";
 
 const MAX_MB = 50;
@@ -49,7 +59,7 @@ export function S13({ onNav }) {
   };
 
   return (
-    <div className="content" style={{ maxWidth: 560, margin: "0 auto" }}>
+    <div className="content" style={{ maxWidth: file ? 1000 : 560, margin: "0 auto" }}>
       <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>PDF 업로드</div>
       <div style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 24 }}>
         생활기록부 PDF를 업로드하면 텍스트·키워드를 추출하고 그래프에 반영합니다
@@ -92,6 +102,17 @@ export function S13({ onNav }) {
           </div>
         )}
       </div>
+      {file && (
+        <div className="card card-p" style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>구획 확인</div>
+          <div style={{ fontSize: 13, color: TDS.textTertiary, marginBottom: 14, lineHeight: 1.6 }}>
+            올리기 전에 미리 봅니다. 영역 위에 커서를 올리면 범위가 보이고, 누르면 확대됩니다.
+            이 화면은 브라우저 안에서만 열리며 파일이 서버로 나가지 않습니다.
+          </div>
+          <PdfRegionViewer file={file} />
+        </div>
+      )}
+
       {progress && <Notice type="info" style={{ marginBottom: 12 }}>{progress}</Notice>}
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}
       <Notice type="info" style={{ marginBottom: 20 }}>
