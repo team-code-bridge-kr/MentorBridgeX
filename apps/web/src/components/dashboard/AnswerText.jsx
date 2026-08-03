@@ -54,9 +54,13 @@ function toBlocks(text) {
       buffer.items.push(line.replace(BULLET, ""));
       continue;
     }
-    if (NUMBER.test(line)) {
+    const numbered = line.match(NUMBER);
+    if (numbered) {
       if (buffer?.type !== "ol") { flush(); buffer = { type: "ol", items: [] }; }
-      buffer.items.push(line.replace(NUMBER, ""));
+      // 번호는 CSS 카운터로 다시 세지 않고 원문 그대로 쓴다. 모델이 항목
+      // 사이를 빈 줄로 띄우면 목록이 여러 덩어리로 쪼개져서, 카운터로 세면
+      // 전부 "1." 이 된다.
+      buffer.items.push({ marker: `${numbered[1]}.`, text: line.replace(NUMBER, "") });
       continue;
     }
     if (buffer?.type !== "p") { flush(); buffer = { type: "p", items: [] }; }
@@ -76,12 +80,23 @@ export function AnswerText({ text }) {
         if (b.type === "h") {
           return <p key={i} className="ai-answer-h">{inline(b.text, i)}</p>;
         }
-        if (b.type === "ul" || b.type === "ol") {
-          const List = b.type === "ul" ? "ul" : "ol";
+        if (b.type === "ul") {
           return (
-            <List key={i} className={`ai-answer-list ai-answer-${b.type}`}>
+            <ul key={i} className="ai-answer-list ai-answer-ul">
               {b.items.map((item, j) => <li key={j}>{inline(item, `${i}-${j}`)}</li>)}
-            </List>
+            </ul>
+          );
+        }
+        if (b.type === "ol") {
+          return (
+            <ol key={i} className="ai-answer-list ai-answer-ol">
+              {b.items.map((item, j) => (
+                <li key={j}>
+                  <span className="ai-answer-num">{item.marker}</span>
+                  {inline(item.text, `${i}-${j}`)}
+                </li>
+              ))}
+            </ol>
           );
         }
         // 문단 안의 줄바꿈은 그대로 살린다 (모델이 줄을 나눠 쓰는 경우가 많다)

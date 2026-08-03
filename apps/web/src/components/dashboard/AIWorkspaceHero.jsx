@@ -73,7 +73,6 @@ export function AIWorkspaceHero({
   onRunQuick,
   context,
   onRemoveContext,
-  onVoice,
   onResume,
   onNav,
 }) {
@@ -99,7 +98,6 @@ export function AIWorkspaceHero({
           onSubmit={onSubmit}
           context={context}
           onRemoveContext={onRemoveContext}
-          onVoice={onVoice}
           autoFocus
         />
 

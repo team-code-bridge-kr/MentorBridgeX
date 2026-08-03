@@ -9,6 +9,11 @@
 import { useEffect, useRef } from "react";
 import { AIContextChipList } from "./AIContextChip.jsx";
 import { AnswerText } from "./AnswerText.jsx";
+import mbxLogo from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
+
+// 답변이 누구 말인지 한 눈에 보이게 한다 — 사용자 말풍선과 달리 답변은
+// 배경이 없어서, 이름표가 없으면 그냥 페이지 본문처럼 읽힌다.
+const ASSISTANT_NAME = "Bridge AI";
 
 const KIND_LABEL = { root: "핵심", topic: "연결", leaf: "말단" };
 
@@ -158,6 +163,10 @@ export function AIConversation({ messages, streaming, error, handlers }) {
             </div>
           ) : (
             <div className="ai-answer">
+              <div className="ai-who">
+                <img className="ai-who-avatar" src={mbxLogo} alt="" aria-hidden="true" />
+                <span className="ai-who-name">{ASSISTANT_NAME}</span>
+              </div>
               {m.pending && !m.text && (
                 <div className="ai-typing" aria-label="답변 생성 중">
                   <span className="ai-typing-emoji" aria-hidden="true">🔎</span>

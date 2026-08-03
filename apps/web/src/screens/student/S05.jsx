@@ -223,7 +223,6 @@ export function S05({ onNav }) {
             onRunQuick={(prompt, contextItem) => askWithContext(prompt, contextItem)}
             context={ctx.items}
             onRemoveContext={ctx.remove}
-            onVoice={() => onNav("S15")}
             onResume={chat.resume}
             onNav={onNav}
           />
@@ -257,8 +256,7 @@ export function S05({ onNav }) {
                 onSubmit={send}
                 context={ctx.items}
                 onRemoveContext={ctx.remove}
-                onVoice={() => onNav("S15")}
-                streaming={chat.streaming}
+                    streaming={chat.streaming}
                 onStop={chat.stop}
               />
             </div>

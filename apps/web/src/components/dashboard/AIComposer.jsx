@@ -1,16 +1,21 @@
 /**
  * AI 입력창.
  *
- * 한 줄 input 이 아니라 3~4줄까지 자라는 textarea. Enter 전송 / Shift+Enter 줄바꿈.
+ * 한 줄 input 이 아니라 여러 줄까지 자라는 textarea. Enter 전송 / Shift+Enter 줄바꿈.
  * 첨부(파일)와 음성은 입력창 안쪽 왼쪽, 전송은 오른쪽에 둔다.
+ *
+ * 마이크는 화면 이동이 아니라 **여기서 바로 받아쓰기**를 한다 (useDictation).
+ * 질문 한 줄 말하려고 음성 화면까지 갔다 오게 만들면 아무도 쓰지 않는다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AIContextChipList } from "./AIContextChip.jsx";
 import { NavIcon } from "../NavIcon.jsx";
+import { useDictation } from "../../hooks/useDictation.js";
 
-const MAX_ROWS = 4;
-const LINE_HEIGHT = 24;
+// 입력 영역을 넉넉히 — 링크 + 질문을 함께 붙여넣는 경우가 많다
+const MAX_ROWS = 7;
+const LINE_HEIGHT = 26;
 
 export function AIComposer({
   value,
@@ -18,7 +23,6 @@ export function AIComposer({
   onSubmit,
   context,
   onRemoveContext,
-  onVoice,
   streaming,
   onStop,
   autoFocus,
@@ -58,6 +62,19 @@ export function AIComposer({
     setFiles((prev) => [...prev, ...picked].slice(0, 3));
     e.target.value = "";
   };
+
+  // 받아쓰기 결과는 지우지 않고 뒤에 붙인다 — 쓰던 문장을 날리면 안 된다
+  const appendText = useCallback(
+    (text) => {
+      if (!text) return;
+      onChange(value ? `${value.trimEnd()} ${text}` : text);
+      areaRef.current?.focus();
+    },
+    [onChange, value]
+  );
+  const mic = useDictation({ onText: appendText });
+  const recording = mic.state === "recording";
+  const sending = mic.state === "sending";
 
   return (
     <div className={`composer${compact ? " composer-compact" : ""}`}>
@@ -111,10 +128,22 @@ export function AIComposer({
             title="파일 첨부" onClick={() => fileRef.current?.click()}>
             <NavIcon name="paperclip" size={17} color="currentColor" />
           </button>
-          <button type="button" className="composer-tool" aria-label="음성 입력"
-            title="음성 입력 (음성 화면으로 이동)" onClick={() => onVoice?.()}>
-            <NavIcon name="voice" size={17} color="currentColor" />
+          <button
+            type="button"
+            className={`composer-tool${recording ? " is-recording" : ""}`}
+            aria-label={recording ? "녹음 중지" : "음성으로 입력"}
+            aria-pressed={recording}
+            title={recording ? "녹음 중지" : "음성으로 입력"}
+            disabled={sending}
+            onClick={mic.toggle}
+          >
+            <NavIcon name={recording ? "dot" : "voice"} size={17} color="currentColor" />
           </button>
+          {(recording || sending) && (
+            <span className="composer-mic-state" role="status">
+              {recording ? "듣고 있어요… 다시 눌러 끝내기" : "받아쓰는 중…"}
+            </span>
+          )}
         </div>
 
         {streaming ? (
@@ -133,6 +162,13 @@ export function AIComposer({
           </button>
         )}
       </div>
+
+      {mic.error && (
+        <p className="composer-mic-error" role="alert">
+          {mic.error}
+          <button type="button" className="btn-inline" onClick={mic.clearError}>닫기</button>
+        </p>
+      )}
     </div>
   );
 }

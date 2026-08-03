@@ -172,9 +172,10 @@ a { text-decoration:none; color:inherit; }
   background:transparent; color:var(--tt); font-size:13px; cursor:pointer; flex-shrink:0;
 }
 .sb-collapse:hover { background:var(--bg3); color:var(--tp); }
-/* 접기 고정 시 hover 확장을 끈다 */
-.sb-rail.sb-pinned:hover > .sidebar { width:var(--sb-w-rail); box-shadow:none; }
-.sb-rail.sb-pinned:hover .sb-fade { opacity:0; pointer-events:none; }
+/* 고정 펼침 — 커서가 벗어나도 유지된다 (Sidebar.jsx 가 sb-open 을 붙인다) */
+.sb-rail.sb-open > .sidebar { width:var(--sb-w-open); box-shadow:0 10px 30px rgba(15,23,42,.16); }
+.sb-rail.sb-open > .sb-dark.sidebar { box-shadow:0 10px 30px rgba(0,0,0,.42); }
+.sb-rail.sb-open .sb-fade { opacity:1; pointer-events:auto; }
 
 /* 최근 작업 */
 .sb-recent { margin-top:14px; padding:12px 8px 0; border-top:1px solid var(--brd); }
@@ -509,7 +510,7 @@ tr:hover td { background:var(--surface-container-low); }
    AI 영역이 화면의 약 2/3를 차지하되, 스크롤 없이 하단 카드 상단이 보이도록
    --hero-h 로 높이를 잡는다. 입력창이 화면을 다 덮으면 단순 챗봇처럼 보인다.
 ────────────────────────────────────────────────────────────── */
-:root { --hero-h: 62vh; --ai-accent:#6366f1; }
+:root { --hero-h: 66vh; --ai-accent:#6366f1; }
 
 /* 시각적으로는 감추고 스크린리더에는 읽히는 텍스트 */
 .sr-only {
@@ -540,9 +541,9 @@ tr:hover td { background:var(--surface-container-low); }
 }
 /* 칩 5개가 한 줄에 들어가도록 컨테이너를 조금 넓히고,
    입력창은 원래 폭을 유지해 비율이 흐트러지지 않게 한다. */
-.hero-inner { position:relative; width:100%; max-width:880px; padding:40px 24px; text-align:center; }
-.hero-inner .composer { max-width:760px; margin-left:auto; margin-right:auto; }
-.hero-greeting { font-size:14px; font-weight:600; color:var(--tt); margin-bottom:10px; }
+.hero-inner { position:relative; width:100%; max-width:980px; padding:40px 24px; text-align:center; }
+.hero-inner .composer { max-width:880px; margin-left:auto; margin-right:auto; }
+.hero-greeting { font-size:14.5px; font-weight:600; color:var(--tp); margin-bottom:10px; }
 .hero-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
 @keyframes handWave {
   0%,60%,100% { transform:rotate(0deg); }
@@ -586,7 +587,7 @@ tr:hover td { background:var(--surface-container-low); }
 .composer {
   position:relative;
   text-align:left; background:var(--bg1); border:1px solid transparent;
-  border-radius:18px; padding:12px 14px 10px;
+  border-radius:18px; padding:16px 18px 12px;
   box-shadow:0 6px 22px rgba(15,23,42,.07);
   transition:box-shadow .16s;
 }
@@ -614,13 +615,13 @@ tr:hover td { background:var(--surface-container-low); }
 .composer-attach { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:9px; }
 .composer-input {
   width:100%; border:none; outline:none; resize:none; background:transparent;
-  font-family:inherit; font-size:15px; line-height:24px; color:var(--tp);
-  max-height:96px;
+  font-family:inherit; font-size:15.5px; line-height:26px; color:var(--tp);
+  min-height:52px; max-height:182px;
 }
 .composer-input::placeholder { color:#8b93b5; }
 .composer-input { caret-color:var(--blue-500); }
 .composer-bar { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
-.composer-tools { display:flex; gap:2px; }
+.composer-tools { display:flex; align-items:center; gap:2px; }
 .composer-tool {
   width:32px; height:32px; border-radius:9px; border:none; background:transparent;
   cursor:pointer; font-size:15px; line-height:1; color:var(--ts);
@@ -628,6 +629,16 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .composer-tool:hover { background:var(--bg3); }
 .composer-tool:focus-visible { outline:2px solid var(--blue-400); outline-offset:1px; }
+.composer-tool:disabled { opacity:.5; cursor:default; }
+/* 녹음 중 — 빨간 점이 뛰는 것으로 "지금 듣고 있다"를 계속 알린다 */
+.composer-tool.is-recording { color:var(--danger); background:var(--dangerbg); animation:micPulse 1.4s ease-in-out infinite; }
+@keyframes micPulse { 0%,100% { box-shadow:0 0 0 0 rgba(186,26,26,.32); } 60% { box-shadow:0 0 0 6px rgba(186,26,26,0); } }
+@media (prefers-reduced-motion:reduce) { .composer-tool.is-recording { animation:none; } }
+.composer-mic-state { align-self:center; margin-left:6px; font-size:12.5px; color:var(--ts); white-space:nowrap; }
+.composer-mic-error {
+  margin-top:8px; display:flex; align-items:center; gap:8px;
+  font-size:12.5px; color:var(--danger);
+}
 .composer-send {
   /* 원형 — 첨부 아이콘들과 형태를 구분해 '보내기'가 즉시 읽히게 한다 */
   width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
@@ -695,10 +706,13 @@ tr:hover td { background:var(--surface-container-low); }
 /* ── 대화 모드 ──
    답변이 시작되면 하단 카드 3개를 숨기고 대화만 남긴다. 화면이 바뀌는 것을
    알 수 있도록 대화 판이 열리듯 확대되며 들어온다. */
+/* 화면 높이를 그대로 쓴다 — 입력창이 늘 화면 아래쪽 같은 자리에 있어야
+   답변을 읽다가 이어서 묻기가 편하다 (dash-wrap 의 위아래 여백 72px 을 뺀다). */
 .chat-mode {
   background:var(--bg1); border:none; border-radius:20px;
   padding:16px; margin-bottom:20px;
-  display:flex; flex-direction:column; min-height:78vh;
+  display:flex; flex-direction:column;
+  min-height:calc(100vh - 72px);
   animation:chatExpand .34s cubic-bezier(.2,.8,.28,1);
 }
 @keyframes chatExpand {
@@ -709,7 +723,9 @@ tr:hover td { background:var(--surface-container-low); }
 .chat-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
 .chat-head-ctx { font-size:12px; color:var(--tt); }
 .chat-composer { margin-top:14px; }
-.ai-thread { flex:1; display:flex; flex-direction:column; gap:16px; overflow-y:auto; max-height:66vh; padding-right:4px; }
+/* 대화 판이 화면 높이를 채우므로 목록은 남는 공간을 그대로 쓴다.
+   max-height 를 따로 두면 입력창이 화면 중간에 뜬다. */
+.ai-thread { flex:1; min-height:0; display:flex; flex-direction:column; gap:18px; overflow-y:auto; padding-right:4px; }
 .ai-msg { display:flex; }
 .ai-user { justify-content:flex-end; }
 .ai-bubble {
@@ -717,9 +733,22 @@ tr:hover td { background:var(--surface-container-low); }
   padding:11px 14px; font-size:14.5px; color:var(--tp); line-height:1.6;
 }
 .ai-bubble .ctx-chips { margin-bottom:7px; }
-.ai-answer { max-width:100%; width:100%; }
-/* 마크다운을 엘리먼트로 그리므로 pre-wrap 을 걸지 않는다 (줄바꿈은 <br>) */
-.ai-answer-text { font-size:14.5px; color:var(--tp); line-height:1.75; }
+.ai-answer { width:100%; }
+/* 답변 이름표 — 배경 없는 답변이 페이지 본문처럼 읽히지 않게 한다 */
+.ai-who { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.ai-who-avatar {
+  width:24px; height:24px; border-radius:50%; object-fit:contain;
+  background:var(--bg2); padding:3px; flex-shrink:0;
+}
+.ai-who-name { font-size:13.5px; font-weight:700; color:var(--blue-500); }
+
+/* 마크다운을 엘리먼트로 그리므로 pre-wrap 을 걸지 않는다 (줄바꿈은 <br>).
+   폭을 제한하는 이유: 넓은 화면에서 한 줄이 120자를 넘어가면 눈이 다음 줄
+   첫 글자를 못 찾는다. 한글은 keep-all 로 단어 중간에서 끊기지 않게 한다. */
+.ai-answer-text {
+  font-size:14.5px; color:var(--tp); line-height:1.8;
+  max-width:74ch; word-break:keep-all; overflow-wrap:anywhere;
+}
 .ai-answer-text > * + * { margin-top:10px; }
 .ai-answer-text strong { font-weight:700; color:var(--tp); }
 .ai-answer-text code {
@@ -733,11 +762,9 @@ tr:hover td { background:var(--surface-container-low); }
 .ai-answer-list li { position:relative; padding-left:17px; }
 .ai-answer-list li::before { position:absolute; left:0; top:0; }
 .ai-answer-ul li::before { content:"·"; color:var(--blue-400); font-weight:700; }
-.ai-answer-ol { counter-reset:ai-ol; }
-.ai-answer-ol li::before {
-  counter-increment:ai-ol; content:counter(ai-ol) ".";
-  color:var(--blue-500); font-weight:700; font-size:13px;
-}
+/* 번호는 원문 그대로 (AnswerText 가 넣는다) — 카운터로 다시 세지 않는다 */
+.ai-answer-ol li { padding-left:22px; }
+.ai-answer-num { position:absolute; left:0; top:0; color:var(--blue-500); font-weight:700; font-size:13px; }
 .ai-answer-error {
   margin-top:8px; font-size:13px; color:var(--danger);
   display:flex; align-items:center; gap:10px;

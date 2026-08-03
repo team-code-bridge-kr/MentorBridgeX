@@ -658,6 +658,19 @@ const api = {
       });
       return mapVoice(data);
     },
+    /**
+     * ✅ LIVE — 받아쓰기. 저장하지 않고 인식 결과 문장만 돌려준다.
+     * AI 입력창의 마이크가 쓴다 (녹음 세션과 별개).
+     */
+    async dictate(blob) {
+      const fd = new FormData();
+      fd.append("file", blob, "dictation.webm");
+      const data = await request("/v1/students/me/voice/dictation", {
+        method: "POST",
+        formData: fd,
+      });
+      return data.text || "";
+    },
     async transcribe(sessionId, blob, durationSec = 0) {
       const fd = new FormData();
       fd.append("file", blob, "recording.webm");

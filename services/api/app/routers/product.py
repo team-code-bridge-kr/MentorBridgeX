@@ -693,6 +693,49 @@ async def patch_settings_me(
 # ── Voice ─────────────────────────────────────────────────────
 
 
+@voice_router.post("/dictation")
+async def dictate(
+    request: Request,
+    user: UserRow | MemoryUser = Depends(get_current_user),  # noqa: ARG001 — 인증만 필요
+    file: UploadFile = File(...),
+) -> dict:
+    """받아쓰기 — 음성을 글로 옮겨 그대로 돌려준다.
+
+    AI 입력창의 마이크 버튼이 쓴다. 녹음 세션(voice_sessions)과 달리 아무것도
+    저장하지 않는다. 입력창에 넣을 문장 하나가 필요할 뿐인데 세션 레코드가
+    쌓이면 "음성 세션" 목록이 의미 없는 항목으로 채워진다.
+
+    STT 를 못 쓰면 모의 문장을 만들어주지 않는다 — 녹음 세션과 달리 여기서는
+    가짜 문장이 곧바로 질문으로 전송되기 때문이다. 실패를 그대로 알린다.
+    """
+    audio = await file.read()
+    if not audio:
+        raise AppError("VOICE_EMPTY", "녹음된 소리가 없습니다.", 400)
+    if len(audio) > MAX_AUDIO_BYTES:
+        raise AppError(
+            "VOICE_AUDIO_TOO_LARGE",
+            f"오디오는 {MAX_AUDIO_BYTES // (1024 * 1024)}MB 이하여야 합니다.",
+            413,
+        )
+
+    settings = get_settings()
+    stt_service = getattr(request.app.state, "stt_service", None)
+    if not stt_service or not settings.daglo_api_token:
+        raise AppError("STT_UNAVAILABLE", "음성 인식이 설정되지 않았습니다.", 503)
+
+    try:
+        result = await stt_service.sync_short(file.filename or "audio.webm", audio)
+    except Exception as exc:  # noqa: BLE001 — 외부 서비스 실패를 사용자 메시지로 바꾼다
+        raise AppError("STT_FAILED", "음성을 인식하지 못했습니다.", 502) from exc
+    finally:
+        del audio  # 바이트는 최대한 빨리 버린다
+
+    text = (result.transcript or "").strip()
+    if not text:
+        raise AppError("STT_EMPTY", "말소리를 알아듣지 못했습니다. 다시 시도해 주세요.", 422)
+    return {"text": text}
+
+
 @voice_router.get("/sessions", response_model=list[VoiceSessionOut])
 async def list_voice_sessions(
     user: UserRow | MemoryUser = Depends(get_current_user),
