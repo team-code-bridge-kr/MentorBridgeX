@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -21,6 +22,7 @@ from app.errors import (
     validation_error_handler,
 )
 from app.features.research import routes as research_routes
+from app.features.research.scheduler import scheduler_loop
 from app.features.research.seed import seed_sources, seed_tracks
 from app.features.stt import routes as stt_routes
 from app.features.stt.provider import DagloSTTProvider
@@ -56,7 +58,18 @@ async def lifespan(app: FastAPI):
             await seed_tracks(session)
             await seed_sources(session)
 
+        if settings.research_ingest_interval_hours > 0:
+            app.state.research_scheduler = asyncio.create_task(
+                scheduler_loop(settings.research_ingest_interval_hours)
+            )
+
     yield
+
+    task = getattr(app.state, "research_scheduler", None)
+    if task is not None:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
     if daglo_client is not None:
         await daglo_client.aclose()

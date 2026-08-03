@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     embedding_model: str = "jhgan/ko-sroberta-multitask"
     offline_demo: bool = False
 
+    # 탐구주제 피드 — 수집 주기(시간). 0 이하면 스케줄러를 띄우지 않고
+    # POST /v1/research/ingest/run 수동 실행만 쓴다.
+    research_ingest_interval_hours: float = 6.0
+
     # Daglo STT (optional — empty disables live client init)
     daglo_api_token: str = ""
     daglo_base_url: str = "https://apis.daglo.ai"

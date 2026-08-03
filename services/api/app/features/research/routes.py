@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -67,6 +68,8 @@ from .schemas import (
 )
 from .seed_data import TRACKS
 from .terms.service import recompute_terms
+
+logger = logging.getLogger("research.api")
 
 router = APIRouter(prefix="/v1/research", tags=["research"])
 
@@ -376,6 +379,23 @@ async def toggle_save(body: SaveIn, user: CurrentUser, session: DbSession) -> Ok
         )
     )
     await db.commit()
+    return OkOut()
+
+
+@router.delete("/me", response_model=OkOut, summary="내 탐구 피드 데이터 전부 삭제")
+async def delete_my_research_data(user: CurrentUser, session: DbSession) -> OkOut:
+    """관심 키워드와 읽기 이력은 개인정보다. 요청하면 전부 지운다.
+
+    지우는 것: research_profiles, user_keywords, user_reads.
+    articles 는 공용 수집 데이터라 개인과 무관하므로 남는다.
+    """
+    db = _require_db(session)
+    await db.execute(delete(UserReadRow).where(UserReadRow.user_id == user.id))
+    await db.execute(delete(UserKeywordRow).where(UserKeywordRow.user_id == user.id))
+    await db.execute(delete(ResearchProfileRow).where(ResearchProfileRow.user_id == user.id))
+    await db.commit()
+    # 로그에 이메일·키워드 같은 식별 정보를 남기지 않는다
+    logger.info("research data deleted user=%s", user.id)
     return OkOut()
 
 
