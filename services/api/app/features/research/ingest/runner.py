@@ -158,7 +158,9 @@ async def _store_items(
                 "outlet": item.outlet or source.outlet or source.name,
                 "kind": item.kind,
                 "lang": item.lang,
-                "published_at": item.published_at,
+                # 발행일이 없는 피드가 있다. NULL 을 두면 keyset 커서 비교가
+                # NULLS LAST 처리 때문에 복잡해지므로 수집 시각으로 채운다.
+                "published_at": item.published_at or now,
                 "fetched_at": now,
                 "title_hash": thash,
                 "search_text": search_text(item.title, item.summary),

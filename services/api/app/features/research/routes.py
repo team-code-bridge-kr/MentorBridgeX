@@ -22,6 +22,18 @@ from app.db.postgres import UserRow, utcnow
 from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
 
+from .feed import (
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+    TAB_ALL,
+    TAB_SAVED,
+    TABS,
+    build_feed_query,
+    decode_cursor,
+    encode_cursor,
+    load_keywords,
+    matched_keywords,
+)
 from .ingest.runner import run_ingest
 from .models import (
     KW_MANUAL,
@@ -32,8 +44,11 @@ from .models import (
     TrackKeywordRow,
     TrackRow,
     UserKeywordRow,
+    UserReadRow,
 )
 from .schemas import (
+    ArticleOut,
+    FeedOut,
     FetchLogOut,
     IngestRunOut,
     KeywordCreateIn,
@@ -42,6 +57,8 @@ from .schemas import (
     OkOut,
     ProfileOut,
     ProfileUpdateIn,
+    ReadIn,
+    SaveIn,
     TrackListOut,
     TrackOut,
 )
@@ -213,6 +230,92 @@ async def add_keyword(
     )
     await db.commit()
     return await list_keywords(user, db)
+
+
+@router.get("/feed", response_model=FeedOut, summary="개인화 피드")
+async def get_feed(
+    user: CurrentUser,
+    session: DbSession,
+    tab: Annotated[str, Query(description="all | news | paper | saved")] = TAB_ALL,
+    cursor: Annotated[str | None, Query(description="이전 응답의 next_cursor")] = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+) -> FeedOut:
+    db = _require_db(session)
+    if tab not in TABS:
+        raise AppError("RESEARCH_BAD_TAB", f"알 수 없는 탭입니다: {tab}", status_code=400)
+
+    keywords = await load_keywords(db, user.id)
+    if not keywords and tab != TAB_SAVED:
+        # 온보딩 전 — 키워드가 없으면 매칭할 것도 없다
+        return FeedOut(items=[], next_cursor=None)
+
+    stmt = build_feed_query(
+        user_id=user.id,
+        keywords=keywords,
+        tab=tab,
+        cursor=decode_cursor(cursor) if cursor else None,
+        limit=limit,
+    )
+    rows = (await db.execute(stmt)).all()
+
+    items = [
+        ArticleOut(
+            id=article.id,
+            url=article.url,
+            title=article.title,
+            summary=article.summary,
+            author=article.author,
+            outlet=article.outlet,
+            kind=article.kind,
+            lang=article.lang,
+            published_at=article.published_at,
+            matched_keywords=matched_keywords(article.search_text, keywords),
+            read=read_row is not None,
+            saved=bool(read_row and read_row.saved),
+        )
+        for article, read_row in rows
+    ]
+
+    next_cursor = None
+    if len(items) == limit:
+        last_article = rows[-1][0]
+        next_cursor = encode_cursor(last_article.published_at, last_article.id)
+    return FeedOut(items=items, next_cursor=next_cursor)
+
+
+@router.post("/reads", response_model=OkOut, summary="읽음 표시")
+async def mark_read(body: ReadIn, user: CurrentUser, session: DbSession) -> OkOut:
+    db = _require_db(session)
+    now = await utcnow()
+    stmt = pg_insert(UserReadRow).values(
+        user_id=user.id, article_id=body.article_id, read_at=now, saved=False
+    )
+    # 이미 읽은 글이면 읽은 시각만 갱신한다. saved 플래그는 건드리지 않는다.
+    await db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[UserReadRow.user_id, UserReadRow.article_id],
+            set_={"read_at": stmt.excluded.read_at},
+        )
+    )
+    await db.commit()
+    return OkOut()
+
+
+@router.post("/saves", response_model=OkOut, summary="저장함 토글")
+async def toggle_save(body: SaveIn, user: CurrentUser, session: DbSession) -> OkOut:
+    db = _require_db(session)
+    now = await utcnow()
+    stmt = pg_insert(UserReadRow).values(
+        user_id=user.id, article_id=body.article_id, read_at=now, saved=body.saved
+    )
+    await db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[UserReadRow.user_id, UserReadRow.article_id],
+            set_={"saved": stmt.excluded.saved},
+        )
+    )
+    await db.commit()
+    return OkOut()
 
 
 @router.post("/ingest/run", response_model=IngestRunOut, summary="수집 수동 실행")
