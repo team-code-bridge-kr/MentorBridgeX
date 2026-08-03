@@ -517,7 +517,8 @@ tr:hover td { background:var(--surface-container-low); }
   overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
 }
 
-.dash-wrap { height:100%; overflow-y:auto; padding:24px 24px 40px; background:var(--bg1); }
+/* S05 는 헤더가 없다 (NO_HDR) — 콘텐츠가 창 상단에 바로 닿으므로 위 여백을 더 준다 */
+.dash-wrap { height:100%; overflow-y:auto; padding:32px 24px 40px; background:var(--bg1); }
 
 /* ── 상단 AI 시작 영역 ── */
 /* 테두리와 배경 박스를 없애 페이지와 이어지게 한다 — 섹션이 카드처럼

@@ -14,6 +14,7 @@ export const S_NAV = [
 
 /* 사이드바 하단 유틸 — 프로필 옆에 붙는다 (§3) */
 export const S_UTIL = [
+  { id:"S27", icon:"search",   label:"통합 검색" },
   { id:"S25", icon:"bell",     label:"알림", badge:"notifications" },
   { id:"S28", icon:"stats",    label:"통계" },
   { id:"S30", icon:"settings", label:"설정" },
@@ -56,9 +57,9 @@ export function getLayout(s, sessionRole){
   if(s.startsWith("A"))return "admin";
   return "student";
 }
-/* S05 는 AI 워크스페이스 자체가 인사말·제목을 갖고 있어 헤더 제목이 중복된다.
-   단, 검색·알림·프로필은 필요하므로 헤더 자체는 유지한다 (TITLES 에서 제목만 비움). */
-export const NO_HDR=["S06","S16","T07","T08"];
+/* S05 는 AI 워크스페이스가 인사말·프로필 맥락을 모두 갖고 있어 상단 헤더가 중복된다.
+   헤더에만 있던 검색·알림·프로필은 사이드바 하단(S_UTIL)에서 접근한다. */
+export const NO_HDR=["S05","S06","S16","T07","T08"];
 
 /* 사이드바에 항목이 없는 화면 → 활성 표시를 이어받을 메뉴.
    없으면 첫 메뉴(대시보드)가 잘못 활성화된다. */
