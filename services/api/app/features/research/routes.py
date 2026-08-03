@@ -38,6 +38,7 @@ from .ingest.runner import run_ingest
 from .models import (
     KW_MANUAL,
     KW_PRESET,
+    ArticleTermRow,
     FetchLogRow,
     ResearchProfileRow,
     SourceRow,
@@ -48,6 +49,7 @@ from .models import (
 )
 from .schemas import (
     ArticleOut,
+    DiscoverOut,
     FeedOut,
     FetchLogOut,
     IngestRunOut,
@@ -59,10 +61,12 @@ from .schemas import (
     ProfileUpdateIn,
     ReadIn,
     SaveIn,
+    TermOut,
     TrackListOut,
     TrackOut,
 )
 from .seed_data import TRACKS
+from .terms.service import recompute_terms
 
 router = APIRouter(prefix="/v1/research", tags=["research"])
 
@@ -281,6 +285,63 @@ async def get_feed(
         last_article = rows[-1][0]
         next_cursor = encode_cursor(last_article.published_at, last_article.id)
     return FeedOut(items=items, next_cursor=next_cursor)
+
+
+@router.get("/discover", response_model=DiscoverOut, summary="읽은 글에서 자주 나온 개념")
+async def discover(
+    user: CurrentUser,
+    session: DbSession,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> DiscoverOut:
+    """내가 읽은 글들에 자주 등장한 개념 상위 N개.
+
+    이미 내 키워드로 등록된 것은 registered=True 로 표시해 "추가" 버튼을 감춘다.
+    """
+    db = _require_db(session)
+
+    read_count = await db.scalar(
+        select(func.count()).select_from(UserReadRow).where(UserReadRow.user_id == user.id)
+    )
+    if not read_count:
+        return DiscoverOut(terms=[], read_count=0)
+
+    read_articles = select(UserReadRow.article_id).where(UserReadRow.user_id == user.id)
+    rows = await db.execute(
+        select(
+            ArticleTermRow.term,
+            func.count(ArticleTermRow.article_id).label("article_count"),
+            func.sum(ArticleTermRow.score).label("total_score"),
+        )
+        .where(ArticleTermRow.article_id.in_(read_articles))
+        .group_by(ArticleTermRow.term)
+        # 여러 글에 걸쳐 반복된 개념일수록 관심사에 가깝다 — 등장 글 수를 먼저 본다
+        .order_by(
+            func.count(ArticleTermRow.article_id).desc(),
+            func.sum(ArticleTermRow.score).desc(),
+        )
+        .limit(limit)
+    )
+
+    registered = {k.lower() for k in await load_keywords(db, user.id)}
+    return DiscoverOut(
+        read_count=read_count,
+        terms=[
+            TermOut(
+                term=term,
+                article_count=article_count,
+                score=round(float(total_score or 0.0), 4),
+                registered=term.lower() in registered,
+            )
+            for term, article_count, total_score in rows.all()
+        ],
+    )
+
+
+@router.post("/terms/recompute", response_model=OkOut, summary="개념 재계산 (배치)")
+async def recompute_terms_now(user: CurrentUser, session: DbSession) -> OkOut:
+    db = _require_db(session)
+    await recompute_terms(db)
+    return OkOut()
 
 
 @router.post("/reads", response_model=OkOut, summary="읽음 표시")
