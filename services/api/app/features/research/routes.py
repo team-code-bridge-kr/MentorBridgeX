@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,15 +22,20 @@ from app.db.postgres import UserRow, utcnow
 from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
 
+from .ingest.runner import run_ingest
 from .models import (
     KW_MANUAL,
     KW_PRESET,
+    FetchLogRow,
     ResearchProfileRow,
+    SourceRow,
     TrackKeywordRow,
     TrackRow,
     UserKeywordRow,
 )
 from .schemas import (
+    FetchLogOut,
+    IngestRunOut,
     KeywordCreateIn,
     KeywordListOut,
     KeywordOut,
@@ -208,6 +213,66 @@ async def add_keyword(
     )
     await db.commit()
     return await list_keywords(user, db)
+
+
+@router.post("/ingest/run", response_model=IngestRunOut, summary="수집 수동 실행")
+async def run_ingest_now(
+    user: CurrentUser,
+    session: DbSession,
+    source_id: Annotated[str | None, Query(description="특정 소스만 수집")] = None,
+) -> IngestRunOut:
+    """수집을 즉시 한 번 돌린다. 스케줄러와 같은 경로를 쓴다.
+
+    로그인 사용자면 누구나 호출할 수 있지만, 소스 단위 3초 간격과
+    24시간 백오프가 그대로 적용되므로 연타해도 외부 서버에 부하가 가지 않는다.
+    """
+    db = _require_db(session)
+    logs = await run_ingest(db, source_ids=[source_id] if source_id else None)
+
+    names = await db.execute(select(SourceRow.id, SourceRow.name))
+    name_by_id = dict(names.all())
+    return IngestRunOut(
+        started=True,
+        logs=[
+            FetchLogOut(
+                source_id=log.source_id,
+                source_name=name_by_id.get(log.source_id, ""),
+                started_at=log.started_at,
+                finished_at=log.finished_at,
+                status=log.status,
+                items_found=log.items_found,
+                items_new=log.items_new,
+                error=log.error,
+            )
+            for log in logs
+        ],
+    )
+
+
+@router.get("/ingest/logs", response_model=IngestRunOut, summary="최근 수집 로그")
+async def recent_ingest_logs(user: CurrentUser, session: DbSession) -> IngestRunOut:
+    db = _require_db(session)
+    rows = await db.execute(
+        select(FetchLogRow).order_by(FetchLogRow.started_at.desc()).limit(50)
+    )
+    names = await db.execute(select(SourceRow.id, SourceRow.name))
+    name_by_id = dict(names.all())
+    return IngestRunOut(
+        started=False,
+        logs=[
+            FetchLogOut(
+                source_id=log.source_id,
+                source_name=name_by_id.get(log.source_id, ""),
+                started_at=log.started_at,
+                finished_at=log.finished_at,
+                status=log.status,
+                items_found=log.items_found,
+                items_new=log.items_new,
+                error=log.error,
+            )
+            for log in rows.scalars().all()
+        ],
+    )
 
 
 @router.delete("/keywords/{keyword}", response_model=OkOut, summary="키워드 삭제")

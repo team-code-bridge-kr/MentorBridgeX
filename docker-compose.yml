@@ -9,6 +9,7 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mentor -d mentorbridgex"]
       interval: 5s
@@ -30,6 +31,7 @@ services:
       - "127.0.0.1:7687:7687"
     volumes:
       - neo4jdata:/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
       interval: 10s
@@ -42,6 +44,7 @@ services:
     image: redis:7-alpine
     ports:
       - "127.0.0.1:6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

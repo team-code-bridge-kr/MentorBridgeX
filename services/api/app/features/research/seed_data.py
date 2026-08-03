@@ -231,6 +231,147 @@ TRACKS: list[tuple[str, str, str, str, list[str]]] = [
 ]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 수집 소스
+#
+# 모두 공식 RSS / 공개 API 만 쓴다. 스크래핑은 하지 않는다.
+# enabled=False 인 소스는 시드에 정의만 해두고 수집하지 않는다 — 매체가
+# 저작권 고지에서 "AI 학습 및 활용 금지"를 명시한 곳이라, 켤지 말지는
+# 운영자가 판단할 문제로 남겨둔다. README 의 "소스 추가" 절 참고.
+#
+# (id, name, type, url, query, outlet, enabled)
+# ─────────────────────────────────────────────────────────────────────────────
+SOURCES: list[tuple[str, str, str, str, str | None, str, bool]] = [
+    # ── 뉴스 (RSS) ──
+    (
+        "yna-industry",
+        "연합뉴스 산업",
+        "rss",
+        "https://www.yna.co.kr/rss/industry.xml",
+        None,
+        "연합뉴스",
+        True,
+    ),
+    (
+        "yna-health",
+        "연합뉴스 보건",
+        "rss",
+        "https://www.yna.co.kr/rss/health.xml",
+        None,
+        "연합뉴스",
+        True,
+    ),
+    (
+        "etnews-it",
+        "전자신문 IT",
+        "rss",
+        "https://rss.etnews.com/Section901.xml",
+        None,
+        "전자신문",
+        True,
+    ),
+    (
+        "etnews-science",
+        "전자신문 과학",
+        "rss",
+        "https://rss.etnews.com/Section902.xml",
+        None,
+        "전자신문",
+        True,
+    ),
+    # 저작권 고지에 "AI 학습 및 활용 금지" 가 명시된 매체 — 기본 비활성
+    (
+        "hani-science",
+        "한겨레 미래&과학",
+        "rss",
+        "https://www.hani.co.kr/rss/science",
+        None,
+        "한겨레",
+        False,
+    ),
+    (
+        "khan-science",
+        "경향신문 과학",
+        "rss",
+        "https://www.khan.co.kr/rss/rssdata/science_news.xml",
+        None,
+        "경향신문",
+        False,
+    ),
+    # ── 논문 (arXiv 공식 API) ──
+    ("arxiv-cs-ai", "arXiv 인공지능", "arxiv", "", "cat:cs.AI OR cat:cs.LG", "arXiv", True),
+    ("arxiv-cs-cv", "arXiv 컴퓨터비전", "arxiv", "", "cat:cs.CV OR cat:cs.CL", "arXiv", True),
+    ("arxiv-eess", "arXiv 전기전자", "arxiv", "", "cat:eess.SP OR cat:eess.SY", "arXiv", True),
+    (
+        "arxiv-physics",
+        "arXiv 물리·천문",
+        "arxiv",
+        "",
+        "cat:astro-ph.GA OR cat:quant-ph",
+        "arXiv",
+        True,
+    ),
+    ("arxiv-math", "arXiv 수학·통계", "arxiv", "", "cat:math.ST OR cat:stat.ML", "arXiv", True),
+    ("arxiv-bio", "arXiv 정량생물학", "arxiv", "", "cat:q-bio.GN OR cat:q-bio.NC", "arXiv", True),
+    ("arxiv-econ", "arXiv 경제", "arxiv", "", "cat:econ.GN OR cat:q-fin.GN", "arXiv", True),
+    # ── 논문 (Crossref 공식 API) — arXiv 가 안 다루는 분야를 메운다 ──
+    (
+        "crossref-med",
+        "Crossref 의약",
+        "crossref",
+        "",
+        "precision medicine clinical trial",
+        "Crossref",
+        True,
+    ),
+    (
+        "crossref-nursing",
+        "Crossref 간호·보건",
+        "crossref",
+        "",
+        "public health nursing patient safety",
+        "Crossref",
+        True,
+    ),
+    (
+        "crossref-env",
+        "Crossref 환경·에너지",
+        "crossref",
+        "",
+        "climate change renewable energy",
+        "Crossref",
+        True,
+    ),
+    (
+        "crossref-edu",
+        "Crossref 교육·심리",
+        "crossref",
+        "",
+        "education psychology adolescent learning",
+        "Crossref",
+        True,
+    ),
+    (
+        "crossref-social",
+        "Crossref 사회·정치",
+        "crossref",
+        "",
+        "social policy inequality demography",
+        "Crossref",
+        True,
+    ),
+    (
+        "crossref-humanities",
+        "Crossref 인문",
+        "crossref",
+        "",
+        "digital humanities literature philosophy",
+        "Crossref",
+        True,
+    ),
+]
+
+
 def track_keyword_rows() -> list[tuple[str, str, float]]:
     """(track_id, keyword, weight) 목록으로 펼친다."""
     rows: list[tuple[str, str, float]] = []

@@ -11,8 +11,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import TrackKeywordRow, TrackRow
-from .seed_data import TRACKS, track_keyword_rows
+from .models import SourceRow, TrackKeywordRow, TrackRow
+from .seed_data import SOURCES, TRACKS, track_keyword_rows
 
 
 async def seed_tracks(session: AsyncSession) -> int:
@@ -58,3 +58,36 @@ async def seed_tracks(session: AsyncSession) -> int:
 
     await session.commit()
     return len(TRACKS)
+
+
+async def seed_sources(session: AsyncSession) -> int:
+    """수집 소스를 시드 기준으로 맞춘다.
+
+    etag/last_modified/failure_count/disabled_until 은 **런타임 상태**라
+    upsert 시 건드리지 않는다. 시드를 고쳐도 백오프 이력이 초기화되지 않는다.
+    """
+    for source_id, name, type_, url, query, outlet, enabled in SOURCES:
+        stmt = pg_insert(SourceRow).values(
+            id=source_id,
+            name=name,
+            type=type_,
+            url=url,
+            query=query,
+            outlet=outlet,
+            enabled=enabled,
+        )
+        await session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[SourceRow.id],
+                set_={
+                    "name": stmt.excluded.name,
+                    "type": stmt.excluded.type,
+                    "url": stmt.excluded.url,
+                    "query": stmt.excluded.query,
+                    "outlet": stmt.excluded.outlet,
+                    "enabled": stmt.excluded.enabled,
+                },
+            )
+        )
+    await session.commit()
+    return len(SOURCES)

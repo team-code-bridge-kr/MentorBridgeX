@@ -21,7 +21,7 @@ from app.errors import (
     validation_error_handler,
 )
 from app.features.research import routes as research_routes
-from app.features.research.seed import seed_tracks
+from app.features.research.seed import seed_sources, seed_tracks
 from app.features.stt import routes as stt_routes
 from app.features.stt.provider import DagloSTTProvider
 from app.features.stt.service import STTService
@@ -51,9 +51,10 @@ async def lifespan(app: FastAPI):
     if not is_offline_demo():
         await init_postgres()
         await init_neo4j()
-        # 트랙 프리셋은 운영 상수 — 시드 파일을 고치면 재시작만으로 반영된다
+        # 트랙 프리셋·수집 소스는 운영 상수 — 시드 파일을 고치면 재시작만으로 반영된다
         async with SessionLocal() as session:
             await seed_tracks(session)
+            await seed_sources(session)
 
     yield
 

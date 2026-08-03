@@ -22,6 +22,9 @@ dependencies = [
     "grpcio>=1.66.0",
     "protobuf>=5.28.0",
     "anthropic>=0.40.0",
+    # 탐구 피드 수집기 — RSS/Atom 파싱, 원문 요약 추출
+    "feedparser>=6.0.11",
+    "trafilatura>=1.12.0",
 ]
 
 [project.optional-dependencies]
