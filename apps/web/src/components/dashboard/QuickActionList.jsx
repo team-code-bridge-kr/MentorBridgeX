@@ -11,7 +11,7 @@ const BASE_ACTIONS = [
   { id: "graph", label: "내 그래프 확장하기", prompt: "내 지식 그래프에서 부족한 부분을 찾아 추가할 노드를 추천해줘." },
   { id: "topic", label: "새로운 탐구 주제 찾기", prompt: "내 관심 분야와 그래프를 보고 새로운 탐구 주제를 제안해줘." },
   { id: "comment", label: "멘토 코멘트 요약", prompt: "최근 받은 멘토 코멘트를 요약하고 무엇부터 반영해야 할지 알려줘." },
-  { id: "record", label: "생기부 주제로 발전시키기", prompt: "지금까지의 탐구를 생기부에 쓸 수 있는 주제로 발전시켜줘." },
+  { id: "record", label: "생기부 주제로 발전", prompt: "지금까지의 탐구를 생기부에 쓸 수 있는 주제로 발전시켜줘." },
 ];
 
 const NEW_USER_ACTIONS = [
@@ -31,19 +31,19 @@ function personalize(summary, articles) {
   if (recentNode) {
     actions[1] = {
       id: "graph",
-      label: `‘${recentNode}’ 노드의 부족한 부분 찾기`,
+      label: `‘${recentNode}’ 확장하기`,
       prompt: `내 그래프의 ‘${recentNode}’ 노드를 중심으로 부족한 부분과 확장할 노드를 찾아줘.`,
     };
     actions[2] = {
       id: "topic",
-      label: `‘${recentNode}’에서 다음 탐구 주제 찾기`,
+      label: `‘${recentNode}’ 다음 주제`,
       prompt: `‘${recentNode}’를 출발점으로 다음 탐구 주제를 추천해줘.`,
     };
   }
   if (article) {
     actions[0] = {
       id: "articles",
-      label: "최근 기사를 그래프와 연결하기",
+      label: "기사를 그래프와 연결",
       prompt: `최근 읽을 만한 기사를 내 지식 그래프와 어떻게 연결하면 좋을지 알려줘.`,
       context: { type: "article", id: article.id, label: article.title },
     };
@@ -51,7 +51,7 @@ function personalize(summary, articles) {
   if (feedback) {
     actions[3] = {
       id: "comment",
-      label: `${feedback.author}님 피드백 반영 방법 알아보기`,
+      label: `${feedback.author}님 피드백 반영`,
       prompt: "이 멘토 피드백을 반영하려면 무엇을 수정해야 할까?",
       context: { type: "comment", id: feedback.id, label: `${feedback.author}님의 피드백` },
     };
