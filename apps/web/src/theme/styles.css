@@ -127,7 +127,12 @@ a { text-decoration:none; color:inherit; }
   position:relative;
   width:var(--sb-w-rail); min-width:var(--sb-w-rail);
   flex-shrink:0; z-index:60;
+  transition:width .18s cubic-bezier(.4,0,.2,1), min-width .18s cubic-bezier(.4,0,.2,1);
 }
+/* 고정(sb-open)일 때는 자리를 차지해 본문을 밀어낸다.
+   잠깐 스치는 hover 는 덮어도 되지만, 계속 열어두는 상태에서 본문을 가리면
+   가려진 것을 보려고 매번 사이드바를 닫아야 한다. */
+.sb-rail.sb-open { width:var(--sb-w-open); min-width:var(--sb-w-open); }
 .sidebar {
   position:absolute; top:0; left:0;
   width:var(--sb-w-rail); height:100vh;
