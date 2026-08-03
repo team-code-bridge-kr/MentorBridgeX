@@ -27,6 +27,9 @@
      항상 같아야 한다.
   ────────────────────────────────────────────────────────────── */
 
+  /* 사이드바 — 평상시 접힌 아이콘 레일 폭 / hover 로 펼쳤을 때 폭 */
+  --sb-w-rail:68px; --sb-w-open:260px;
+
   /* 강조 — 평상시 밝은 쪽, hover 에서 어두운 쪽. 누르려 하면 어두워진다. */
   --primary:#0051ae; --primary-container:#0969da;
   --on-primary:#ffffff; --on-primary-container:#ecefff;
@@ -109,21 +112,50 @@ a { text-decoration:none; color:inherit; }
 
 /* ── Layout ── */
 .app { display:flex; height:100vh; overflow:hidden; }
-.sidebar { width:260px; min-width:260px; height:100vh; display:flex; flex-direction:column; overflow-y:auto; flex-shrink:0; }
 .main { flex:1; display:flex; flex-direction:column; overflow:hidden; min-width:0; }
+
+/* ── Sidebar: 기본 접힘(아이콘 레일) · hover 시 펼침 ──
+   sb-rail 이 레이아웃 자리를 잡고, sidebar 는 그 위에 절대배치되어
+   펼쳐질 때 본문을 밀지 않고 덮는다 (본문 리플로우 방지). */
+.sb-rail {
+  position:relative;
+  width:var(--sb-w-rail); min-width:var(--sb-w-rail);
+  flex-shrink:0; z-index:60;
+}
+.sidebar {
+  position:absolute; top:0; left:0;
+  width:var(--sb-w-rail); height:100vh;
+  display:flex; flex-direction:column; overflow:hidden;
+  transition:width .18s cubic-bezier(.4,0,.2,1), box-shadow .18s ease;
+}
+.sb-rail:hover > .sidebar,
+.sb-rail:focus-within > .sidebar {
+  width:var(--sb-w-open);
+  box-shadow:0 10px 30px rgba(15,23,42,.16);
+}
+.sb-dark.sidebar { box-shadow:none; }
+.sb-rail:hover > .sb-dark.sidebar,
+.sb-rail:focus-within > .sb-dark.sidebar { box-shadow:0 10px 30px rgba(0,0,0,.42); }
+
+/* 접힘 상태에서 감춰지는 텍스트·버튼 — 폭은 그대로 두고 페이드만 (아이콘 위치 고정) */
+.sb-fade { opacity:0; pointer-events:none; transition:opacity .12s ease; }
+.sb-rail:hover .sb-fade,
+.sb-rail:focus-within .sb-fade { opacity:1; pointer-events:auto; transition-delay:.06s; }
+.sb-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ── Sidebar Light ── */
 .sb-light { background:var(--bg1); border-right:1px solid var(--brd); }
 .sb-dark  { background:#191f28; border-right:1px solid #2f3847; }
 
 /* ── Sidebar internals ── */
-.sb-logo  { height:60px; min-height:60px; box-sizing:border-box; padding:0 20px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--brd); }
+/* 좌측 패딩은 접힘 폭(68px)의 중앙에 아이콘이 오도록 맞춰져 있다 — 펼칠 때 아이콘이 움직이지 않는다. */
+.sb-logo  { height:60px; min-height:60px; box-sizing:border-box; padding:0 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--brd); overflow:hidden; }
 .sb-dark .sb-logo { border-bottom-color:#2f3847; }
 .sb-logo-icon { width:36px; height:36px; border-radius:10px; object-fit:contain; flex-shrink:0; display:block; background:transparent; }
 .sb-logo-text { font-size:16px; font-weight:700; color:var(--tp); }
 .sb-dark .sb-logo-text { color:#fff; }
-.sb-section { flex:1; padding:8px 8px 0; }
-.sb-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r8); cursor:pointer; transition:background .12s, color .12s; margin-bottom:1px; font-size:14px; font-weight:500; color:var(--ts); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sb-section { flex:1; padding:8px 8px 0; overflow-y:auto; overflow-x:hidden; }
+.sb-item { display:flex; align-items:center; gap:10px; padding:9px 17px; border-radius:var(--r8); cursor:pointer; transition:background .12s, color .12s; margin-bottom:1px; font-size:14px; font-weight:500; color:var(--ts); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sb-item:hover { background:var(--bg-low); color:var(--primary); }
 .sb-item.active { background:var(--blue-50); color:var(--primary); font-weight:700; }
 .sb-dark .sb-item { color:#8b95a1; }
@@ -132,7 +164,7 @@ a { text-decoration:none; color:inherit; }
 .sb-icon { width:18px; height:18px; text-align:center; color:var(--td); flex-shrink:0; }
 .sb-item.active .sb-icon { color:var(--blue-500); }
 .sb-dark .sb-item.active .sb-icon { color:var(--blue-400); }
-.sb-profile { padding:14px 16px; border-top:1px solid var(--brd); display:flex; align-items:center; gap:10px; }
+.sb-profile { padding:14px 18px; border-top:1px solid var(--brd); display:flex; align-items:center; gap:10px; overflow:hidden; }
 .sb-dark .sb-profile { border-top-color:#2f3847; }
 .sb-pname { font-size:13px; font-weight:600; color:var(--tp); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sb-chip { flex-shrink:0; padding:2px 8px; border-radius:9999px; font-size:10px; font-weight:700; line-height:1.4; white-space:nowrap; background:var(--blue-50); color:var(--blue-500); }
@@ -384,31 +416,37 @@ tr:hover td { background:var(--surface-container-low); }
 .tier2 { background:var(--warningbg); color:#a84900; border:1px solid #ffd0a0; padding:2px 8px; border-radius:var(--r4); font-size:10px; font-weight:700; }
 
 /* ── Responsive App Layout ── */
-/* Graduated sidebar scaling: 글자가 세로로 깨지지 않도록 breakpoint별로 폭·폰트·아이콘·chip 축소 */
+/* 사이드바는 접힘 상태(레일)로 자리를 차지하고 펼침은 본문 위에 겹치므로,
+   breakpoint 에서는 펼침 폭(--sb-w-open)과 글자 크기만 줄인다.
+   레일 폭(68px)은 유지 — 좌측 패딩이 이 폭 기준으로 아이콘을 중앙에 맞춘다. */
 @media (max-width: 1280px) {
-  .sidebar { width:236px; min-width:236px; }
-  .sb-item { font-size:14px; padding:10px 13px; gap:9px; }
+  :root { --sb-w-open:236px; }
+  .sb-item { font-size:14px; padding:10px 17px; gap:9px; }
   .sb-icon { width:17px; height:17px; }
 }
 @media (max-width: 1024px) {
-  .sidebar { width:210px; min-width:210px; }
-  .sb-logo { padding:0 16px; gap:10px; }
-  .sb-logo-icon { width:32px; height:32px; }
+  :root { --sb-w-open:214px; }
   .sb-logo-text { font-size:15px; }
-  .sb-item { font-size:13.5px; padding:9px 12px; gap:8px; }
+  .sb-item { font-size:13.5px; padding:9px 17px; gap:8px; }
   .sb-icon { width:16px; height:16px; }
   .sb-chip { font-size:9px; padding:2px 7px; }
   .sb-pname { font-size:12.5px; }
   .sb-pemail { font-size:10.5px; }
 }
 @media (max-width: 880px) {
-  .sidebar { width:188px; min-width:188px; }
-  .sb-item { font-size:13px; padding:8px 11px; gap:8px; }
-  .sb-section { padding:8px 6px 0; }
+  :root { --sb-w-open:196px; }
+  .sb-item { font-size:13px; padding:8px 17px; gap:8px; }
 }
+/* 태블릿·모바일: hover 가 없으므로 접기 대신 기존 가로 바로 되돌린다. */
 @media (max-width: 768px) {
   .app { flex-direction:column; }
-  .sidebar { width:100%; min-width:0; height:auto; min-height:auto; flex-direction:row; align-items:center; overflow-x:auto; overflow-y:hidden; }
+  .sb-rail { position:static; width:100%; min-width:0; z-index:auto; }
+  .sidebar, .sb-rail:hover > .sidebar, .sb-rail:focus-within > .sidebar {
+    position:static; width:100%; min-width:0; height:auto; min-height:auto;
+    flex-direction:row; align-items:center; overflow-x:auto; overflow-y:hidden;
+    box-shadow:none; transition:none;
+  }
+  .sb-fade { opacity:1; pointer-events:auto; }
   .sb-logo { display:none; }
   .sb-section { display:flex; flex-direction:row; flex:1; padding:8px; gap:4px; overflow-x:auto; overflow-y:hidden; }
   .sb-item { flex:0 0 auto; min-width:auto; margin-bottom:0; padding:8px 12px; font-size:13px; white-space:nowrap; }
@@ -425,6 +463,93 @@ tr:hover td { background:var(--surface-container-low); }
   .sb-pemail { display:none; }
   .sb-chip { font-size:9px; padding:1px 6px; }
 }
+
+/* ══ 탐구주제 피드 (S40~S43) ══════════════════════════════════
+   학생용 화면이라 밝고 가볍게. 다만 장식은 최소로 하고 읽기에 집중시킨다.
+   모바일 우선 — 기본이 1열이고 넓어지면 늘어난다.
+────────────────────────────────────────────────────────────── */
+.rs-wrap { padding:20px; overflow-y:auto; height:100%; }
+.rs-lead { font-size:14px; color:var(--ts); margin-bottom:20px; line-height:1.6; }
+.rs-empty { padding:48px 20px; text-align:center; color:var(--tt); font-size:14px; line-height:1.7; }
+
+/* ── 온보딩: 학과 카드 ── */
+.rs-field-label { font-size:12px; font-weight:700; color:var(--tt); letter-spacing:.04em; margin:24px 0 10px; }
+.rs-field-label:first-child { margin-top:0; }
+.rs-track-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+@media (min-width:600px) { .rs-track-grid { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1000px){ .rs-track-grid { grid-template-columns:repeat(3,1fr); } }
+.rs-track {
+  text-align:left; padding:14px 16px; border-radius:var(--r12);
+  border:1px solid var(--brd); background:var(--bg1); cursor:pointer;
+  transition:border-color .12s, background .12s, box-shadow .12s; font-family:inherit;
+}
+.rs-track:hover { border-color:var(--blue-400); background:var(--blue-50); }
+.rs-track.on { border-color:var(--blue-500); background:var(--blue-50); box-shadow:0 0 0 1px var(--blue-500) inset; }
+.rs-track-name { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
+.rs-track-desc { font-size:12.5px; color:var(--tt); line-height:1.5; }
+
+/* ── 키워드 칩 ── */
+.rs-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.rs-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 11px; border-radius:var(--rfull); font-size:12.5px; font-weight:600;
+  background:var(--bg3); color:var(--ts); border:1px solid transparent; white-space:nowrap;
+}
+.rs-chip.preset { background:var(--blue-50); color:var(--blue-500); }
+.rs-chip.manual { background:var(--bg1); color:var(--tp); border-color:var(--brd); }
+.rs-chip.match  { background:var(--successbg); color:var(--success); font-size:11.5px; padding:3px 9px; }
+.rs-chip-x {
+  border:none; background:transparent; cursor:pointer; padding:0; line-height:1;
+  font-size:15px; color:inherit; opacity:.5; transition:opacity .12s;
+}
+.rs-chip-x:hover { opacity:1; }
+
+/* ── 피드 탭 ── */
+.rs-tabs { display:flex; gap:4px; border-bottom:1px solid var(--brd); margin-bottom:16px; overflow-x:auto; }
+.rs-tab {
+  border:none; background:transparent; font-family:inherit; cursor:pointer;
+  padding:10px 14px; font-size:14px; font-weight:600; color:var(--tt);
+  border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;
+  transition:color .12s, border-color .12s;
+}
+.rs-tab:hover { color:var(--tp); }
+.rs-tab.on { color:var(--primary); border-bottom-color:var(--blue-500); }
+
+/* ── 글 카드 ── */
+.rs-list { display:flex; flex-direction:column; gap:10px; }
+.rs-article {
+  border:1px solid var(--brd); border-radius:var(--r12); background:var(--bg1);
+  padding:16px; transition:border-color .12s, box-shadow .12s;
+}
+.rs-article:hover { border-color:var(--blue-400); box-shadow:0 2px 10px rgba(15,23,42,.06); }
+.rs-article.read { background:var(--bg2); }
+.rs-article.read .rs-article-title { color:var(--ts); font-weight:600; }
+.rs-article-meta { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--tt); margin-bottom:7px; flex-wrap:wrap; }
+.rs-article-title {
+  font-size:15.5px; font-weight:700; color:var(--tp); line-height:1.45;
+  text-decoration:none; display:block; margin-bottom:7px;
+}
+.rs-article-title:hover { color:var(--primary); text-decoration:underline; }
+.rs-article-sum { font-size:13.5px; color:var(--ts); line-height:1.65; margin-bottom:11px; }
+.rs-article-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.rs-save {
+  border:1px solid var(--brd); background:var(--bg1); border-radius:var(--r8);
+  padding:5px 11px; font-size:12.5px; font-weight:600; color:var(--ts);
+  cursor:pointer; font-family:inherit; white-space:nowrap; transition:all .12s;
+}
+.rs-save:hover { background:var(--bg3); }
+.rs-save.on { background:var(--blue-50); border-color:var(--blue-400); color:var(--blue-500); }
+
+/* ── Discover ── */
+.rs-term {
+  display:flex; align-items:center; gap:12px; padding:12px 14px;
+  border:1px solid var(--brd); border-radius:var(--r8); background:var(--bg1);
+}
+.rs-term-count {
+  flex-shrink:0; min-width:44px; text-align:center; font-size:12px; font-weight:700;
+  color:var(--blue-500); background:var(--blue-50); border-radius:var(--r4); padding:4px 6px;
+}
+.rs-term-name { flex:1; min-width:0; font-size:14.5px; font-weight:600; color:var(--tp); word-break:break-all; }
 
 /* ── DAU Chart container ── */
 .chart-responsive-wrap { position:relative; width:100%; }

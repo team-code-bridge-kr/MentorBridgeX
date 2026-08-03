@@ -30,6 +30,9 @@ SentenceTransformer('jhgan/ko-sroberta-multitask')" \
     && find /opt/huggingface -name '*.h5' -delete \
     && find /opt/huggingface -name 'tf_model*' -delete
 
+# 탐구 피드 수집기 의존성. torch/모델 레이어 뒤에 두어 그 캐시를 깨지 않는다.
+RUN pip install --no-cache-dir "feedparser>=6.0.11" "trafilatura>=1.12.0"
+
 COPY app ./app
 
 EXPOSE 8000

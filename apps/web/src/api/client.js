@@ -85,13 +85,27 @@ export async function request(path, opts = {}) {
   // 204 No Content → null 반환
   if (res.status === 204) return null;
 
+  // body 는 한 번만 읽을 수 있다 — text() 로 먼저 받고 JSON 파싱을 시도한다.
+  // (res.json() 실패 후 res.text() 를 부르면 "body stream already read" 로
+  //  진짜 원인(502 HTML 등)이 가려진다.)
+  const raw = await res.text();
+
   let data;
-  try {
-    data = await res.json();
-  } catch {
-    // JSON 파싱 실패 시 텍스트를 에러로
-    const text = await res.text?.() ?? "";
-    throw new Error(`서버 응답 파싱 실패: ${text}`);
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      // JSON 이 아님 → nginx 502/504 HTML, 프록시 오류 등
+      const snippet = raw.replace(/\s+/g, " ").slice(0, 200);
+      const err = new Error(
+        res.ok
+          ? `서버 응답 파싱 실패: ${snippet}`
+          : `서버 오류 (HTTP ${res.status}): ${snippet}`
+      );
+      err.status = res.status;
+      err.code = String(res.status);
+      throw err;
+    }
   }
 
   if (!res.ok) {

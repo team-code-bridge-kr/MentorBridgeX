@@ -13,7 +13,7 @@ import { Sidebar } from "./components/layout/Sidebar.jsx";
 import { GlobalHeader } from "./components/layout/GlobalHeader.jsx";
 import { ScreenPicker } from "./components/ScreenPicker.jsx";
 import { renderScreen } from "./screens/index.jsx";
-import { S_NAV, T_NAV, A_NAV, TITLES, NO_HDR,
+import { S_NAV, T_NAV, A_NAV, TITLES, NO_HDR, NAV_ALIAS,
          SHARED_SCREENS, getLayout } from "./nav/menus.js";
 import {
   PUBLIC_SCREENS,
@@ -143,7 +143,8 @@ function AppShell() {
     );
   }
 
-  const activeNav = sideNav.find((n) => n.id === screen)?.id || sideNav[0].id;
+  const navTarget = NAV_ALIAS[screen] || screen;
+  const activeNav = sideNav.find((n) => n.id === navTarget)?.id || sideNav[0].id;
   const showHdr = !NO_HDR.includes(screen);
 
   return (

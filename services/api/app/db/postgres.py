@@ -126,6 +126,9 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 async def init_postgres() -> None:
     async with engine.begin() as conn:
         await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
+        # pg_trgm — 탐구 피드의 한국어 키워드 부분일치(조사가 붙어도 매칭)에 필요.
+        # 인덱스보다 먼저 만들어져야 하므로 create_all 앞에 둔다.
+        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pg_trgm")
         await conn.run_sync(Base.metadata.create_all)
 
 

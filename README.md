@@ -52,6 +52,7 @@ make -C ../.. api-offline
 # 또는: OFFLINE_DEMO=1 uvicorn app.main:app --reload
 ```
 
+- **탐구주제 피드**: [docs/research-feed.md](docs/research-feed.md) — 학과 프리셋 기반 뉴스·논문 수집과 개인화 피드 (소스 추가 방법 포함)
 - **Swagger**: http://localhost:8000/docs  
 - **Graph viewer**: http://localhost:8000/dev/graph-viewer  
 - **STT tester**: http://localhost:8000/dev/stt-recorder (`DAGLO_API_TOKEN` 설정 시)  
