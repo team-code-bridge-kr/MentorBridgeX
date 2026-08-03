@@ -1,15 +1,23 @@
 /**
  * S41 — 탐구 피드
  *
- * 저작권상 제목 + 요약 2~3문장 + 원문 링크까지만 보여준다. 전문은 저장하지도
- * 표시하지도 않는다. 카드를 누르면 원 매체로 새 탭 이동하고, 매체명과 발행일을
- * 항상 함께 표시한다.
+ * 블로그처럼 읽힌다: 맨 위 한 편(히어로) + 카드 세 편 + 나머지는 줄글 목록.
+ * 목록만 길게 늘어놓으면 "오늘 무엇부터 볼지"를 스스로 정해야 해서 딱딱하다.
  *
- * 페이지네이션은 백엔드의 keyset 커서를 그대로 이어받는다.
+ * 저작권상 제목 + 요약 2~3문장 + 원문 링크까지만 보여준다. 전문은 저장하지도
+ * 표시하지도 않는다. 이미지도 갖고 있지 않아서(남의 이미지를 끌어다 쓰지도
+ * 않는다) 썸네일 자리는 키워드로 만든 판(ArticleVisual)으로 채운다.
+ *
+ * 페이지네이션은 백엔드의 keyset 커서를 그대로 이어받는다. 히어로·카드는
+ * **첫 페이지의 앞 4개**로 고정된다 — 스크롤로 더 불러올 때마다 맨 위가
+ * 바뀌면 읽던 자리를 잃는다.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../../api/index.js";
+import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
+
+const FEATURED = 4; // 히어로 1 + 카드 3
 
 const TABS = [
   { id: "all", label: "전체" },
@@ -116,6 +124,13 @@ export function S41({ onNav }) {
     }
   };
 
+  // 히어로·카드는 앞 4개 고정. 4개가 안 되면 굳이 큰 판을 만들지 않고
+  // 전부 줄글로 보여준다 — 한두 개짜리 히어로는 허전하기만 하다.
+  const featured = items.length >= FEATURED ? items.slice(0, FEATURED) : [];
+  const hero = featured[0] || null;
+  const cards = featured.slice(1);
+  const rest = items.slice(featured.length);
+
   const emptyMessage =
     tab === "saved"
       ? "저장한 글이 없습니다.\n피드에서 마음에 드는 글의 ‘저장’을 눌러보세요."
@@ -138,47 +153,136 @@ export function S41({ onNav }) {
 
       {err && <div className="rs-empty" style={{ color: "var(--danger)" }}>{err}</div>}
 
-      <div className="rs-list">
-        {items.map((item) => (
-          <article key={item.id} className={`rs-article${item.read ? " read" : ""}`}>
-            <div className="rs-article-meta">
-              <span className={`badge badge-${item.kind === "paper" ? "blue" : "grey"}`}>
-                {item.kind === "paper" ? "논문" : "뉴스"}
-              </span>
-              <span style={{ fontWeight: 600, color: "var(--ts)" }}>{item.outlet}</span>
-              {item.published_at && <span>· {fmtDate(item.published_at)}</span>}
-              {item.read && <span>· 읽음</span>}
-            </div>
-
+      {hero && (
+        <article className={`feed-hero${hero.read ? " read" : ""}`}>
+          <a
+            className="feed-hero-visual"
+            href={hero.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => openArticle(hero)}
+            aria-label={hero.title}
+          >
+            <ArticleVisual item={hero} size="lg" />
+          </a>
+          <div className="feed-hero-body">
+            <div className="feed-kicker">{hero.matched_keywords?.[0] || hero.outlet}</div>
             <a
-              className="rs-article-title"
-              href={item.url}
+              className="feed-hero-title"
+              href={hero.url}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => openArticle(item)}
+              onClick={() => openArticle(hero)}
             >
-              {item.title}
+              {hero.title}
             </a>
-
-            {item.summary && <p className="rs-article-sum">{item.summary}</p>}
-
-            <div className="rs-article-foot">
-              <div className="rs-chips">
-                {item.matched_keywords.slice(0, 4).map((k) => (
-                  <span key={k} className="rs-chip match">{k}</span>
-                ))}
-              </div>
+            {hero.summary && <p className="feed-hero-sum">{hero.summary}</p>}
+            {/* 매체명은 왼쪽 판에 크게 있으므로 여기서는 날짜만 */}
+            <div className="feed-meta">
+              {fmtDate(hero.published_at) || "발행일 미상"}
+              {hero.read && " / 읽음"}
+            </div>
+            <div className="feed-hero-actions">
+              <a
+                className="btn btn-primary btn-sm"
+                href={hero.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => openArticle(hero)}
+              >
+                원문 보기
+              </a>
               <button
                 type="button"
-                className={`rs-save${item.saved ? " on" : ""}`}
-                onClick={() => toggleSave(item)}
+                className={`rs-save${hero.saved ? " on" : ""}`}
+                onClick={() => toggleSave(hero)}
               >
-                {item.saved ? "저장됨" : "저장"}
+                {hero.saved ? "저장됨" : "저장"}
               </button>
             </div>
-          </article>
-        ))}
-      </div>
+          </div>
+        </article>
+      )}
+
+      {cards.length > 0 && (
+        <div className="feed-cards">
+          {cards.map((item) => (
+            <article key={item.id} className={`feed-card${item.read ? " read" : ""}`}>
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => openArticle(item)}
+                aria-label={item.title}
+              >
+                <ArticleVisual item={item} />
+              </a>
+              <div className="feed-kicker">{item.matched_keywords?.[0] || item.outlet}</div>
+              <a
+                className="feed-card-title"
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => openArticle(item)}
+              >
+                {item.title}
+              </a>
+              <div className="feed-card-foot">
+                <span className="feed-meta">
+                  {fmtDate(item.published_at) || "발행일 미상"}
+                  {item.read && " / 읽음"}
+                </span>
+                <button
+                  type="button"
+                  className={`rs-save${item.saved ? " on" : ""}`}
+                  onClick={() => toggleSave(item)}
+                >
+                  {item.saved ? "저장됨" : "저장"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {rest.length > 0 && (
+        <>
+          <h2 className="feed-rest-hdr">더 읽을거리</h2>
+          <div className="feed-rows">
+            {rest.map((item) => (
+              <article key={item.id} className={`feed-row${item.read ? " read" : ""}`}>
+                <div className="feed-row-main">
+                  <div className="feed-meta">
+                    <span className={`badge badge-${item.kind === "paper" ? "blue" : "grey"}`}>
+                      {item.kind === "paper" ? "논문" : "뉴스"}
+                    </span>
+                    {item.outlet}
+                    {item.published_at && ` / ${fmtDate(item.published_at)}`}
+                    {item.read && " / 읽음"}
+                  </div>
+                  <a
+                    className="feed-row-title"
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => openArticle(item)}
+                  >
+                    {item.title}
+                  </a>
+                  {item.summary && <p className="feed-row-sum">{item.summary}</p>}
+                </div>
+                <button
+                  type="button"
+                  className={`rs-save${item.saved ? " on" : ""}`}
+                  onClick={() => toggleSave(item)}
+                >
+                  {item.saved ? "저장됨" : "저장"}
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
 
       {!loading && items.length === 0 && !err && (
         <div className="rs-empty" style={{ whiteSpace: "pre-line" }}>
