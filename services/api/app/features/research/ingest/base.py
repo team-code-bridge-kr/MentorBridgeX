@@ -28,6 +28,8 @@ class FetchedItem:
     kind: str = "news"
     lang: str = "ko"
     published_at: datetime | None = None
+    # 대표 이미지 주소. 내려받지 않고 주소만 넘긴다 (models.ArticleRow.image_url 주석)
+    image_url: str | None = None
 
 
 @dataclass

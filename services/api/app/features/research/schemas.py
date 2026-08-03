@@ -50,6 +50,7 @@ class ArticleOut(BaseModel):
     summary: str = ""
     author: str | None = None
     outlet: str = ""
+    image_url: str | None = None  # 주소만. 화면이 원 매체 서버에서 직접 불러온다.
     kind: str  # news | paper
     lang: str = "ko"
     published_at: datetime | None = None

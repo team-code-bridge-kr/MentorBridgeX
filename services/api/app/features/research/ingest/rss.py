@@ -14,7 +14,7 @@ import feedparser
 
 from ..models import KIND_NEWS, SourceRow
 from .base import FetchedItem, FetchOutcome
-from .extract import extract_summary
+from .extract import extract_page
 from .http import BackOffRequired, PoliteClient, RobotsDisallowed
 from .summarize import strip_html, to_summary
 
@@ -72,10 +72,14 @@ class RssFetcher:
             or ""
         )
         summary = to_summary(raw_summary)
+        image_url = _entry_image(entry)
 
-        # RSS 가 요약을 안 줄 때만 원문 페이지를 읽는다. 그래도 3문장까지만 남긴다.
-        if not summary and self._enable_extraction:
-            summary = await extract_summary(self._client, url)
+        # 피드가 요약이나 대표 이미지를 안 줄 때만 원문 페이지를 읽는다.
+        # 요약과 이미지를 한 번의 요청에서 함께 받아 상대 서버 부담을 늘리지 않는다.
+        if self._enable_extraction and (not summary or not image_url):
+            page = await extract_page(self._client, url, want_summary=not summary)
+            summary = summary or page.summary
+            image_url = image_url or page.image_url
 
         return FetchedItem(
             url=url,
@@ -86,7 +90,32 @@ class RssFetcher:
             kind=KIND_NEWS,
             lang="ko",
             published_at=_published_at(entry),
+            image_url=image_url,
         )
+
+
+def _entry_image(entry) -> str | None:
+    """피드가 이미 준 대표 이미지. 여기서 찾으면 원문 페이지를 받지 않아도 된다.
+
+    RSS 는 표준이 여럿이라 매체마다 붙이는 자리가 다르다 — media:thumbnail,
+    media:content, enclosure 순으로 본다.
+    """
+    for key in ("media_thumbnail", "media_content"):
+        media = getattr(entry, key, None) or []
+        for m in media:
+            url = (m.get("url") or "").strip() if isinstance(m, dict) else ""
+            if url.startswith(("http://", "https://")) and len(url) <= 700:
+                return url
+
+    for enc in (getattr(entry, "enclosures", None) or []):
+        if not isinstance(enc, dict):
+            continue
+        if not str(enc.get("type", "")).startswith("image/"):
+            continue
+        url = (enc.get("href") or enc.get("url") or "").strip()
+        if url.startswith(("http://", "https://")) and len(url) <= 700:
+            return url
+    return None
 
 
 def _feed_title(parsed) -> str:

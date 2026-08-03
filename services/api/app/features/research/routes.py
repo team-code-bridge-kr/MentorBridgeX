@@ -273,6 +273,7 @@ async def get_feed(
             summary=article.summary,
             author=article.author,
             outlet=article.outlet,
+            image_url=article.image_url,
             kind=article.kind,
             lang=article.lang,
             published_at=article.published_at,

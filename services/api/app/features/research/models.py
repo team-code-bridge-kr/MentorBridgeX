@@ -125,6 +125,10 @@ class ArticleRow(Base):
     summary: Mapped[str] = mapped_column(Text, default="")
     author: Mapped[str | None] = mapped_column(String(300), nullable=True)
     outlet: Mapped[str] = mapped_column(String(160), default="")  # 매체명 / 저널명
+    # 대표 이미지 **주소만** 갖는다. 이미지를 내려받아 보관하지 않는다 —
+    # 그건 재배포라 요약·링크만 남기는 이 서비스의 원칙과 어긋난다.
+    # 화면에서는 <img> 로 원 매체 서버에서 직접 불러온다(링크 미리보기와 같은 방식).
+    image_url: Mapped[str | None] = mapped_column(String(700), nullable=True)
     kind: Mapped[str] = mapped_column(String(16), default=KIND_NEWS, index=True)
     lang: Mapped[str] = mapped_column(String(8), default="ko")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)

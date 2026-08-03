@@ -1,18 +1,24 @@
 /**
  * 글 카드의 시각 패널.
  *
- * 우리는 기사 이미지를 저장하지 않는다 — 저작권상 제목·요약·링크까지만 갖는다.
- * 남의 사이트 이미지를 그대로 끌어다 쓰는 것도 같은 이유로 하지 않는다.
- * 대신 글마다 고정된 색 조합과 키워드로 판을 만든다. 빈 회색 상자보다
- * 목록이 훨씬 잘 구분되고, "이미지를 못 불러왔다"처럼 보이지도 않는다.
+ * 1순위는 매체가 붙여 둔 대표 이미지(og:image)다. 우리 서버에 내려받아 두지
+ * 않고 **주소만 갖고 있다가 원 매체 서버에서 직접 불러온다** — 카카오톡·슬랙의
+ * 링크 미리보기와 같은 방식이고, 제목·출처·원문 링크를 항상 함께 보여준다.
  *
- * 판에는 **매체명**을 크게 넣는다. 키워드는 바로 아래 줄(kicker)에 이미 있어서
- * 판에도 키워드를 넣으면 같은 글자가 두 번 보이고, 키워드는 피드 특성상 대부분
- * 같은 값이라("인공지능") 카드가 전부 똑같아 보인다. 매체는 글마다 달라 구분된다.
+ * 이미지가 없거나 못 불러오면 색 판으로 대체한다. 매체마다 og:image 가 없기도
+ * 하고(논문은 거의 없다), 일부 서버는 외부 참조를 막는다. 빈 회색 상자를 두면
+ * "고장난 화면"처럼 보이므로 대체 판을 항상 준비해 둔다.
  *
- * 색은 **매체 이름**으로 고른다. 같은 매체는 늘 같은 색이라 목록을 훑을 때
- * 출처가 눈에 익는다. 새로고침마다 색이 바뀌면 눈이 기억한 위치를 잃는다.
+ * 대체 판에는 **매체명**을 크게 넣는다. 출처는 메타 줄에도 늘 함께 나오지만
+ * (저작권상 뺄 수 없다), 판이 비어 있는 것보다 매체를 크게 보여주는 편이 낫다.
+ * 다만 논문은 출처가 거의 전부 arXiv 라 판이 다 똑같아진다 — 논문일 때는
+ * 키워드를 쓴다. "무엇으로 구분되는가"가 매체가 아니라 주제이기 때문이다.
+ *
+ * 색도 같은 글자로 고른다. 같은 매체는 늘 같은 색이라 목록을 훑을 때 출처가
+ * 눈에 익는다. 새로고침마다 색이 바뀌면 눈이 기억한 위치를 잃는다.
  */
+
+import { useState } from "react";
 
 const PALETTES = [
   { bg: "linear-gradient(135deg,#0b1020 0%,#1b2a63 55%,#3b6fd4 100%)", fg: "#cfe0ff" },
@@ -30,12 +36,35 @@ function pick(id = "") {
 }
 
 export function ArticleVisual({ item, size = "md" }) {
-  const word = item.outlet || item.matched_keywords?.[0] || "탐구";
+  const [broken, setBroken] = useState(false);
+  const word =
+    (item.kind === "paper"
+      ? item.matched_keywords?.[0] || item.outlet
+      : item.outlet || item.matched_keywords?.[0]) || "탐구";
   const p = pick(word || item.id);
+  const src = !broken && item.image_url ? item.image_url : null;
 
   return (
-    <div className={`feed-visual feed-visual-${size}`} style={{ background: p.bg }} aria-hidden="true">
-      <span className="feed-visual-word" style={{ color: p.fg }}>{word}</span>
+    <div
+      className={`feed-visual feed-visual-${size}${src ? " has-image" : ""}`}
+      style={src ? undefined : { background: p.bg }}
+      aria-hidden="true"
+    >
+      {src ? (
+        <img
+          className="feed-visual-img"
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          // 어디서 불러가는지 매체에 흘리지 않는다. 리퍼러로 외부 참조를 막는
+          // 서버에서도 대체로 이쪽이 잘 뜬다.
+          referrerPolicy="no-referrer"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <span className="feed-visual-word" style={{ color: p.fg }}>{word}</span>
+      )}
       <span className="feed-visual-kind">{item.kind === "paper" ? "논문" : "뉴스"}</span>
     </div>
   );

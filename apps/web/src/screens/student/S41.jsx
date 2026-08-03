@@ -177,9 +177,11 @@ export function S41({ onNav }) {
               {hero.title}
             </a>
             {hero.summary && <p className="feed-hero-sum">{hero.summary}</p>}
-            {/* 매체명은 왼쪽 판에 크게 있으므로 여기서는 날짜만 */}
+            {/* 출처와 발행일은 어떤 경우에도 함께 보인다 — 대표 이미지가 원
+                매체 것이라 더더욱 뺄 수 없다 */}
             <div className="feed-meta">
-              {fmtDate(hero.published_at) || "발행일 미상"}
+              {hero.outlet}
+              {` / ${fmtDate(hero.published_at) || "발행일 미상"}`}
               {hero.read && " / 읽음"}
             </div>
             <div className="feed-hero-actions">
@@ -229,7 +231,8 @@ export function S41({ onNav }) {
               </a>
               <div className="feed-card-foot">
                 <span className="feed-meta">
-                  {fmtDate(item.published_at) || "발행일 미상"}
+                  {item.outlet}
+                  {` / ${fmtDate(item.published_at) || "발행일 미상"}`}
                   {item.read && " / 읽음"}
                 </span>
                 <button
