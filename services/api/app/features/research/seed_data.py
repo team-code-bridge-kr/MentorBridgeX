@@ -301,6 +301,13 @@ SOURCES: list[tuple[str, str, str, str, str | None, str, bool]] = [
     # ── 논문 (arXiv 공식 API) ──
     ("arxiv-cs-ai", "arXiv 인공지능", "arxiv", "", "cat:cs.AI OR cat:cs.LG", "arXiv", True),
     ("arxiv-cs-cv", "arXiv 컴퓨터비전", "arxiv", "", "cat:cs.CV OR cat:cs.CL", "arXiv", True),
+    # 컴퓨터공학 트랙 키워드(알고리즘·운영체제·컴파일러·분산시스템·클라우드·
+    # 보안·데이터베이스·소프트웨어공학)를 받아 줄 카테고리가 없어서, 그 트랙을
+    # 고른 학생에게 빈 피드가 나가고 있었다. AI·비전만으로는 못 덮는다.
+    ("arxiv-cs-ds", "arXiv 알고리즘·자료구조", "arxiv", "", "cat:cs.DS OR cat:cs.CC", "arXiv", True),
+    ("arxiv-cs-sys", "arXiv 시스템·분산", "arxiv", "", "cat:cs.DC OR cat:cs.OS", "arXiv", True),
+    ("arxiv-cs-se", "arXiv 소프트웨어공학", "arxiv", "", "cat:cs.SE OR cat:cs.PL", "arXiv", True),
+    ("arxiv-cs-sec", "arXiv 보안·데이터베이스", "arxiv", "", "cat:cs.CR OR cat:cs.DB", "arXiv", True),
     ("arxiv-eess", "arXiv 전기전자", "arxiv", "", "cat:eess.SP OR cat:eess.SY", "arXiv", True),
     (
         "arxiv-physics",

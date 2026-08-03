@@ -10,9 +10,10 @@
 from __future__ import annotations
 
 import base64
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Select, and_, or_, select, tuple_
+from sqlalchemy import Select, and_, false, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import KIND_NEWS, KIND_PAPER, ArticleRow, UserKeywordRow, UserReadRow
@@ -27,6 +28,8 @@ DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
 # 검색어 상한 — trgm LIKE 는 길수록 느려지고, 이보다 긴 건 검색어가 아니라 문장이다
 MAX_QUERY_LEN = 60
+# 기간 필터로 받는 값(일). 0 이면 제한 없음.
+PERIODS = {0, 7, 30, 90, 365}
 
 
 def encode_cursor(published_at: datetime, article_id: str) -> str:
@@ -48,14 +51,33 @@ def _escape_like(keyword: str) -> str:
     return keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+_WORD_SPLIT = re.compile(r"[\s/·,]+")
+MIN_WORD_LEN = 2
+
+
+def term_condition(term: str):
+    """한 낱말이면 그대로, 여러 낱말이면 **모든 낱말을 포함**하는 조건으로 본다.
+
+    "cloud computing" 을 통짜 문구로 찾으면 우리 글 1,154건 중 0건이 걸린다.
+    실제 글은 "cloud environments", "cloud-native computing" 처럼 쓰기 때문이다.
+    낱말을 모두 포함하는 조건으로 바꾸면 그런 글이 잡히면서도(실측 2건) 무관한
+    글이 쏟아지지 않는다. "data structure" 도 통짜 0건 → 낱말 조건 12건이다.
+
+    낱말마다 LIKE 라 GIN trgm 인덱스는 그대로 탄다.
+    """
+    words = [w for w in _WORD_SPLIT.split(term.strip().lower()) if len(w) >= MIN_WORD_LEN]
+    if not words:
+        return None
+    return and_(
+        *[ArticleRow.search_text.like(f"%{_escape_like(w)}%", escape="\\") for w in words]
+    )
+
+
 def keyword_filter(keywords: list[str]):
     """키워드 OR 조건. 각각이 GIN trgm 인덱스를 탈 수 있도록 개별 LIKE 로 펼친다."""
-    return or_(
-        *[
-            ArticleRow.search_text.like(f"%{_escape_like(k.lower())}%", escape="\\")
-            for k in keywords
-        ]
-    )
+    conditions = [c for c in (term_condition(k) for k in keywords) if c is not None]
+    # 조건이 하나도 없으면 or_() 가 빈 절이 되어 전체가 통과해 버린다 — 막는다
+    return or_(*conditions) if conditions else false()
 
 
 async def load_keywords(session: AsyncSession, user_id: str) -> list[str]:
@@ -71,7 +93,12 @@ def matched_keywords(search_text: str, keywords: list[str]) -> list[str]:
     search_text 는 이미 소문자로 정규화돼 있고 한 페이지는 최대 50건이라 부담이 없다.
     """
     haystack = search_text or ""
-    return [k for k in keywords if k.lower() in haystack]
+    matched = []
+    for k in keywords:
+        words = [w for w in _WORD_SPLIT.split(k.strip().lower()) if len(w) >= MIN_WORD_LEN]
+        if words and all(w in haystack for w in words):
+            matched.append(k)
+    return matched
 
 
 def build_feed_query(
@@ -82,6 +109,7 @@ def build_feed_query(
     cursor: tuple[datetime, str] | None,
     limit: int,
     query: str = "",
+    days: int = 0,
 ) -> Select:
     stmt = select(ArticleRow, UserReadRow).join(
         UserReadRow,
@@ -108,8 +136,15 @@ def build_feed_query(
 
     if query:
         # 키워드 매칭과 같은 길 — search_text 의 pg_trgm GIN 인덱스를 그대로 탄다
+        condition = term_condition(query)
+        if condition is not None:
+            stmt = stmt.where(condition)
+
+    if days:
+        # 발행일 기준. 수집 시각으로 자르면 "오래된 글을 오늘 수집한" 경우가
+        # 최근 글로 보인다.
         stmt = stmt.where(
-            ArticleRow.search_text.like(f"%{_escape_like(query.lower())}%", escape="\\")
+            ArticleRow.published_at >= datetime.now(UTC) - timedelta(days=days)
         )
 
     if cursor is not None:

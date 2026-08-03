@@ -1110,8 +1110,17 @@ tr:hover td { background:var(--surface-container-low); }
 .feed-search-go:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
 
 /* 내 키워드 칩 — 누르면 그 키워드로 모아본다 */
-.feed-kw-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px; }
-.feed-kw-row .quick-chip.on { background:var(--blue-500); border-color:var(--blue-500); color:#fff; }
+.feed-kw-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:10px; }
+.feed-period { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px; }
+/* 고른 것과 안 고른 것이 한눈에 갈라져야 한다 — 파란 판 + 흰 글씨.
+   hover 색(연한 파랑)보다 확실히 진해서 "지나가는 중"과 헷갈리지 않는다. */
+.feed-kw-row .quick-chip.on,
+.feed-period .quick-chip.on {
+  background:var(--blue-500); border-color:var(--blue-500); color:#fff;
+  box-shadow:0 1px 3px rgba(9,105,218,.35);
+}
+.feed-kw-row .quick-chip.on:hover,
+.feed-period .quick-chip.on:hover { background:var(--blue-600); border-color:var(--blue-600); color:#fff; }
 .feed-kw-row .quick-chip.is-manage { border-style:dashed; color:var(--tt); }
 
 .feed-search-state {

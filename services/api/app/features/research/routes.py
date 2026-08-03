@@ -27,6 +27,7 @@ from .feed import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
     MAX_QUERY_LEN,
+    PERIODS,
     TAB_ALL,
     TAB_SAVED,
     TABS,
@@ -248,6 +249,7 @@ async def get_feed(
     cursor: Annotated[str | None, Query(description="이전 응답의 next_cursor")] = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
     q: Annotated[str, Query(description="검색어 (제목·요약 부분일치)", max_length=MAX_QUERY_LEN)] = "",
+    days: Annotated[int, Query(description="최근 N일 (0=전체)", ge=0, le=365)] = 0,
 ) -> FeedOut:
     db = _require_db(session)
     if tab not in TABS:
@@ -266,6 +268,7 @@ async def get_feed(
         cursor=decode_cursor(cursor) if cursor else None,
         limit=limit,
         query=query,
+        days=days if days in PERIODS else 0,
     )
     rows = (await db.execute(stmt)).all()
 

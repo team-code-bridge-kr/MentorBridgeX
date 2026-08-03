@@ -20,6 +20,14 @@ import { NavIcon } from "../../components/NavIcon.jsx";
 
 const FEATURED = 4; // 히어로 1 + 카드 3
 
+// 기간 필터. 값은 일 단위이고 0 은 제한 없음 (백엔드 feed.PERIODS 와 같아야 한다)
+const PERIODS = [
+  { days: 0, label: "전체 기간" },
+  { days: 7, label: "최근 1주" },
+  { days: 30, label: "최근 1개월" },
+  { days: 90, label: "최근 3개월" },
+];
+
 const TABS = [
   { id: "all", label: "전체" },
   { id: "news", label: "뉴스" },
@@ -46,6 +54,7 @@ export function S41({ onNav }) {
   // 타이핑마다 서버를 부르면 한 글자씩 칠 때마다 피드가 깜빡인다.
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
+  const [days, setDays] = useState(0);
   const [keywords, setKeywords] = useState([]);
   const [items, setItems] = useState([]);
   const [cursor, setCursor] = useState(null);
@@ -71,7 +80,7 @@ export function S41({ onNav }) {
   }, []);
 
   const load = useCallback(
-    async (nextTab, nextCursor, nextQuery = "") => {
+    async (nextTab, nextCursor, nextQuery = "", nextDays = 0) => {
       setLoading(true);
       setErr("");
       try {
@@ -79,6 +88,7 @@ export function S41({ onNav }) {
           tab: nextTab,
           cursor: nextCursor,
           query: nextQuery,
+          days: nextDays,
         });
         setItems((prev) => (nextCursor ? [...prev, ...data.items] : data.items));
         setCursor(data.next_cursor);
@@ -98,8 +108,8 @@ export function S41({ onNav }) {
     setItems([]);
     setCursor(null);
     setDone(false);
-    load(tab, null, query);
-  }, [tab, query, checkedProfile, load]);
+    load(tab, null, query, days);
+  }, [tab, query, days, checkedProfile, load]);
 
   // 내 키워드 — 칩으로 눌러 바로 모아볼 수 있게 한다
   useEffect(() => {
@@ -113,13 +123,13 @@ export function S41({ onNav }) {
     if (!node || done || loading) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && cursor) load(tab, cursor, query);
+        if (entries[0].isIntersecting && cursor) load(tab, cursor, query, days);
       },
       { rootMargin: "300px" }
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [cursor, done, loading, tab, query, load]);
+  }, [cursor, done, loading, tab, query, days, load]);
 
   const openArticle = (item) => {
     // 낙관적 표시 — 읽음 기록 실패가 링크 이동을 막을 이유는 없다
@@ -163,10 +173,19 @@ export function S41({ onNav }) {
     }
   };
 
+  // 왜 비었는지까지 말해준다. 특히 영문 키워드는 국내 기사에 거의 안 나와서
+  // "검색이 고장났나" 로 읽히기 쉽다.
+  const asciiQuery = /^[\x00-\x7F]+$/.test(query);
   const emptyMessage =
     tab === "saved"
       ? "저장한 글이 없습니다.\n피드에서 마음에 드는 글의 ‘저장’을 눌러보세요."
-      : "아직 보여드릴 글이 없습니다.\n키워드를 늘리거나 잠시 후 다시 확인해 주세요.";
+      : query
+        ? `‘${query}’로 찾은 글이 없습니다.\n` +
+          (days ? "기간을 넓혀보거나, " : "") +
+          (asciiQuery
+            ? "한글 표현으로도 찾아보세요 (예: cloud computing → 클라우드).\n국내 기사에는 영문 용어가 거의 그대로 쓰이지 않습니다."
+            : "영문 표현으로도 찾아보세요 — 논문은 대부분 영어입니다.")
+        : "아직 보여드릴 글이 없습니다.\n키워드를 늘리거나 잠시 후 다시 확인해 주세요.";
 
   return (
     <div className="rs-wrap">
@@ -221,6 +240,20 @@ export function S41({ onNav }) {
         <button type="button" className="quick-chip is-manage" onClick={() => onNav("S42")}>
           ＋ 키워드 수정
         </button>
+      </div>
+
+      <div className="feed-period" role="group" aria-label="검색 기간">
+        {PERIODS.map((p) => (
+          <button
+            key={p.days}
+            type="button"
+            className={`quick-chip${days === p.days ? " on" : ""}`}
+            aria-pressed={days === p.days}
+            onClick={() => setDays(p.days)}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {query && (
