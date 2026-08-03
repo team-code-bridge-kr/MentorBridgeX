@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     daglo_base_url: str = "https://apis.daglo.ai"
     daglo_timeout_seconds: float = 30.0
 
+    # 네이버 뉴스 검색 (NAVER Cloud Platform API HUB).
+    # 엔드포인트는 naverapihub.apigw.ntruss.com 이고 헤더는 X-NCP-APIGW-API-KEY-ID/KEY 다.
+    # 예전 developers.naver.com(openapi.naver.com + X-Naver-Client-*)과 다르다 —
+    # 키를 옛 주소로 보내면 401 이 나면서 "인증 실패"라고만 해서 키를 의심하게 된다.
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
+
     # NewsAPI.org (선택). 비어 있으면 newsapi 타입 소스를 건너뛴다.
     # 무료 Developer 플랜은 하루 100요청 + 기사 24시간 지연이고, 공식 약관상
     # **운영 환경에서 쓸 수 없다**(개발·테스트 전용). 그래서 시드에서도 꺼둔다.

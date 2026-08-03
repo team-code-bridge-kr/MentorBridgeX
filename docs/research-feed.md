@@ -47,9 +47,32 @@ curl -X POST http://127.0.0.1:8000/v1/research/ingest/run \
 | 뉴스 RSS | 연합뉴스 8개 (산업·보건·경제·사회·문화·정치·국제·스포츠) | 섹션당 120건 |
 | 뉴스 RSS | 전자신문 IT·과학, 한국경제 경제, 동아일보 IT·의학, ZDNet Korea | |
 | 뉴스 RSS | 한겨레 미래&과학, 경향신문 과학 | **꺼둠** — 피드에 "AI 학습 및 활용 금지" 문구 |
+| 뉴스 검색 | **네이버 뉴스 검색 10개** (화학·생명·의약·간호·환경·전기전자·사회·교육·예술·건축) | 하루 25,000회 |
 | 뉴스 API | NewsAPI.org 2개 | **꺼둠** — 아래 참고 |
 | 논문 | arXiv 12개 (cs.AI/LG, cs.CV/CL, cs.DS/CC, cs.DC/OS, cs.SE/PL, cs.CR/DB, chem-ph, eess, math, q-bio, econ, physics) | |
 | 논문 | Crossref 7개 (의약·간호·교육·환경·사회·인문 등) | 검색어 기반 |
+
+### 네이버 뉴스 검색 (NCP API HUB)
+
+RSS 는 매체가 정해 준 섹션만 오지만 검색은 **주제로** 가져온다. RSS 로는 안
+채워지던 트랙을 이걸로 메웠다.
+
+**엔드포인트를 헷갈리지 말 것.** 같은 "네이버 검색"이라도 두 갈래다.
+
+| | 엔드포인트 | 인증 헤더 |
+|---|---|---|
+| 옛 developers.naver.com | `openapi.naver.com/v1/search/news.json` | `X-Naver-Client-Id/Secret` |
+| **지금 쓰는 NCP API HUB** | `naverapihub.apigw.ntruss.com/search/v1/news` | `X-NCP-APIGW-API-KEY-ID/KEY` |
+
+NCP 콘솔 키를 옛 주소로 보내면 401(errorCode 024) 이 나는데 메시지가 그냥
+"인증에 실패했습니다"라, 키가 틀린 것처럼 보인다. 실제로는 문이 다르다.
+
+**OR 문법이 없다.** `"촉매 OR 고분자"` 를 보내면 그 문구를 통째로 찾아 0건이다.
+그래서 소스의 query 에 `|` 로 낱말을 나열하고 수집기가 낱말마다 따로 요청한다.
+
+**언론사명이 응답에 없다.** `originallink` 도메인으로 유추한다(`ingest/naver.py`
+의 OUTLETS). 표에 없는 곳은 도메인을 그대로 보여준다 — 전 언론사를 표로
+관리하려 들면 유지가 안 되고, 도메인이라도 보이는 편이 출처를 아예 모르는 것보다 낫다.
 
 **넣지 않기로 한 곳**
 
@@ -68,13 +91,13 @@ arXiv 에 cs.AI/cs.CV 밖에 없어서였다.
 
 ### 트랙별 커버리지 (2026-08-03 실측, 상한 50건)
 
-cs 50 / ai 50 / mech 49 / math 50 / physics 50 / civil 50 / biz 50 / psych 50 /
-humanities 50 / env 27 / ee 26 / social 24 / med 18 / nursing 18 / bio 14 / **chem 5**
+**16개 트랙 전부 50건(상한)** — 네이버 뉴스 검색을 넣고 나서다.
 
-소스를 늘리기 전에는 cs 가 0건이었다. 화학은 `physics.chem-ph` +
-`cond-mat.mtrl-sci` 를 넣어 38건을 받았는데도 5건밖에 안 걸린다 — 논문 초록이
-"촉매/catalysis" 같은 트랙 키워드를 그대로 쓰지 않기 때문이다. 국내 화학 기사도
-드물다. 화학 트랙은 키워드를 초록에서 실제로 쓰는 말로 손보는 게 다음 숙제다.
+그 전 기록: cs 0 → (arXiv CS 추가) 50, 그리고 chem 5 / bio 14 / med 18 /
+nursing 18 / social 24 / ee 26 / env 27 로 얇았다. 네이버 검색 10개 소스에서
+약 2,800건이 들어오면서 전부 상한을 채웠다.
+
+기사 4,158건 / 매체 539곳 (뉴스 기준).
 
 ## 키워드가 걸리는 방식
 

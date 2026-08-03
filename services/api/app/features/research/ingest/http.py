@@ -105,6 +105,7 @@ class PoliteClient:
         *,
         etag: str | None = None,
         last_modified: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpResult:
         parts = urlsplit(url)
         host = parts.netloc
@@ -115,7 +116,7 @@ class PoliteClient:
             if robots is not None and not robots.can_fetch(UA_TOKEN, url):
                 raise RobotsDisallowed(f"robots.txt disallows {parts.path or '/'}")
 
-            headers: dict[str, str] = {}
+            headers = dict(headers or {})  # 인증 헤더 등 호출부가 준 것부터
             if etag:
                 headers["If-None-Match"] = etag
             if last_modified:
