@@ -80,9 +80,9 @@ class GraphSummaryOut(BaseModel):
     edge_count: int = 0
     recent_nodes: list[str] = Field(default_factory=list)
     last_updated: datetime | None = None
-    preview_nodes: list[dict] = Field(default_factory=list)
-    preview_edges: list[dict] = Field(default_factory=list)
     suggested_count: int = 0
+    # 미리보기 도형은 내려보내지 않는다 — 대시보드 카드가 지식 그래프 화면과
+    # 같은 /v1/students/me/graph 를 그려서, 두 화면의 모양이 어긋나지 않게 한다.
 
 
 class PendingFeedbackItem(BaseModel):

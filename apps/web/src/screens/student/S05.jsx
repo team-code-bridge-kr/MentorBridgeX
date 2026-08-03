@@ -55,6 +55,17 @@ export function S05({ onNav }) {
     !summary.onboarded &&
     (summary.graph?.node_count ?? 0) === 0;
 
+  // 미리보기는 S06 과 같은 데이터를 그린다 — 요약본을 따로 그리면 실제 그래프와
+  // 다른 그림이 된다. 이미 불러온 그래프가 있으면 다시 받지 않는다.
+  const graph = state.graph;
+  useEffect(() => {
+    if (!graph.nodes.length && !graph.loading) {
+      actions.loadGraph(user?.id).catch(() => {});
+    }
+    // 화면 진입 시 한 번만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 대화가 시작되면 대화 영역으로 자연스럽게 이동시킨다
   useEffect(() => {
     if (chat.started) {
@@ -127,14 +138,6 @@ export function S05({ onNav }) {
     [addNodeFromCard, busyNode, askWithContext, retry]
   );
 
-  const attachGraph = () =>
-    ctx.add({ type: "graph", id: null, label: "내 지식 그래프" });
-
-  const attachLink = (url, mode) => {
-    if (mode === "voice") { onNav("S15"); return; }
-    if (url) setDraft((d) => (d ? `${d}\n${url}` : url));
-  };
-
   const saveArticle = async (article) => {
     try {
       await api.research.setSaved(article.id, true);
@@ -164,6 +167,8 @@ export function S05({ onNav }) {
         />
         <RecentGraphCard
           graph={summary?.graph}
+          nodes={graph.nodes}
+          edges={graph.edges}
           loading={summaryRes.loading}
           error={summaryRes.error}
           onReload={summaryRes.reload}
@@ -220,8 +225,7 @@ export function S05({ onNav }) {
             onRunQuick={(prompt, contextItem) => askWithContext(prompt, contextItem)}
             context={ctx.items}
             onRemoveContext={ctx.remove}
-            onAttachGraph={attachGraph}
-            onAttachLink={attachLink}
+            onVoice={() => onNav("S15")}
             onResume={chat.resume}
             onNav={onNav}
           />
@@ -255,8 +259,7 @@ export function S05({ onNav }) {
                 onSubmit={send}
                 context={ctx.items}
                 onRemoveContext={ctx.remove}
-                onAttachGraph={attachGraph}
-                onAttachLink={attachLink}
+                onVoice={() => onNav("S15")}
                 streaming={chat.streaming}
                 onStop={chat.stop}
               />

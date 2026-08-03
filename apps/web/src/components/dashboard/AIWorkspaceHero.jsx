@@ -9,7 +9,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AIComposer } from "./AIComposer.jsx";
 import { QuickActionList } from "./QuickActionList.jsx";
 import { RecentConversationList } from "./RecentConversationList.jsx";
-import mbxLogo from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
 
 // 돌아가는 단어 — MBX 가 탐구 하나만 다루는 도구가 아님을 문구로 보여준다
 const ROTATING = ["탐구", "보고서", "생기부", "실험", "독서", "프로젝트"];
@@ -74,8 +73,7 @@ export function AIWorkspaceHero({
   onRunQuick,
   context,
   onRemoveContext,
-  onAttachGraph,
-  onAttachLink,
+  onVoice,
   onResume,
   onNav,
 }) {
@@ -90,16 +88,10 @@ export function AIWorkspaceHero({
         {/* 스크린리더에는 회전 단어 대신 고정 문장을 읽힌다 */}
         <h1 className="hero-title" id="hero-title">
           <span className="sr-only">오늘은 어떤 탐구를 이어가 볼까요?</span>
-          <span className="hero-title-row" aria-hidden="true">
-            <img className="hero-logo" src={mbxLogo} alt="" />
-            <span>
-              오늘은 어떤 <RotatingWord />를 이어가 볼까요?
-            </span>
+          <span aria-hidden="true">
+            오늘은 어떤 <RotatingWord />를 이어가 볼까요?
           </span>
         </h1>
-        <p className="hero-sub">
-          관심 분야의 자료를 찾고, 지식 그래프를 확장하고, 멘토의 피드백을 반영해보세요.
-        </p>
 
         <AIComposer
           value={draft}
@@ -107,8 +99,7 @@ export function AIWorkspaceHero({
           onSubmit={onSubmit}
           context={context}
           onRemoveContext={onRemoveContext}
-          onAttachGraph={onAttachGraph}
-          onAttachLink={onAttachLink}
+          onVoice={onVoice}
           autoFocus
         />
 

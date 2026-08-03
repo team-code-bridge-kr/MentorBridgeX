@@ -55,7 +55,6 @@ CurrentUser = Annotated[UserRow, Depends(get_current_user)]
 DbSession = Annotated[AsyncSession | None, Depends(get_db_session)]
 
 TITLE_MAX = 60
-PREVIEW_NODES = 8
 RECENT_CONVERSATIONS = 3
 
 
@@ -288,7 +287,7 @@ async def dashboard(user: CurrentUser, session: DbSession) -> DashboardOut:
     week_ago = datetime.now(UTC) - timedelta(days=7)
 
     snapshot = await _graph_snapshot(user.id)
-    graph = _graph_summary(snapshot, week_ago)
+    graph = _graph_summary(snapshot)
 
     articles_read = await db.scalar(
         select(func.count())
@@ -381,7 +380,7 @@ def _recent_node_count(snapshot, since: datetime) -> int:
     return count
 
 
-def _graph_summary(snapshot, since: datetime) -> GraphSummaryOut:
+def _graph_summary(snapshot) -> GraphSummaryOut:
     if snapshot is None:
         return GraphSummaryOut()
     nodes = list(getattr(snapshot, "nodes", []) or [])
@@ -396,29 +395,10 @@ def _graph_summary(snapshot, since: datetime) -> GraphSummaryOut:
     ordered = sorted(nodes, key=created, reverse=True)
     last = created(ordered[0])
 
-    # 미리보기는 핵심 노드 위주로 잘라 보낸다 — 전체 그래프를 그리면 카드가 뭉갠다
-    preview = ordered[:PREVIEW_NODES]
-    preview_ids = {getattr(n, "id", None) for n in preview}
     return GraphSummaryOut(
         node_count=len(nodes),
         edge_count=len(edges),
         recent_nodes=[getattr(n, "label", "") for n in ordered[:3] if getattr(n, "label", "")],
         last_updated=last if last.year > 1 else None,
-        preview_nodes=[
-            {
-                "id": getattr(n, "id", ""),
-                "label": getattr(n, "label", ""),
-                "kind": getattr(getattr(n, "type", None), "value", None)
-                or str(getattr(n, "type", "") or "topic"),
-                "recent": created(n) >= since,
-            }
-            for n in preview
-        ],
-        preview_edges=[
-            {"source": e.source_id, "target": e.target_id}
-            for e in edges
-            if getattr(e, "source_id", None) in preview_ids
-            and getattr(e, "target_id", None) in preview_ids
-        ][:12],
         suggested_count=max(0, min(5, len(nodes) // 4)),
     )

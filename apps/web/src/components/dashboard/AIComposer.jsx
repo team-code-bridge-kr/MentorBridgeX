@@ -2,7 +2,7 @@
  * AI 입력창.
  *
  * 한 줄 input 이 아니라 3~4줄까지 자라는 textarea. Enter 전송 / Shift+Enter 줄바꿈.
- * 첨부(파일·링크·그래프·음성)는 입력창 안쪽 왼쪽, 전송은 오른쪽에 둔다.
+ * 첨부(파일)와 음성은 입력창 안쪽 왼쪽, 전송은 오른쪽에 둔다.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -18,8 +18,7 @@ export function AIComposer({
   onSubmit,
   context,
   onRemoveContext,
-  onAttachGraph,
-  onAttachLink,
+  onVoice,
   streaming,
   onStop,
   autoFocus,
@@ -58,11 +57,6 @@ export function AIComposer({
     const picked = [...(e.target.files || [])].slice(0, 3);
     setFiles((prev) => [...prev, ...picked].slice(0, 3));
     e.target.value = "";
-  };
-
-  const attachLink = () => {
-    const url = window.prompt("기사·논문·영상 링크를 붙여넣으세요");
-    if (url?.trim()) onAttachLink?.(url.trim());
   };
 
   return (
@@ -110,21 +104,15 @@ export function AIComposer({
             aria-hidden="true"
             tabIndex={-1}
           />
-          {/* 앱 전체가 같은 선 스타일의 SVG 아이콘을 쓰므로 여기도 맞춘다 */}
+          {/* 앱 전체가 같은 선 스타일의 SVG 아이콘을 쓰므로 여기도 맞춘다.
+              링크는 입력창에 그대로 붙여넣으면 되므로 별도 버튼(브라우저 prompt)을
+              두지 않는다 — 첨부와 음성 둘만 남긴다. */}
           <button type="button" className="composer-tool" aria-label="파일 첨부"
             title="파일 첨부" onClick={() => fileRef.current?.click()}>
             <NavIcon name="paperclip" size={17} color="currentColor" />
           </button>
-          <button type="button" className="composer-tool" aria-label="링크 첨부"
-            title="링크 첨부" onClick={attachLink}>
-            <NavIcon name="link" size={17} color="currentColor" />
-          </button>
-          <button type="button" className="composer-tool" aria-label="현재 그래프 첨부"
-            title="현재 그래프 첨부" onClick={() => onAttachGraph?.()}>
-            <NavIcon name="branch" size={17} color="currentColor" />
-          </button>
           <button type="button" className="composer-tool" aria-label="음성 입력"
-            title="음성 입력 (음성 화면으로 이동)" onClick={() => onAttachLink?.(null, "voice")}>
+            title="음성 입력 (음성 화면으로 이동)" onClick={() => onVoice?.()}>
             <NavIcon name="voice" size={17} color="currentColor" />
           </button>
         </div>

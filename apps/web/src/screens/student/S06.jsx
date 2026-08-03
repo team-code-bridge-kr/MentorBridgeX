@@ -3,6 +3,7 @@ import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { GRAPH_CANVAS, KIND_META, OVERLAY_SURFACE, OVERLAY_TEXT, Z, ZOOM } from "../../theme/graphMeta.js";
 import { iconForNode, SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
+import { visualEdgesOf } from "../../theme/graphView.js";
 import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
@@ -79,21 +80,8 @@ export function S06({ onNav }) {
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
 
-  // 화면에 그릴 선.
-  //
-  // 백엔드 엣지는 거의 전부 "노드 → 생기부 문서"(MENTIONED_IN)라, 그대로 그리면
-  // 수십 개 선이 중앙으로 쏟아져 아무것도 안 보인다. 대신 배치가 만든 가지
-  // (문서 → 과목 → 그 과목의 노드)를 그리고, 문서를 거치지 않는 실제 엣지
-  // (EVOLVED_FROM 등)는 그 위에 겹쳐 보여준다.
-  const visualEdges = useMemo(() => {
-    const rootId = nodes.find(n => n.kind === "root")?.id ?? null;
-    const branches = nodes
-      .filter(n => n.parentId)
-      .map(n => ({ id: `branch_${n.id}`, from: n.parentId, to: n.id, branch: true }));
-    if (!branches.length) return edges;
-    const cross = edges.filter(e => e.from !== rootId && e.to !== rootId);
-    return [...branches, ...cross];
-  }, [nodes, edges]);
+  // 화면에 그릴 선 — 규칙은 theme/graphView.js (대시보드 미리보기와 공유)
+  const visualEdges = useMemo(() => visualEdgesOf(nodes, edges), [nodes, edges]);
 
   const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
   const activeId = hover || sel?.id || null;

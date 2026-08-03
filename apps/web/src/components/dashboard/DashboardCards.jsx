@@ -8,6 +8,9 @@
  */
 
 import { NavIcon } from "../NavIcon.jsx";
+import { KIND_META } from "../../theme/graphMeta.js";
+import { visualEdgesOf } from "../../theme/graphView.js";
+import { iconForNode } from "../../theme/nodeIcons.js";
 
 function CardShell({ title, badge, onViewAll, children, footer }) {
   return (
@@ -117,55 +120,72 @@ export function DailyArticleCard({ articles, loading, error, onReload, onNav, on
 
 /* ── 2. 최근 지식 그래프 ─────────────────────────────────── */
 
-function GraphPreview({ nodes, edges }) {
-  // 전체 그래프를 그리지 않는다 — 핵심 노드만 원형으로 배치하고
-  // 최근 수정 노드를 강조한다. 라벨은 노드 아래 두어 겹치지 않게.
-  if (!nodes?.length) return null;
+/**
+ * 지식 그래프 화면(S06)을 그대로 축소한 미리보기.
+ *
+ * 예전에는 최근 노드 몇 개를 따로 원형으로 배치했는데, 실제 그래프와 배치도
+ * 색도 달라서 "미리보기"라기보다 다른 그림이었다. 지금은 S06 이 쓰는 것과
+ * 같은 좌표(api/index.js 의 배치)·같은 선 규칙(theme/graphView.js)·같은
+ * 색(KIND_META)으로 그린다. 라벨만 생략해 작은 지도처럼 보이게 한다.
+ */
+const DOT_SIZE = { root: 15, topic: 7.5, leaf: 5 };
 
-  // 노드가 적으면 방사형이 일직선으로 보인다 — 4개 이하는 가로로 편다.
-  const pos =
-    nodes.length <= 4
-      ? nodes.map((n, i) => ({
-          ...n,
-          x: nodes.length === 1 ? 50 : 16 + (68 / (nodes.length - 1)) * i,
-          y: 42 + (i % 2 === 1 ? 16 : 0),
-        }))
-      : nodes.map((n, i) => {
-          if (i === 0) return { ...n, x: 50, y: 46 };
-          const ring = nodes.length - 1;
-          const angle = ((i - 1) / ring) * Math.PI * 2 - Math.PI / 2;
-          return { ...n, x: 50 + Math.cos(angle) * 32, y: 46 + Math.sin(angle) * 30 };
-        });
-  const byId = Object.fromEntries(pos.map((p) => [p.id, p]));
+function GraphPreview({ nodes, edges }) {
+  // 그래프를 아직 못 받았어도 빈 판은 그린다 — 나중에 점이 찍히면서
+  // 카드 높이가 튀는 것을 막는다.
+  if (!nodes?.length) return <div className="graph-preview" aria-hidden="true" />;
+
+  const num = (v) => (typeof v === "string" ? parseFloat(v) : Number(v)) || 0;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const lines = visualEdgesOf(nodes, edges || []);
+  const root = nodes.find((n) => n.kind === "root");
 
   return (
     <div className="graph-preview" aria-hidden="true">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        {(edges || []).map((e, i) => {
-          const a = byId[e.source];
-          const b = byId[e.target];
+        {lines.map((e) => {
+          const a = byId.get(e.from);
+          const b = byId.get(e.to);
           if (!a || !b) return null;
           return (
-            <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-              stroke="var(--brd)" strokeWidth="0.4" />
+            <line
+              key={e.id}
+              x1={num(a.x)} y1={num(a.y)} x2={num(b.x)} y2={num(b.y)}
+              stroke="rgba(255,255,255,.16)"
+              strokeWidth={e.branch ? 0.35 : 0.55}
+            />
           );
         })}
       </svg>
-      {pos.map((n) => (
-        <div
-          key={n.id}
-          className={`graph-dot${n.recent ? " is-recent" : ""}`}
-          style={{ left: `${n.x}%`, top: `${n.y}%` }}
-          title={n.label}
-        >
-          <span className="graph-dot-label">{n.label}</span>
-        </div>
-      ))}
+      {nodes.map((n) => {
+        const meta = KIND_META[n.kind] || KIND_META.topic;
+        const size = DOT_SIZE[n.kind] ?? DOT_SIZE.leaf;
+        return (
+          <div
+            key={n.id}
+            className="graph-dot"
+            title={n.label}
+            style={{
+              left: `${num(n.x)}%`,
+              top: `${num(n.y)}%`,
+              width: size,
+              height: size,
+              background: meta.color,
+              boxShadow: n.kind === "root" ? `0 0 0 4px ${meta.ring}` : "none",
+            }}
+          >
+            {n.kind === "root" && (
+              <NavIcon name={iconForNode(n)} size={9} color="#fff" />
+            )}
+          </div>
+        );
+      })}
+      {root && <span className="graph-preview-root">{root.label}</span>}
     </div>
   );
 }
 
-export function RecentGraphCard({ graph, loading, error, onReload, onNav, onAskAI }) {
+export function RecentGraphCard({ graph, nodes, edges, loading, error, onReload, onNav, onAskAI }) {
   const has = (graph?.node_count ?? 0) > 0;
 
   return (
@@ -182,7 +202,7 @@ export function RecentGraphCard({ graph, loading, error, onReload, onNav, onAskA
       )}
       {!loading && !error && has && (
         <>
-          <GraphPreview nodes={graph.preview_nodes} edges={graph.preview_edges} />
+          <GraphPreview nodes={nodes} edges={edges} />
           <dl className="graph-stats">
             <div><dt>노드</dt><dd>{graph.node_count}</dd></div>
             <div><dt>연결</dt><dd>{graph.edge_count}</dd></div>
