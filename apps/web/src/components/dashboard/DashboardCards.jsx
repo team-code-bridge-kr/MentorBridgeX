@@ -2,8 +2,9 @@
  * 하단 핵심 기능 카드 3종 — 오늘의 관심 기사 / 최근 지식 그래프 / 확인할 피드백.
  *
  * 세 카드의 공통 규칙:
- * - 높이를 맞춘다 (내용이 많아도 카드가 들쭉날쭉하지 않게 목록을 자른다)
+ * - 높이는 내용이 정한다 (빈 카드를 억지로 늘리지 않는다)
  * - 주요 액션은 1~2개만 노출하고, 그중 하나는 반드시 **챗봇 문맥으로 보내는** 액션
+ *   (그 하나가 btn-primary, 나머지는 btn-secondary)
  * - 빈 상태는 크게 비우지 않고 다음 행동을 알려준다
  */
 
@@ -97,7 +98,7 @@ export function DailyArticleCard({ articles, loading, error, onReload, onNav, on
           <div className="dash-item-actions">
             <button
               type="button"
-              className="rs-save"
+              className="btn btn-secondary btn-sm"
               onClick={() => onAskAI(a)}
               aria-label={`${a.title} 기사에 대해 AI에게 질문`}
             >
@@ -105,7 +106,7 @@ export function DailyArticleCard({ articles, loading, error, onReload, onNav, on
             </button>
             <button
               type="button"
-              className="rs-save"
+              className="btn btn-secondary btn-sm"
               onClick={() => onAddToGraph(a)}
               aria-label={`${a.title} 기사를 그래프에 추가`}
             >
@@ -214,12 +215,12 @@ export function RecentGraphCard({ graph, nodes, edges, loading, error, onReload,
             </p>
           )}
           <div className="dash-item-actions">
-            <button type="button" className="rs-save" onClick={() => onNav("S06")}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNav("S06")}>
               이어서 작업하기
             </button>
             <button
               type="button"
-              className="rs-save on"
+              className="btn btn-primary btn-sm"
               onClick={onAskAI}
               aria-label="AI에게 그래프 확장 추천받기"
             >
@@ -260,12 +261,12 @@ export function PendingFeedbackCard({ items, count, loading, error, onReload, on
           {c.target && <p className="dash-item-why">{c.target}</p>}
           <p className="dash-item-sum">{c.excerpt}</p>
           <div className="dash-item-actions">
-            <button type="button" className="rs-save" onClick={() => onNav("S24")}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => onNav("S24")}>
               확인하기
             </button>
             <button
               type="button"
-              className="rs-save on"
+              className="btn btn-primary btn-sm"
               onClick={() => onAskAI(c)}
               aria-label={`${c.author}님 피드백 해결 방법을 MBX에게 묻기`}
             >
@@ -305,23 +306,5 @@ export function ErrorState({ message, onRetry }) {
         </button>
       )}
     </div>
-  );
-}
-
-/* ── 주간 활동 요약 ──────────────────────────────────────── */
-
-export function WeeklyActivitySummary({ weekly }) {
-  if (!weekly?.has_activity) return null; // 데이터가 없으면 숨긴다
-  const parts = [];
-  if (weekly.nodes_added) parts.push(`노드 ${weekly.nodes_added}개 추가`);
-  if (weekly.articles_read) parts.push(`기사 ${weekly.articles_read}개 탐색`);
-  if (weekly.feedback_resolved) parts.push(`피드백 ${weekly.feedback_resolved}개 해결`);
-  if (weekly.voice_sessions) parts.push(`음성 세션 ${weekly.voice_sessions}회`);
-
-  return (
-    <p className="weekly-line">
-      <NavIcon name="stats" size={14} color="var(--tt)" />
-      이번 주 {parts.join(" · ")}
-    </p>
   );
 }

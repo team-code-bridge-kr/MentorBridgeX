@@ -8,6 +8,7 @@
 
 import { useEffect, useRef } from "react";
 import { AIContextChipList } from "./AIContextChip.jsx";
+import { AnswerText } from "./AnswerText.jsx";
 
 const KIND_LABEL = { root: "핵심", topic: "연결", leaf: "말단" };
 
@@ -31,7 +32,7 @@ function GraphNodesCard({ data, onAddNode, busy }) {
             </div>
             <button
               type="button"
-              className="rs-save"
+              className="btn btn-secondary btn-sm"
               disabled={busy === n.label}
               onClick={() => onAddNode(n)}
               aria-label={`${n.label} 노드를 그래프에 추가`}
@@ -67,7 +68,7 @@ function InquiryTopicsCard({ data, onAsk }) {
             </div>
             <button
               type="button"
-              className="rs-save"
+              className="btn btn-secondary btn-sm"
               onClick={() => onAsk(`‘${t.title}’ 주제를 더 구체적으로 발전시켜줘.`)}
               aria-label={`${t.title} 더 깊이 물어보기`}
             >
@@ -106,7 +107,7 @@ function FeedbackPlanCard({ data, onAsk }) {
           <p>{data.reply_draft}</p>
           <button
             type="button"
-            className="rs-save"
+            className="btn btn-secondary btn-sm"
             onClick={() => navigator.clipboard?.writeText(data.reply_draft)}
             aria-label="답글 초안 복사"
           >
@@ -159,10 +160,14 @@ export function AIConversation({ messages, streaming, error, handlers }) {
             <div className="ai-answer">
               {m.pending && !m.text && (
                 <div className="ai-typing" aria-label="답변 생성 중">
-                  <span /><span /><span />
+                  <span className="ai-typing-emoji" aria-hidden="true">🔎</span>
+                  <span className="ai-typing-label">MBX가 살펴보고 있어요</span>
+                  <span className="ai-typing-dots" aria-hidden="true">
+                    <span /><span /><span />
+                  </span>
                 </div>
               )}
-              {m.text && <div className="ai-answer-text">{m.text}</div>}
+              <AnswerText text={m.text} />
               {m.cards?.map((card, i) => (
                 <ResultCard key={`${m.id}-${i}`} card={card} handlers={handlers} />
               ))}

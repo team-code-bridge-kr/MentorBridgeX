@@ -6,7 +6,8 @@
  *
  * 두 가지 모드:
  * - 시작 화면: 큰 AI 입력 영역 + 하단 카드 3개 (스크롤 없이 카드 상단이 보인다)
- * - 대화 모드: 메시지 목록 + 하단 고정 입력창. 카드는 대화 아래로 밀려난다.
+ * - 대화 모드: 메시지 목록 + 하단 고정 입력창. 하단 카드는 감춘다 — 답변을
+ *   읽는 중에 다른 기능이 옆에 있으면 시선이 흩어진다.
  *
  * 기존 통계 카드(총 노드 수/텍스트 영역/음성 세션/양식 생성)는 삭제하지 않고
  * 통계 화면(S28)으로 옮겼다.
@@ -29,7 +30,6 @@ import {
   ErrorState,
   PendingFeedbackCard,
   RecentGraphCard,
-  WeeklyActivitySummary,
 } from "../../components/dashboard/DashboardCards.jsx";
 
 export function S05({ onNav }) {
@@ -147,58 +147,56 @@ export function S05({ onNav }) {
     }
   };
 
+  // 시작 화면에서만 보여준다 — 대화가 시작되면 대화에만 집중하도록 숨긴다
   const cards = (
-    <>
-      <div className="dash-grid">
-        <DailyArticleCard
-          articles={articlesRes.data}
-          loading={articlesRes.loading}
-          error={articlesRes.error}
-          onReload={articlesRes.reload}
-          onNav={onNav}
-          onAskAI={(a) =>
-            askWithContext("이 기사를 요약하고 내 그래프와 어떻게 연결할지 알려줘.", {
-              type: "article",
-              id: a.id,
-              label: a.title,
-            })
-          }
-          onAddToGraph={saveArticle}
-        />
-        <RecentGraphCard
-          graph={summary?.graph}
-          nodes={graph.nodes}
-          edges={graph.edges}
-          loading={summaryRes.loading}
-          error={summaryRes.error}
-          onReload={summaryRes.reload}
-          onNav={onNav}
-          onAskAI={() =>
-            askWithContext("이 그래프에서 부족한 탐구 영역을 찾아줘.", {
-              type: "graph",
-              id: null,
-              label: "내 지식 그래프",
-            })
-          }
-        />
-        <PendingFeedbackCard
-          items={summary?.pending_feedback}
-          count={summary?.pending_feedback_count}
-          loading={summaryRes.loading}
-          error={summaryRes.error}
-          onReload={summaryRes.reload}
-          onNav={onNav}
-          onAskAI={(c) =>
-            askWithContext("이 멘토 피드백을 반영하려면 무엇을 수정해야 해?", {
-              type: "comment",
-              id: c.id,
-              label: `${c.author}님의 피드백`,
-            })
-          }
-        />
-      </div>
-      <WeeklyActivitySummary weekly={summary?.weekly} />
-    </>
+    <div className="dash-grid">
+      <DailyArticleCard
+        articles={articlesRes.data}
+        loading={articlesRes.loading}
+        error={articlesRes.error}
+        onReload={articlesRes.reload}
+        onNav={onNav}
+        onAskAI={(a) =>
+          askWithContext("이 기사를 요약하고 내 그래프와 어떻게 연결할지 알려줘.", {
+            type: "article",
+            id: a.id,
+            label: a.title,
+          })
+        }
+        onAddToGraph={saveArticle}
+      />
+      <RecentGraphCard
+        graph={summary?.graph}
+        nodes={graph.nodes}
+        edges={graph.edges}
+        loading={summaryRes.loading}
+        error={summaryRes.error}
+        onReload={summaryRes.reload}
+        onNav={onNav}
+        onAskAI={() =>
+          askWithContext("이 그래프에서 부족한 탐구 영역을 찾아줘.", {
+            type: "graph",
+            id: null,
+            label: "내 지식 그래프",
+          })
+        }
+      />
+      <PendingFeedbackCard
+        items={summary?.pending_feedback}
+        count={summary?.pending_feedback_count}
+        loading={summaryRes.loading}
+        error={summaryRes.error}
+        onReload={summaryRes.reload}
+        onNav={onNav}
+        onAskAI={(c) =>
+          askWithContext("이 멘토 피드백을 반영하려면 무엇을 수정해야 해?", {
+            type: "comment",
+            id: c.id,
+            label: `${c.author}님의 피드백`,
+          })
+        }
+      />
+    </div>
   );
 
   if (summaryRes.error && !summary) {
@@ -265,7 +263,6 @@ export function S05({ onNav }) {
               />
             </div>
           </div>
-          {cards}
         </>
       )}
     </div>
