@@ -82,6 +82,9 @@ export function S11({ onNav }) {
                 <Badge t={bType[st]}>{st}</Badge>
               </div>
               <div className="area-card-desc">{a.d}</div>
+              {/* 내용을 보여준다. 글자 수만 있으면 "뭐가 들어 있는지" 확인하려고
+                  매번 편집 화면까지 들어가야 한다. */}
+              {!empty && <p className="area-card-preview">{doc.content}</p>}
               <Divider my={12} />
               <div className="row-between">
                 <span style={{ fontSize: 13, color: TDS.textTertiary }}>

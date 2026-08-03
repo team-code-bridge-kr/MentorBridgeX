@@ -462,7 +462,18 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .area-card:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
 .area-card-title { font-size:17px; font-weight:700; color:var(--tp); margin-bottom:4px; }
-.area-card-desc  { font-size:13px; color:var(--tt); margin-bottom:14px; line-height:1.55; }
+.area-card-desc  { font-size:13px; color:var(--tt); margin-bottom:12px; line-height:1.55; }
+/* 카드에서 내용을 미리 보여준다. 6줄로 자르고 아래를 흐리게 해서
+   "더 있다"는 것까지 같이 알린다. */
+.area-card-preview {
+  position:relative; max-height:8.4em; overflow:hidden;
+  font-size:12.5px; line-height:1.7; color:var(--ts);
+  white-space:pre-wrap; word-break:keep-all;
+}
+.area-card-preview::after {
+  content:""; position:absolute; left:0; right:0; bottom:0; height:2.6em;
+  background:linear-gradient(180deg, rgba(255,255,255,0), var(--bg1) 82%);
+}
 
 /* ── Session card ── */
 .sess-card {
