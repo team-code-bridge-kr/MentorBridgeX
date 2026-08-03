@@ -111,10 +111,21 @@ input, textarea, select { font-family:inherit; outline:none; }
 a { text-decoration:none; color:inherit; }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width:8px; height:8px; }
-::-webkit-scrollbar-track { background:var(--surface-container-low); }
-::-webkit-scrollbar-thumb { background:#d0d7de; border-radius:4px; }
-::-webkit-scrollbar-thumb:hover { background:var(--outline-variant); }
+/* 스크롤바 — 평소에는 보이지 않고, 그 영역에 커서를 올리면 옅게 나타난다.
+   본문은 가운데 정렬(--page-w)인데 스크롤바는 창 오른쪽 끝에 붙어 있어서,
+   늘 떠 있으면 내용과 상관없는 막대가 화면 가장자리에 하나 더 있는 꼴이다.
+   그렇다고 아예 없애면 "얼마나 남았는지"를 알 수 없으므로 hover 로만 남긴다. */
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb {
+  background:transparent; border-radius:9999px;
+  border:3px solid transparent; background-clip:content-box;
+}
+*:hover::-webkit-scrollbar-thumb { background:rgba(114,119,133,.32); background-clip:content-box; }
+*:hover::-webkit-scrollbar-thumb:hover { background:rgba(114,119,133,.55); background-clip:content-box; }
+/* Firefox */
+* { scrollbar-width:thin; scrollbar-color:transparent transparent; }
+*:hover { scrollbar-color:rgba(114,119,133,.32) transparent; }
 
 /* ── Layout ── */
 .app { display:flex; height:100vh; overflow:hidden; }
@@ -1071,6 +1082,46 @@ tr:hover td { background:var(--surface-container-low); }
    목록만 길게 늘어놓으면 "오늘 무엇부터 볼지"를 스스로 정해야 해서 딱딱하다.
    맨 위 한 편 + 카드 세 편으로 오늘의 초점을 만들고, 나머지는 줄글로 흘린다.
 ────────────────────────────────────────────────────────── */
+
+/* 키워드 검색 — 알약 하나로. 피드의 첫 동작이 "찾기"가 되게 맨 위에 둔다. */
+.feed-search {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 10px 10px 20px; margin-bottom:14px;
+  background:var(--bg1); border:1px solid var(--brd); border-radius:9999px;
+  box-shadow:var(--surface-1); transition:border-color .14s, box-shadow .14s;
+}
+.feed-search:focus-within { border-color:var(--blue-400); box-shadow:0 0 0 4px rgba(9,105,218,.10); }
+.feed-search-input {
+  flex:1; min-width:0; border:none; outline:none; background:transparent;
+  font-family:inherit; font-size:15px; color:var(--tp); height:32px;
+}
+.feed-search-input::placeholder { color:var(--td); }
+.feed-search-x {
+  border:none; background:transparent; cursor:pointer; flex-shrink:0;
+  font-size:20px; line-height:1; color:var(--tt); padding:0 4px;
+}
+.feed-search-x:hover { color:var(--tp); }
+.feed-search-go {
+  flex-shrink:0; width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+  background:var(--blue-500); display:flex; align-items:center; justify-content:center;
+  transition:background .12s;
+}
+.feed-search-go:hover { background:var(--blue-600); }
+.feed-search-go:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+
+/* 내 키워드 칩 — 누르면 그 키워드로 모아본다 */
+.feed-kw-row { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:20px; }
+.feed-kw-row .quick-chip.on { background:var(--blue-500); border-color:var(--blue-500); color:#fff; }
+.feed-kw-row .quick-chip.is-manage { border-style:dashed; color:var(--tt); }
+
+.feed-search-state {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:12px 16px; margin-bottom:20px; border-radius:14px;
+  background:var(--blue-50); color:var(--ts); font-size:13.5px;
+}
+.feed-search-state strong { color:var(--primary); }
+.feed-search-hint { color:var(--tt); font-size:12.5px; }
+.feed-search-acts { display:flex; gap:6px; flex-shrink:0; }
 
 /* 시각 패널 — 기사 이미지를 갖고 있지 않아 키워드로 판을 만든다
    (근거는 components/research/ArticleVisual.jsx 주석) */

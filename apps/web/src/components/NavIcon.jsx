@@ -63,6 +63,7 @@ export const NAV_ICON_PATHS = {
   scissors:  <><circle cx="6.6" cy="7" r="2.5"/><circle cx="6.6" cy="17" r="2.5"/><path d="M8.8 8.4 19 18.6M8.8 15.6 19 5.4"/></>,
   bolt:      <><path d="M13 3.2 5.6 13.6H12l-1 7.2 7.4-10.4H12z"/></>,
   calendar:  <><rect x="3.5" y="5.2" width="17" height="15.3" rx="2"/><path d="M8 3v4.2M16 3v4.2M3.5 10.2h17"/></>,
+  arrowRight:<><path d="M4.5 12h14M13 6.2 18.8 12 13 17.8"/></>,
 };
 
 export function NavIcon({ name, size=18, color }) {

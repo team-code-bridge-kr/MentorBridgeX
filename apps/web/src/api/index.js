@@ -802,9 +802,11 @@ const api = {
      * 피드. cursor 는 이전 응답의 next_cursor 를 그대로 넘긴다 (keyset 페이지네이션).
      * OFFSET 이 아니라서 수집이 도는 중에도 중복·누락이 생기지 않는다.
      */
-    async feed({ tab = "all", cursor = null, limit = 20 } = {}) {
+    async feed({ tab = "all", cursor = null, limit = 20, query = "" } = {}) {
       const q = new URLSearchParams({ tab, limit: String(limit) });
       if (cursor) q.set("cursor", cursor);
+      // 검색어가 있으면 내 키워드 울타리를 넘어 전체에서 찾는다 (백엔드 규칙)
+      if (query) q.set("q", query);
       return request(`/v1/research/feed?${q}`);
     },
     async markRead(articleId) {

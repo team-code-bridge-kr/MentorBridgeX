@@ -26,6 +26,7 @@ from app.errors import AppError
 from .feed import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    MAX_QUERY_LEN,
     TAB_ALL,
     TAB_SAVED,
     TABS,
@@ -246,14 +247,16 @@ async def get_feed(
     tab: Annotated[str, Query(description="all | news | paper | saved")] = TAB_ALL,
     cursor: Annotated[str | None, Query(description="이전 응답의 next_cursor")] = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+    q: Annotated[str, Query(description="검색어 (제목·요약 부분일치)", max_length=MAX_QUERY_LEN)] = "",
 ) -> FeedOut:
     db = _require_db(session)
     if tab not in TABS:
         raise AppError("RESEARCH_BAD_TAB", f"알 수 없는 탭입니다: {tab}", status_code=400)
 
+    query = q.strip()[:MAX_QUERY_LEN]
     keywords = await load_keywords(db, user.id)
-    if not keywords and tab != TAB_SAVED:
-        # 온보딩 전 — 키워드가 없으면 매칭할 것도 없다
+    if not keywords and not query and tab != TAB_SAVED:
+        # 온보딩 전 — 키워드도 검색어도 없으면 매칭할 것이 없다
         return FeedOut(items=[], next_cursor=None)
 
     stmt = build_feed_query(
@@ -262,6 +265,7 @@ async def get_feed(
         tab=tab,
         cursor=decode_cursor(cursor) if cursor else None,
         limit=limit,
+        query=query,
     )
     rows = (await db.execute(stmt)).all()
 

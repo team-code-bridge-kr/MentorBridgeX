@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../../api/index.js";
 import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
+import { NavIcon } from "../../components/NavIcon.jsx";
 
 const FEATURED = 4; // 히어로 1 + 카드 3
 
@@ -41,6 +42,11 @@ function fmtDate(iso) {
 
 export function S41({ onNav }) {
   const [tab, setTab] = useState("all");
+  // 입력 중인 글자(draft)와 실제로 조회에 쓰는 검색어(query)를 나눈다.
+  // 타이핑마다 서버를 부르면 한 글자씩 칠 때마다 피드가 깜빡인다.
+  const [draft, setDraft] = useState("");
+  const [query, setQuery] = useState("");
+  const [keywords, setKeywords] = useState([]);
   const [items, setItems] = useState([]);
   const [cursor, setCursor] = useState(null);
   const [done, setDone] = useState(false);
@@ -65,11 +71,15 @@ export function S41({ onNav }) {
   }, []);
 
   const load = useCallback(
-    async (nextTab, nextCursor) => {
+    async (nextTab, nextCursor, nextQuery = "") => {
       setLoading(true);
       setErr("");
       try {
-        const data = await api.research.feed({ tab: nextTab, cursor: nextCursor });
+        const data = await api.research.feed({
+          tab: nextTab,
+          cursor: nextCursor,
+          query: nextQuery,
+        });
         setItems((prev) => (nextCursor ? [...prev, ...data.items] : data.items));
         setCursor(data.next_cursor);
         setDone(!data.next_cursor);
@@ -88,8 +98,14 @@ export function S41({ onNav }) {
     setItems([]);
     setCursor(null);
     setDone(false);
-    load(tab, null);
-  }, [tab, checkedProfile, load]);
+    load(tab, null, query);
+  }, [tab, query, checkedProfile, load]);
+
+  // 내 키워드 — 칩으로 눌러 바로 모아볼 수 있게 한다
+  useEffect(() => {
+    if (!checkedProfile) return;
+    api.research.keywords().then(setKeywords).catch(() => {});
+  }, [checkedProfile]);
 
   // 무한 스크롤 — 바닥 센티넬이 보이면 다음 페이지
   useEffect(() => {
@@ -97,13 +113,13 @@ export function S41({ onNav }) {
     if (!node || done || loading) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && cursor) load(tab, cursor);
+        if (entries[0].isIntersecting && cursor) load(tab, cursor, query);
       },
       { rootMargin: "300px" }
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [cursor, done, loading, tab, load]);
+  }, [cursor, done, loading, tab, query, load]);
 
   const openArticle = (item) => {
     // 낙관적 표시 — 읽음 기록 실패가 링크 이동을 막을 이유는 없다
@@ -131,6 +147,22 @@ export function S41({ onNav }) {
   const cards = featured.slice(1);
   const rest = items.slice(featured.length);
 
+  const search = (term) => {
+    const next = term.trim();
+    setDraft(next);
+    setQuery(next);
+  };
+  const clearSearch = () => { setDraft(""); setQuery(""); };
+
+  const registered = keywords.some((k) => k.keyword === query);
+  const addCurrentKeyword = async () => {
+    try {
+      setKeywords(await api.research.addKeyword(query));
+    } catch (e) {
+      setErr(e.message || "키워드를 추가하지 못했습니다.");
+    }
+  };
+
   const emptyMessage =
     tab === "saved"
       ? "저장한 글이 없습니다.\n피드에서 마음에 드는 글의 ‘저장’을 눌러보세요."
@@ -151,6 +183,67 @@ export function S41({ onNav }) {
         ))}
       </div>
 
+      <form
+        className="feed-search"
+        onSubmit={(e) => { e.preventDefault(); search(draft); }}
+        role="search"
+      >
+        <NavIcon name="search" size={19} color="var(--tt)" />
+        <input
+          className="feed-search-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="핵심 키워드로 기사 모아보기 (예: 반도체, 기후변화)"
+          aria-label="키워드로 기사 검색"
+          maxLength={60}
+        />
+        {draft && (
+          <button type="button" className="feed-search-x" onClick={clearSearch} aria-label="검색어 지우기">
+            ×
+          </button>
+        )}
+        <button type="submit" className="feed-search-go" aria-label="검색">
+          <NavIcon name="arrowRight" size={18} color="#fff" />
+        </button>
+      </form>
+
+      <div className="feed-kw-row">
+        {keywords.slice(0, 12).map((k) => (
+          <button
+            key={k.keyword}
+            type="button"
+            className={`quick-chip${query === k.keyword ? " on" : ""}`}
+            onClick={() => (query === k.keyword ? clearSearch() : search(k.keyword))}
+          >
+            {k.keyword}
+          </button>
+        ))}
+        <button type="button" className="quick-chip is-manage" onClick={() => onNav("S42")}>
+          ＋ 키워드 수정
+        </button>
+      </div>
+
+      {query && (
+        <div className="feed-search-state" role="status">
+          <span>
+            <strong>‘{query}’</strong> 검색 결과
+            {/* 등록하지 않은 말로 찾을 때만 알려준다. 내 키워드를 눌렀는데
+                "키워드 밖까지 찾는다"고 하면 무슨 말인지 알 수 없다. */}
+            {!registered && (
+              <span className="feed-search-hint"> · 내 키워드 밖의 글까지 찾습니다</span>
+            )}
+          </span>
+          <span className="feed-search-acts">
+            {!registered && (
+              <button type="button" className="rs-save on" onClick={addCurrentKeyword}>
+                내 키워드로 추가
+              </button>
+            )}
+            <button type="button" className="rs-save" onClick={clearSearch}>검색 지우기</button>
+          </span>
+        </div>
+      )}
+
       {err && <div className="rs-empty" style={{ color: "var(--danger)" }}>{err}</div>}
 
       {hero && (
@@ -166,7 +259,8 @@ export function S41({ onNav }) {
             <ArticleVisual item={hero} size="lg" />
           </a>
           <div className="feed-hero-body">
-            <div className="feed-kicker">{hero.matched_keywords?.[0] || hero.outlet}</div>
+            {/* 검색 중이면 검색어가 곧 이 글을 고른 이유다 */}
+            <div className="feed-kicker">{hero.matched_keywords?.[0] || query || hero.outlet}</div>
             <a
               className="feed-hero-title"
               href={hero.url}
@@ -219,7 +313,7 @@ export function S41({ onNav }) {
               >
                 <ArticleVisual item={item} />
               </a>
-              <div className="feed-kicker">{item.matched_keywords?.[0] || item.outlet}</div>
+              <div className="feed-kicker">{item.matched_keywords?.[0] || query || item.outlet}</div>
               <a
                 className="feed-card-title"
                 href={item.url}

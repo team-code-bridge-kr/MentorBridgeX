@@ -25,6 +25,8 @@ TABS = {TAB_ALL, TAB_NEWS, TAB_PAPER, TAB_SAVED}
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
+# 검색어 상한 — trgm LIKE 는 길수록 느려지고, 이보다 긴 건 검색어가 아니라 문장이다
+MAX_QUERY_LEN = 60
 
 
 def encode_cursor(published_at: datetime, article_id: str) -> str:
@@ -79,6 +81,7 @@ def build_feed_query(
     tab: str,
     cursor: tuple[datetime, str] | None,
     limit: int,
+    query: str = "",
 ) -> Select:
     stmt = select(ArticleRow, UserReadRow).join(
         UserReadRow,
@@ -93,11 +96,21 @@ def build_feed_query(
         # 저장함은 키워드와 무관하게 내가 저장한 글 전부
         stmt = stmt.where(UserReadRow.saved.is_(True))
     else:
-        stmt = stmt.where(keyword_filter(keywords))
+        # 검색 중에는 **내 키워드 울타리를 걷는다.** 아직 등록하지 않은 개념을
+        # 찾아보려고 검색하는 것인데 등록된 키워드로 한 번 더 거르면
+        # "검색해도 안 나오는" 화면이 된다.
+        if not query:
+            stmt = stmt.where(keyword_filter(keywords))
         if tab == TAB_NEWS:
             stmt = stmt.where(ArticleRow.kind == KIND_NEWS)
         elif tab == TAB_PAPER:
             stmt = stmt.where(ArticleRow.kind == KIND_PAPER)
+
+    if query:
+        # 키워드 매칭과 같은 길 — search_text 의 pg_trgm GIN 인덱스를 그대로 탄다
+        stmt = stmt.where(
+            ArticleRow.search_text.like(f"%{_escape_like(query.lower())}%", escape="\\")
+        )
 
     if cursor is not None:
         published_at, article_id = cursor
