@@ -2,9 +2,11 @@
  * S13 — 생기부 PDF 업로드.
  *
  * 파일을 고르면 **올리기 전에 브라우저에서 먼저 열어** 구획을 보여준다.
- * 서버는 추출된 텍스트·키워드만 보관하고 PDF 원본은 오래 두지 않으므로,
- * 원본을 눈으로 확인할 수 있는 시점은 여기뿐이다. 뷰어는 전부 클라이언트에서
- * 돌아서 파일이 이 단계에서 서버로 나가지 않는다.
+ * 이 미리보기는 전부 클라이언트에서 돌아 이 단계에서는 파일이 서버로 나가지 않는다.
+ *
+ * 업로드하면 원본 PDF 도 함께 보관된다(학생당 최신본 한 개). 파싱 결과가 아니라
+ * 실제로 받은 문서를 다시 볼 수 있어야 한다는 요구다. 민감 정보라 본인만 열람
+ * 가능하고 삭제 경로도 함께 제공한다 — 자세한 규칙은 routers/documents.py 참고.
  */
 
 import { useState } from "react";
@@ -41,6 +43,8 @@ export function S13({ onNav }) {
     setErr("");
     setProgress("업로드 중…");
     try {
+      // 원본을 먼저 보관한다 — 파싱이 실패해도 학생이 올린 문서는 다시 볼 수 있어야 한다
+      await api.documentFile.put(file).catch(() => {});
       const { jobId } = await api.ingest.uploadPdf(file);
       sessionStorage.setItem("mbx_pdf_job", jobId);
       setProgress("파싱 중… (텍스트·키워드 추출)");
@@ -115,8 +119,10 @@ export function S13({ onNav }) {
 
       {progress && <Notice type="info" style={{ marginBottom: 12 }}>{progress}</Notice>}
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}
+      {/* 보관 정책이 바뀌면 이 문구도 반드시 같이 바꿀 것 — 사용자에게 하는 약속이다 */}
       <Notice type="info" style={{ marginBottom: 20 }}>
-        서버에 PDF 원본은 오래 보관하지 않고, 추출된 텍스트·키워드만 저장합니다.
+        올린 PDF 원본은 <strong>본인만 열람</strong>할 수 있게 보관되어 ‘생기부 문서’에서
+        책처럼 다시 볼 수 있습니다. 최신본 한 개만 남고, 언제든 그 화면에서 원본만 삭제할 수 있습니다.
       </Notice>
       <Btn v="primary" s="lg" fw disabled={!file || uploading} onClick={handleUpload}>
         {uploading ? "처리 중…" : "업로드 시작"}

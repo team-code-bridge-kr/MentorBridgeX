@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Divider } from "../../components/ui.jsx";
+import { BookViewer } from "../../components/doc/BookViewer.jsx";
+import { PdfBookViewer } from "../../components/doc/PdfBookViewer.jsx";
 import api from "../../api/index.js";
 
 const AREA_META = [
@@ -16,6 +18,9 @@ const AREA_META = [
 
 export function S11({ onNav }) {
   const [docs, setDocs] = useState([]);
+  const [view, setView] = useState("book"); // book | list
+  // 보관된 원본 PDF 가 있으면 그걸 그대로 보여준다 (없으면 추출 텍스트로)
+  const [fileMeta, setFileMeta] = useState(null);
   const [err, setErr] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -28,6 +33,9 @@ export function S11({ onNav }) {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.documentFile.meta().then(setFileMeta).catch(() => setFileMeta({ exists: false }));
+  }, []);
 
   const byType = Object.fromEntries(
     AREA_META.map((m) => {
@@ -59,17 +67,64 @@ export function S11({ onNav }) {
 
   const bType = { 완료: "green", 미작성: "grey", 입력중: "orange" };
 
+  // 책 뷰에 넘길 영역 — 내용이 있는 것만 (빈 쪽을 넘기게 만들 이유가 없다)
+  const bookAreas = AREA_META.map((m) => {
+    const doc = byType[m.type];
+    const content = doc?.content && doc.content !== "(작성 시작)" ? doc.content : "";
+    return { type: m.type, title: m.t, desc: m.d, content };
+  }).filter((a) => a.content);
+
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
         <div className="sec-sub" style={{ marginBottom: 0 }}>8가지 생기부 영역을 관리하세요</div>
         <div className="row g-8" style={{ gap: 8 }}>
+          <div className="tab-pill-wrap" style={{ marginRight: 4 }}>
+            {[["book", "책으로 보기"], ["list", "목록"]].map(([id, label]) => (
+              <div key={id} className={`tab-pill${view === id ? " active" : ""}`} onClick={() => setView(id)}>
+                {label}
+              </div>
+            ))}
+          </div>
           <Btn v="primary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
           <Btn v="secondary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>
         </div>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
-      <div className="grid3 g-16" style={{ gap: 16 }}>
+      {view === "book" && fileMeta?.exists && (
+        <>
+          <div className="doc-src">
+            <span>원본 <strong>{fileMeta.filename}</strong> · {fileMeta.page_count}쪽</span>
+            <button
+              type="button"
+              className="rs-save"
+              onClick={async () => {
+                if (!window.confirm("보관된 생기부 원본을 지울까요? 추출된 텍스트는 남습니다.")) return;
+                await api.documentFile.remove();
+                setFileMeta({ exists: false });
+              }}
+            >
+              원본 삭제
+            </button>
+          </div>
+          <PdfBookViewer
+            pageCount={fileMeta.page_count}
+            onMissing={() => setFileMeta({ exists: false })}
+          />
+        </>
+      )}
+
+      {view === "book" && !fileMeta?.exists && (
+        bookAreas.length
+          ? <BookViewer areas={bookAreas} />
+          : <div className="empty">
+              <div className="empty-title">아직 기록이 없습니다.</div>
+              <div className="empty-sub">PDF 를 올리거나 직접 입력하면 책처럼 넘겨볼 수 있습니다.</div>
+              <Btn v="secondary" s="sm" onClick={() => onNav("S13")}>PDF 업로드</Btn>
+            </div>
+      )}
+
+      <div className="grid3 g-16" style={{ gap: 16, display: view === "list" ? undefined : "none" }}>
         {AREA_META.map((a) => {
           const doc = byType[a.type];
           const chars = doc?.content ? doc.content.length : 0;

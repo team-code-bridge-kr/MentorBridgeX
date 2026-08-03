@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, select
+from sqlalchemy import Boolean, DateTime, Integer, LargeBinary, String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -34,6 +34,29 @@ class DocumentSectionRow(Base):
     source: Mapped[str] = mapped_column(String(32), default="manual")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DocumentFileRow(Base):
+    """업로드한 생기부 PDF 원본.
+
+    학생 한 명당 **최신본 한 개**만 둔다(user_id 가 기본키). 이전 판을 쌓아 둘
+    이유가 없고, 민감한 개인정보를 필요 이상으로 오래 갖고 있지 않기 위해서다.
+
+    디스크가 아니라 DB 에 담는 이유: 삭제가 한 트랜잭션에서 끝난다. 파일로 두면
+    행은 지웠는데 파일이 남는 경우를 따로 챙겨야 하고, 백업·복원도 갈라진다.
+    생기부 PDF 는 보통 1MB 안팎이라 이 규모에서는 DB 에 두는 편이 안전하다.
+    """
+
+    __tablename__ = "document_files"
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    filename: Mapped[str] = mapped_column(String(300))
+    byte_size: Mapped[int] = mapped_column(Integer)
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    # 같은 파일을 다시 올렸는지 확인용. 내용 자체를 식별자로 쓰지는 않는다.
+    sha256: Mapped[str] = mapped_column(String(64))
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class JobRow(Base):

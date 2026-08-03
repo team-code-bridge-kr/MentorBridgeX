@@ -634,6 +634,23 @@ const api = {
     },
   },
 
+  // ══ 생기부 원본 PDF ═══════════════════════════════════════
+  // 학생당 최신본 한 개만 보관한다. 민감 정보라 본인만 읽을 수 있고
+  // 응답에 Cache-Control: no-store 가 붙는다 (서버 쪽 규칙).
+  documentFile: {
+    async meta() {
+      return request("/v1/students/me/documents/file/meta");
+    },
+    async put(file) {
+      const fd = new FormData();
+      fd.append("file", file, file.name || "record.pdf");
+      return request("/v1/students/me/documents/file", { method: "PUT", formData: fd });
+    },
+    async remove() {
+      return request("/v1/students/me/documents/file", { method: "DELETE" });
+    },
+  },
+
   // ══ 음성 ══════════════════════════════════════════════════
   voice: {
     async listSessions() {
