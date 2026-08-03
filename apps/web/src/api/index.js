@@ -750,6 +750,74 @@ const api = {
     },
   },
 
+  // ══ 탐구주제 피드 (✅ LIVE) ═════════════════════════════
+  // 백엔드: services/api/app/features/research/
+  research: {
+    /** 학과 프리셋 목록 (계열별 그룹은 화면에서 묶는다) */
+    async tracks() {
+      const data = await request("/v1/research/tracks", { auth: false });
+      return data.tracks || [];
+    },
+    /** 온보딩 여부 + 선택한 트랙 */
+    async profile() {
+      return request("/v1/research/profile");
+    },
+    /** 트랙 선택 → 프리셋 키워드가 내 키워드로 복사된다 */
+    async setTrack(trackId) {
+      return request("/v1/research/profile", {
+        method: "PUT",
+        body: { track_id: trackId },
+      });
+    },
+    async keywords() {
+      const data = await request("/v1/research/keywords");
+      return data.keywords || [];
+    },
+    async addKeyword(keyword) {
+      const data = await request("/v1/research/keywords", {
+        method: "POST",
+        body: { keyword },
+      });
+      return data.keywords || [];
+    },
+    async removeKeyword(keyword) {
+      return request(`/v1/research/keywords/${encodeURIComponent(keyword)}`, {
+        method: "DELETE",
+      });
+    },
+    /**
+     * 피드. cursor 는 이전 응답의 next_cursor 를 그대로 넘긴다 (keyset 페이지네이션).
+     * OFFSET 이 아니라서 수집이 도는 중에도 중복·누락이 생기지 않는다.
+     */
+    async feed({ tab = "all", cursor = null, limit = 20 } = {}) {
+      const q = new URLSearchParams({ tab, limit: String(limit) });
+      if (cursor) q.set("cursor", cursor);
+      return request(`/v1/research/feed?${q}`);
+    },
+    async markRead(articleId) {
+      return request("/v1/research/reads", {
+        method: "POST",
+        body: { article_id: articleId },
+      });
+    },
+    async setSaved(articleId, saved) {
+      return request("/v1/research/saves", {
+        method: "POST",
+        body: { article_id: articleId, saved },
+      });
+    },
+    /** 읽은 글에서 자주 나온 개념 상위 N개 */
+    async discover(limit = 20) {
+      return request(`/v1/research/discover?limit=${limit}`);
+    },
+    async runIngest() {
+      return request("/v1/research/ingest/run", { method: "POST" });
+    },
+    async ingestLogs() {
+      return request("/v1/research/ingest/logs");
+    },
+  },
+
   // ══ 교사 (🔶 MOCK) ═══════════════════════════════════════
   teacher: mockApi.teacher,
 

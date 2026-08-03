@@ -464,6 +464,93 @@ tr:hover td { background:var(--surface-container-low); }
   .sb-chip { font-size:9px; padding:1px 6px; }
 }
 
+/* ══ 탐구주제 피드 (S40~S43) ══════════════════════════════════
+   학생용 화면이라 밝고 가볍게. 다만 장식은 최소로 하고 읽기에 집중시킨다.
+   모바일 우선 — 기본이 1열이고 넓어지면 늘어난다.
+────────────────────────────────────────────────────────────── */
+.rs-wrap { padding:20px; overflow-y:auto; height:100%; }
+.rs-lead { font-size:14px; color:var(--ts); margin-bottom:20px; line-height:1.6; }
+.rs-empty { padding:48px 20px; text-align:center; color:var(--tt); font-size:14px; line-height:1.7; }
+
+/* ── 온보딩: 학과 카드 ── */
+.rs-field-label { font-size:12px; font-weight:700; color:var(--tt); letter-spacing:.04em; margin:24px 0 10px; }
+.rs-field-label:first-child { margin-top:0; }
+.rs-track-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+@media (min-width:600px) { .rs-track-grid { grid-template-columns:repeat(2,1fr); } }
+@media (min-width:1000px){ .rs-track-grid { grid-template-columns:repeat(3,1fr); } }
+.rs-track {
+  text-align:left; padding:14px 16px; border-radius:var(--r12);
+  border:1px solid var(--brd); background:var(--bg1); cursor:pointer;
+  transition:border-color .12s, background .12s, box-shadow .12s; font-family:inherit;
+}
+.rs-track:hover { border-color:var(--blue-400); background:var(--blue-50); }
+.rs-track.on { border-color:var(--blue-500); background:var(--blue-50); box-shadow:0 0 0 1px var(--blue-500) inset; }
+.rs-track-name { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
+.rs-track-desc { font-size:12.5px; color:var(--tt); line-height:1.5; }
+
+/* ── 키워드 칩 ── */
+.rs-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.rs-chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:5px 11px; border-radius:var(--rfull); font-size:12.5px; font-weight:600;
+  background:var(--bg3); color:var(--ts); border:1px solid transparent; white-space:nowrap;
+}
+.rs-chip.preset { background:var(--blue-50); color:var(--blue-500); }
+.rs-chip.manual { background:var(--bg1); color:var(--tp); border-color:var(--brd); }
+.rs-chip.match  { background:var(--successbg); color:var(--success); font-size:11.5px; padding:3px 9px; }
+.rs-chip-x {
+  border:none; background:transparent; cursor:pointer; padding:0; line-height:1;
+  font-size:15px; color:inherit; opacity:.5; transition:opacity .12s;
+}
+.rs-chip-x:hover { opacity:1; }
+
+/* ── 피드 탭 ── */
+.rs-tabs { display:flex; gap:4px; border-bottom:1px solid var(--brd); margin-bottom:16px; overflow-x:auto; }
+.rs-tab {
+  border:none; background:transparent; font-family:inherit; cursor:pointer;
+  padding:10px 14px; font-size:14px; font-weight:600; color:var(--tt);
+  border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;
+  transition:color .12s, border-color .12s;
+}
+.rs-tab:hover { color:var(--tp); }
+.rs-tab.on { color:var(--primary); border-bottom-color:var(--blue-500); }
+
+/* ── 글 카드 ── */
+.rs-list { display:flex; flex-direction:column; gap:10px; }
+.rs-article {
+  border:1px solid var(--brd); border-radius:var(--r12); background:var(--bg1);
+  padding:16px; transition:border-color .12s, box-shadow .12s;
+}
+.rs-article:hover { border-color:var(--blue-400); box-shadow:0 2px 10px rgba(15,23,42,.06); }
+.rs-article.read { background:var(--bg2); }
+.rs-article.read .rs-article-title { color:var(--ts); font-weight:600; }
+.rs-article-meta { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--tt); margin-bottom:7px; flex-wrap:wrap; }
+.rs-article-title {
+  font-size:15.5px; font-weight:700; color:var(--tp); line-height:1.45;
+  text-decoration:none; display:block; margin-bottom:7px;
+}
+.rs-article-title:hover { color:var(--primary); text-decoration:underline; }
+.rs-article-sum { font-size:13.5px; color:var(--ts); line-height:1.65; margin-bottom:11px; }
+.rs-article-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.rs-save {
+  border:1px solid var(--brd); background:var(--bg1); border-radius:var(--r8);
+  padding:5px 11px; font-size:12.5px; font-weight:600; color:var(--ts);
+  cursor:pointer; font-family:inherit; white-space:nowrap; transition:all .12s;
+}
+.rs-save:hover { background:var(--bg3); }
+.rs-save.on { background:var(--blue-50); border-color:var(--blue-400); color:var(--blue-500); }
+
+/* ── Discover ── */
+.rs-term {
+  display:flex; align-items:center; gap:12px; padding:12px 14px;
+  border:1px solid var(--brd); border-radius:var(--r8); background:var(--bg1);
+}
+.rs-term-count {
+  flex-shrink:0; min-width:44px; text-align:center; font-size:12px; font-weight:700;
+  color:var(--blue-500); background:var(--blue-50); border-radius:var(--r4); padding:4px 6px;
+}
+.rs-term-name { flex:1; min-width:0; font-size:14.5px; font-weight:600; color:var(--tp); word-break:break-all; }
+
 /* ── DAU Chart container ── */
 .chart-responsive-wrap { position:relative; width:100%; }
 
