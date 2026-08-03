@@ -3,17 +3,35 @@
 일반 챗봇이 아니라, 학생의 그래프·기사·멘토 피드백을 이해하는 탐구 어시스턴트로
 동작하게 하는 것이 여기 시스템 프롬프트의 역할이다.
 
-두 가지 모델 설정을 의도적으로 골랐다:
+## 모델 설정
 
-- **thinking 을 끄지 않는다.** Opus 5 는 thinking 을 끄면 툴 호출을 일반 텍스트로
-  뱉는 경우가 있다. 그러면 턴은 성공했는데 카드가 조용히 렌더링되지 않고,
-  그 텍스트가 대화 이력에 남아 다음 턴까지 오염시킨다. 대신 effort 를 낮춰
-  지연을 잡는다 — 실측으로 medium→low 가 카드 품질은 그대로면서
-  카드 생성 요청 20.1s → 13.0s, 첫 글자 4.2s → 2.5s 였다.
+기본은 Haiku 4.5 다. 이 화면의 AI 는 "카드를 만드는" 일이 대부분이고, 실측에서
+Haiku 도 카드 툴을 4종 케이스 전부 성공시켰다 (아래 표). 비용이 4배 싸고
+응답도 4배 빠르므로 학생용 서비스에는 이쪽이 맞다.
 
-- **시스템 프롬프트에 cache_control 을 건다.** 매 턴 같은 접두사라 적중률이 높다.
-  그래서 시스템 프롬프트에 날짜·사용자 이름 같은 가변값을 넣지 않는다 —
-  학생 현황과 첨부 문맥은 messages 쪽으로 보낸다.
+    모델              1,000턴 비용   첫 글자   카드 툴
+    Opus 5            $27.88        1.5~14s   6/6
+    Sonnet 5          $16.56        1.8~7.6s  6/6
+    Haiku 4.5 (기본)   $6.65         0.7~1.6s  6/6
+
+ASSISTANT_MODEL 로 언제든 바꿀 수 있다. 답변의 깊이(주제 제안의 구체성 등)는
+상위 모델이 낫기 때문에, 품질이 아쉬우면 sonnet 부터 올려보면 된다.
+
+**모델별로 요청 형태가 다르다 — 이게 이 파일에서 제일 실수하기 쉬운 부분이다.**
+
+- `effort` 는 Opus/Sonnet 5 세대에만 있다. Haiku 4.5 에 보내면 400 이 난다.
+- Opus 5 는 thinking 을 끄면 툴 호출을 일반 텍스트로 뱉는 경우가 있다. 그러면
+  턴은 성공했는데 카드가 조용히 렌더링되지 않고, 그 텍스트가 대화 이력에 남아
+  다음 턴까지 오염시킨다. 그래서 Opus/Sonnet 에서는 thinking 을 끄지 않고
+  effort 를 낮춰 지연을 잡는다 (실측 medium→low: 20.1s → 13.0s).
+  Haiku 4.5 는 애초에 thinking 이 기본 꺼짐이고 툴 호출도 정상이다.
+- 시스템 프롬프트의 `cache_control` 은 Haiku 4.5 에서 **조용히 무시된다**.
+  캐시 최소 접두사가 Haiku 는 4096 토큰인데 우리 시스템+툴이 약 2,000 토큰이라
+  기준 미달이다 (Opus/Sonnet 은 512·1024 라 걸린다). 오류가 아니라 절감이
+  없을 뿐이고, 그걸 감안해도 Haiku 가 여전히 제일 싸다.
+
+시스템 프롬프트에 날짜·사용자 이름 같은 가변값을 넣지 않는 이유도 캐시 때문이다.
+학생 현황과 첨부 문맥은 messages 쪽으로 보낸다.
 """
 
 from __future__ import annotations
@@ -34,6 +52,21 @@ MAX_TOKENS = 8000
 MAX_HISTORY_TURNS = 12
 # 툴 호출 → 카드 표시 → 마무리. 한 턴에 두 번이면 충분하다.
 MAX_ITERATIONS = 3
+
+# effort/adaptive thinking 을 받는 세대. 여기 없는 모델에 effort 를 보내면 400.
+EFFORT_MODELS = ("claude-opus-5", "claude-opus-4", "claude-sonnet-5", "claude-fable-5")
+EFFORT_LEVEL = "low"
+
+
+def _model_options(model: str) -> dict:
+    """모델 세대에 맞는 요청 옵션.
+
+    새 모델로 바꿀 때 여기만 보면 되도록 분기를 한곳에 모았다.
+    """
+    if model.startswith(EFFORT_MODELS):
+        # thinking 은 기본값(adaptive)을 그대로 둔다 — 끄면 툴 호출이 텍스트로 샌다
+        return {"output_config": {"effort": EFFORT_LEVEL}}
+    return {}
 
 # 가변값을 넣지 않는다 — prompt caching 의 접두사가 매 요청 동일해야 한다.
 SYSTEM_PROMPT = """\
@@ -125,9 +158,7 @@ async def stream_reply(
             async with client.messages.stream(
                 model=settings.assistant_model,
                 max_tokens=MAX_TOKENS,
-                # thinking 은 기본값(adaptive)을 그대로 둔다 — 끄면 툴 호출이
-                # 일반 텍스트로 새어나와 카드가 렌더링되지 않는다.
-                output_config={"effort": "low"},
+                **_model_options(settings.assistant_model),
                 system=[
                     {
                         "type": "text",

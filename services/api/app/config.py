@@ -27,9 +27,12 @@ class Settings(BaseSettings):
     # POST /v1/research/ingest/run 수동 실행만 쓴다.
     research_ingest_interval_hours: float = 6.0
 
-    # 대시보드 AI 어시스턴트. 키워드 추출용 anthropic_model 과 분리한다 —
-    # 추출은 저렴한 모델로 충분하지만 대화는 추론 품질이 곧 제품 가치다.
-    assistant_model: str = "claude-opus-5"
+    # 대시보드 AI 어시스턴트. 키워드 추출용 anthropic_model 과 분리해 둔다.
+    # 기본 Haiku 4.5 — 실측에서 카드 툴 성공률이 상위 모델과 같으면서
+    # 1,000턴당 $6.65 로 Opus 5($27.88)의 1/4다. 자세한 근거는
+    # app/features/assistant/service.py 상단 주석 참고.
+    # 답변 깊이가 아쉬우면 claude-sonnet-5 → claude-opus-5 순으로 올리면 된다.
+    assistant_model: str = "claude-haiku-4-5"
 
     # Daglo STT (optional — empty disables live client init)
     daglo_api_token: str = ""
