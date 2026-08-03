@@ -30,6 +30,7 @@ from app.db.postgres import Base
 SOURCE_RSS = "rss"
 SOURCE_ARXIV = "arxiv"
 SOURCE_CROSSREF = "crossref"
+SOURCE_NEWSAPI = "newsapi"
 
 # 기사 종류 — 피드 필터 탭(뉴스/논문)에서 조인 없이 거르기 위해 비정규화해 둔다
 KIND_NEWS = "news"

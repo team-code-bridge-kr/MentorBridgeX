@@ -298,6 +298,45 @@ SOURCES: list[tuple[str, str, str, str, str | None, str, bool]] = [
         "경향신문",
         False,
     ),
+    # 연합뉴스 나머지 섹션 — 산업·보건만으로는 사회·인문·예체능 트랙이 빈다.
+    # 섹션당 120건이라 커버리지 확대 효과가 가장 크다 (robots: Allow /).
+    ("yna-economy", "연합뉴스 경제", "rss", "https://www.yna.co.kr/rss/economy.xml", None, "연합뉴스", True),
+    ("yna-society", "연합뉴스 사회", "rss", "https://www.yna.co.kr/rss/society.xml", None, "연합뉴스", True),
+    ("yna-culture", "연합뉴스 문화", "rss", "https://www.yna.co.kr/rss/culture.xml", None, "연합뉴스", True),
+    ("yna-politics", "연합뉴스 정치", "rss", "https://www.yna.co.kr/rss/politics.xml", None, "연합뉴스", True),
+    ("yna-world", "연합뉴스 국제", "rss", "https://www.yna.co.kr/rss/international.xml", None, "연합뉴스", True),
+    ("yna-sports", "연합뉴스 스포츠", "rss", "https://www.yna.co.kr/rss/sports.xml", None, "연합뉴스", True),
+    (
+        "hankyung-economy",
+        "한국경제 경제",
+        "rss",
+        "https://www.hankyung.com/feed/economy",
+        None,
+        "한국경제",
+        True,
+    ),
+    (
+        "donga-it",
+        "동아일보 IT·의학",
+        "rss",
+        "https://rss.donga.com/science.xml",
+        None,
+        "동아일보",
+        True,
+    ),
+    ("zdnet-kr", "ZDNet Korea", "rss", "https://feeds.feedburner.com/zdkorea", None, "ZDNet Korea", True),
+    # 매일경제(mk.co.kr)는 **일부러 넣지 않았다.** robots.txt 가 GPTBot·ClaudeBot·
+    # anthropic-ai·CCBot 등 AI 크롤러에 Disallow: / 를 걸어 두었다. 우리 UA 는
+    # 거기 없어서 문자열로는 통과하지만, 매체의 뜻이 분명하므로 따른다.
+    # (한겨레·경향을 enabled=False 로 둔 것과 같은 판단)
+
+    # ── 뉴스 (NewsAPI.org — 선택, 기본 꺼짐) ──
+    # 무료 플랜은 하루 100요청 + 기사 24시간 지연 + **운영 환경 사용 금지**다.
+    # 유료($449/월)로 전환했거나 개발 환경에서만 쓸 때 enabled 를 켠다.
+    # url 칸은 언어 코드로 쓴다 (newsapi 는 URL 이 고정이라 빈 칸을 재활용).
+    ("newsapi-ko", "NewsAPI 한국어", "newsapi", "ko", "과학 OR 기술 OR 연구", "NewsAPI", False),
+    ("newsapi-en", "NewsAPI 영어", "newsapi", "en", "science OR research OR technology", "NewsAPI", False),
+
     # ── 논문 (arXiv 공식 API) ──
     ("arxiv-cs-ai", "arXiv 인공지능", "arxiv", "", "cat:cs.AI OR cat:cs.LG", "arXiv", True),
     ("arxiv-cs-cv", "arXiv 컴퓨터비전", "arxiv", "", "cat:cs.CV OR cat:cs.CL", "arXiv", True),
@@ -309,6 +348,16 @@ SOURCES: list[tuple[str, str, str, str, str | None, str, bool]] = [
     ("arxiv-cs-se", "arXiv 소프트웨어공학", "arxiv", "", "cat:cs.SE OR cat:cs.PL", "arXiv", True),
     ("arxiv-cs-sec", "arXiv 보안·데이터베이스", "arxiv", "", "cat:cs.CR OR cat:cs.DB", "arXiv", True),
     ("arxiv-eess", "arXiv 전기전자", "arxiv", "", "cat:eess.SP OR cat:eess.SY", "arXiv", True),
+    # 화학 트랙이 3건밖에 안 잡혀서 넣었다 (arXiv 에 chem 전용 카테고리는 없다)
+    (
+        "arxiv-chem",
+        "arXiv 화학·소재",
+        "arxiv",
+        "",
+        "cat:physics.chem-ph OR cat:cond-mat.mtrl-sci",
+        "arXiv",
+        True,
+    ),
     (
         "arxiv-physics",
         "arXiv 물리·천문",

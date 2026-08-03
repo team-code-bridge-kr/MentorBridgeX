@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import (
     SOURCE_ARXIV,
     SOURCE_CROSSREF,
+    SOURCE_NEWSAPI,
     SOURCE_RSS,
     ArticleRow,
     FetchLogRow,
@@ -27,6 +28,7 @@ from ..models import (
 from .arxiv import ArxivFetcher
 from .base import FetchedItem, FetchOutcome
 from .crossref import CrossrefFetcher
+from .newsapi import NewsApiFetcher
 from .dedupe import canonical_url, search_text, title_hash
 from .http import PoliteClient
 from .rss import RssFetcher
@@ -58,6 +60,7 @@ async def run_ingest(
         SOURCE_RSS: RssFetcher(client),
         SOURCE_ARXIV: ArxivFetcher(client),
         SOURCE_CROSSREF: CrossrefFetcher(client),
+        SOURCE_NEWSAPI: NewsApiFetcher(client),
     }
 
     logs: list[FetchLogRow] = []

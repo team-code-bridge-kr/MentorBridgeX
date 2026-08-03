@@ -44,15 +44,36 @@ curl -X POST http://127.0.0.1:8000/v1/research/ingest/run \
 
 | 종류 | 소스 | 비고 |
 |---|---|---|
-| 뉴스 RSS | 연합뉴스 산업·보건, 전자신문 IT·과학 | **켜져 있는 국내 뉴스는 이 4개뿐** |
-| 뉴스 RSS | 한겨레 미래&과학, 경향신문 과학 | **꺼둠** — 피드에 "AI 학습 및 활용 금지" 문구가 있어 운영자 판단 필요 |
-| 논문 | arXiv 11개 (cs.AI/LG, cs.CV/CL, cs.DS/CC, cs.DC/OS, cs.SE/PL, cs.CR/DB, eess, math, q-bio, econ, physics) | |
+| 뉴스 RSS | 연합뉴스 8개 (산업·보건·경제·사회·문화·정치·국제·스포츠) | 섹션당 120건 |
+| 뉴스 RSS | 전자신문 IT·과학, 한국경제 경제, 동아일보 IT·의학, ZDNet Korea | |
+| 뉴스 RSS | 한겨레 미래&과학, 경향신문 과학 | **꺼둠** — 피드에 "AI 학습 및 활용 금지" 문구 |
+| 뉴스 API | NewsAPI.org 2개 | **꺼둠** — 아래 참고 |
+| 논문 | arXiv 12개 (cs.AI/LG, cs.CV/CL, cs.DS/CC, cs.DC/OS, cs.SE/PL, cs.CR/DB, chem-ph, eess, math, q-bio, econ, physics) | |
 | 논문 | Crossref 7개 (의약·간호·교육·환경·사회·인문 등) | 검색어 기반 |
 
-**이 목록이 곧 피드의 한계다.** 국내 기사는 산업·IT·과학 4개 피드에서만 오므로,
-그 밖의 주제(예: 스포츠·예술 뉴스)는 아무리 키워드를 넣어도 나오지 않는다.
-학과 트랙을 새로 만들 때는 그 트랙을 받아 줄 소스가 있는지부터 확인할 것 —
-컴퓨터공학 트랙이 한동안 빈 피드였던 이유가 arXiv 에 cs.AI/cs.CV 밖에 없어서였다.
+**넣지 않기로 한 곳**
+
+- **매일경제(mk.co.kr)**: robots.txt 가 GPTBot·ClaudeBot·anthropic-ai·CCBot 등
+  AI 크롤러에 `Disallow: /` 를 건다. 우리 UA 는 그 목록에 없어 문자열로는
+  통과하지만, 매체의 뜻이 분명하므로 따른다.
+- **NewsAPI.org 무료 플랜**: 하루 100요청 + 기사 24시간 지연에 더해, 약관이
+  "development and testing in a development environment only, and cannot be used
+  in a staging or production environment" 다. 운영 배포에는 못 쓴다.
+  유료는 $449/월. 수집기는 만들어 뒀으니 키를 넣고 enabled 만 켜면 된다
+  (`NEWSAPI_KEY`, `seed_data.py` 의 `newsapi-ko`/`newsapi-en`).
+
+**이 목록이 곧 피드의 한계다.** 학과 트랙을 새로 만들 때는 그 트랙을 받아 줄
+소스가 있는지부터 확인할 것 — 컴퓨터공학 트랙이 한동안 빈 피드였던 이유가
+arXiv 에 cs.AI/cs.CV 밖에 없어서였다.
+
+### 트랙별 커버리지 (2026-08-03 실측, 상한 50건)
+
+cs 50 / ai 50 / mech 49 / math 50 / physics 50 / civil 50 / biz 50 / psych 50 /
+humanities 50 / env 27 / ee 26 / social 24 / med 18 / nursing 18 / bio 14 / **chem 3**
+
+소스를 늘리기 전에는 cs 가 0건이었다. 화학은 arXiv 에 전용 카테고리가 없어
+여전히 얇다 — `physics.chem-ph` + `cond-mat.mtrl-sci` 를 넣어 두었지만
+국내 화학 기사 자체가 드물다.
 
 ## 키워드가 걸리는 방식
 

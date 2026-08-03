@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     daglo_base_url: str = "https://apis.daglo.ai"
     daglo_timeout_seconds: float = 30.0
 
+    # NewsAPI.org (선택). 비어 있으면 newsapi 타입 소스를 건너뛴다.
+    # 무료 Developer 플랜은 하루 100요청 + 기사 24시간 지연이고, 공식 약관상
+    # **운영 환경에서 쓸 수 없다**(개발·테스트 전용). 그래서 시드에서도 꺼둔다.
+    newsapi_key: str = ""
+
     # Anthropic LLM (empty disables LLM features; falls back to rule-based)
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-haiku-4-5-20251001"
