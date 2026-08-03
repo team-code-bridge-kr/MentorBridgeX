@@ -31,7 +31,6 @@ import { useRecommendedPrompts } from "../../hooks/useRecommendedPrompts.js";
 import { AIWorkspaceHero } from "../../components/dashboard/AIWorkspaceHero.jsx";
 import { AIComposer } from "../../components/dashboard/AIComposer.jsx";
 import { AIConversation } from "../../components/dashboard/AIConversation.jsx";
-import { DashboardGreeting } from "../../components/dashboard/DashboardGreeting.jsx";
 import { DashboardContextGrid } from "../../components/dashboard/DashboardContextGrid.jsx";
 import { takeAsk } from "../../lib/handoff.js";
 
@@ -60,14 +59,17 @@ export function S05({ onNav }) {
   const ctx = useAIContext();
   const [draft, setDraft] = useState("");
   const [busyNode, setBusyNode] = useState("");
-  const [category, setCategory] = useState(null);
   const [currentArticle, setCurrentArticle] = useState(null);
   const lastSent = useRef(null);
   const threadTopRef = useRef(null);
-  const composerRef = useRef(null);
 
   const summary = summaryRes.data;
   const userName = summary?.user_name || user?.name || "탐구자";
+  const isNewUser =
+    !summaryRes.loading &&
+    !!summary &&
+    !summary.onboarded &&
+    (summary.graph?.node_count ?? 0) === 0;
 
   // 미리보기는 S06 과 같은 데이터를 그린다 — 요약본을 따로 그리면 실제 그래프와
   // 다른 그림이 된다. 이미 불러온 그래프가 있으면 다시 받지 않는다.
@@ -92,11 +94,6 @@ export function S05({ onNav }) {
     rootLabel: graphTitle,
     conversation: convosRes.data?.[0] || null,
   });
-  const shownPrompts = useMemo(
-    () => (category ? prompts.filter((p) => p.category === category) : prompts),
-    [prompts, category]
-  );
-
   // 대화가 시작되면 대화 영역으로 자연스럽게 이동시킨다
   useEffect(() => {
     if (chat.started) {
@@ -111,8 +108,9 @@ export function S05({ onNav }) {
       if (suggestion) setDraft((d) => (d.trim() ? d : suggestion));
       // 레이아웃이 잡힌 뒤에 움직여야 엉뚱한 위치로 간다
       requestAnimationFrame(() => {
-        composerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        composerRef.current?.querySelector("textarea")?.focus({ preventScroll: true });
+        const area = document.querySelector(".hero .composer-input");
+        area?.scrollIntoView({ behavior: "smooth", block: "center" });
+        area?.focus({ preventScroll: true });
       });
     },
     [ctx]
@@ -235,70 +233,65 @@ export function S05({ onNav }) {
       if (item.context) ctx.add(item.context);
       setDraft(item.prompt || item.text);
       requestAnimationFrame(() => {
-        composerRef.current?.querySelector("textarea")?.focus({ preventScroll: true });
+        document.querySelector(".hero .composer-input")?.focus({ preventScroll: true });
       });
     },
     [chat, ctx]
   );
 
+  const cards = (
+    <DashboardContextGrid
+      articles={articlesRes}
+      summary={summaryRes}
+      graphNodes={graph.nodes}
+      graphEdges={graph.edges}
+      graphTitle={graphTitle}
+      onNav={onNav}
+      onOpenArticle={openArticle}
+      onCurrentArticle={setCurrentArticle}
+      onAskArticle={(a) =>
+        attachContext(
+          { type: "article", id: a.id, label: a.title },
+          "이 기사를 요약하고 내 그래프와 어떻게 연결할지 알려줘."
+        )
+      }
+      onAskGraph={() =>
+        attachContext(
+          { type: "graph", id: null, label: graphTitle || "내 지식 그래프" },
+          "이 그래프에서 부족한 탐구 영역을 찾아줘."
+        )
+      }
+      onAskFeedback={(c) =>
+        attachContext(
+          { type: "comment", id: c.id, label: `${c.author}님의 피드백` },
+          "이 피드백을 반영하려면 무엇을 수정해야 해?"
+        )
+      }
+    />
+  );
+
   return (
     <div className="dash-wrap">
       {!chat.started ? (
-        <div className="dash-home">
-          <DashboardGreeting
-            name={userName}
-            articleCount={articlesRes.data?.length || 0}
-            feedbackCount={summary?.pending_feedback_count || 0}
-          />
-
-          <DashboardContextGrid
-            articles={articlesRes}
-            summary={summaryRes}
-            graphNodes={graph.nodes}
-            graphEdges={graph.edges}
-            graphTitle={graphTitle}
-            onNav={onNav}
-            onOpenArticle={openArticle}
-            onCurrentArticle={setCurrentArticle}
-            onAskArticle={(a) =>
-              attachContext(
-                { type: "article", id: a.id, label: a.title },
-                "이 기사를 요약하고 내 그래프와 어떻게 연결할지 알려줘."
-              )
-            }
-            onAskGraph={() =>
-              attachContext(
-                { type: "graph", id: null, label: graphTitle || "내 지식 그래프" },
-                "이 그래프에서 부족한 탐구 영역을 찾아줘."
-              )
-            }
-            onAskFeedback={(c) =>
-              attachContext(
-                { type: "comment", id: c.id, label: `${c.author}님의 피드백` },
-                "이 피드백을 반영하려면 무엇을 수정해야 해?"
-              )
-            }
-          />
-
-          {/* 남는 높이를 AI 영역이 전부 가져간다 — 아래에 빈 칸이 남지 않도록 */}
-          <div className="dash-ai" ref={composerRef}>
-            <AIWorkspaceHero
-              topic={graphTitle}
-              draft={draft}
-              onDraftChange={setDraft}
-              onSubmit={send}
-              context={ctx.items}
-              onRemoveContext={ctx.remove}
-              prompts={shownPrompts}
-              category={category}
-              onCategory={setCategory}
-              onPickPrompt={pickPrompt}
-              conversations={convosRes.data}
-              conversationsLoading={convosRes.loading}
-              onResume={chat.resume}
-            />
-          </div>
-        </div>
+        <AIWorkspaceHero
+          userName={userName}
+          isNewUser={isNewUser}
+          summary={summary}
+          articles={articlesRes.data}
+          conversations={convosRes.data}
+          conversationsLoading={convosRes.loading}
+          contextCards={cards}
+          prompts={prompts}
+          onPickPrompt={pickPrompt}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSubmit={send}
+          onRunQuick={(prompt, contextItem) => askNow(prompt, contextItem)}
+          context={ctx.items}
+          onRemoveContext={ctx.remove}
+          onResume={chat.resume}
+          onNav={onNav}
+        />
       ) : (
         <>
           <div ref={threadTopRef} />

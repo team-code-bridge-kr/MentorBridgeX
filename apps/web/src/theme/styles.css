@@ -592,9 +592,10 @@ tr:hover td { background:var(--surface-container-low); }
    AI 영역이 화면의 약 2/3를 차지하되, 스크롤 없이 하단 카드 상단이 보이도록
    --hero-h 로 높이를 잡는다. 입력창이 화면을 다 덮으면 단순 챗봇처럼 보인다.
 ────────────────────────────────────────────────────────────── */
-/* 문맥 카드가 위에 서므로 예전(66vh)보다 낮춘다. flex:1 이 남는 높이를
-   가져가니 실제로는 화면의 3분의 2쯤을 차지한다. */
-:root { --hero-h: 52vh; --ai-accent:#6366f1; }
+/* 카드·입력창·추천·최근 대화가 모두 이 안에 들어간다. 화면(dash-wrap 의 위아래
+   여백 52px 을 뺀 만큼)을 그대로 채워서 아래에 죽은 여백이 남지 않게 한다.
+   내용은 가운데 정렬이라 남는 높이는 위아래로 고르게 나뉜다. */
+:root { --hero-h: calc(100% - 52px); --ai-accent:#6366f1; }
 
 /* 시각적으로는 감추고 스크린리더에는 읽히는 텍스트 */
 .sr-only {
@@ -605,21 +606,11 @@ tr:hover td { background:var(--surface-container-low); }
 /* S05 는 헤더가 없다 (NO_HDR) — 콘텐츠가 창 상단에 바로 닿으므로 위 여백을 더 준다 */
 .dash-wrap { height:100%; overflow-y:auto; padding:24px 24px 28px; background:var(--bg1); }
 
-/* 인사 → 문맥 카드 → AI 영역. AI 영역이 남는 높이를 전부 가져가므로
-   페이지 아래에 큰 빈 칸이 남지 않는다. */
-.dash-home { display:flex; flex-direction:column; min-height:calc(100% - 52px); }
-.dash-ai { flex:1; display:flex; flex-direction:column; min-height:0; }
-.dash-hello { margin-bottom:12px; }
-.dash-hello-line { font-size:19px; font-weight:700; color:var(--tp); }
-.dash-hello-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
-.dash-hello-sub { font-size:13px; color:var(--tt); margin-top:3px; }
-@media (prefers-reduced-motion:reduce) { .dash-hello-wave { animation:none; } }
-
 /* ── AI 탐구 영역 ── */
 /* 테두리와 배경 박스를 없애 페이지와 이어지게 한다 — 섹션이 카드처럼
    떠 있으면 AI 영역이 별개 위젯처럼 보인다. 구분은 그라데이션만으로. */
 .hero {
-  position:relative; flex:1; min-height:var(--hero-h);
+  position:relative; min-height:var(--hero-h);
   display:flex; align-items:center; justify-content:center;
   border-radius:24px; background:transparent;
   border:none; overflow:hidden;
@@ -637,17 +628,44 @@ tr:hover td { background:var(--surface-container-low); }
    입력창은 원래 폭을 유지해 비율이 흐트러지지 않게 한다. */
 .hero-inner { position:relative; width:100%; max-width:980px; padding:40px 24px; text-align:center; }
 .hero-inner .composer { max-width:880px; margin-left:auto; margin-right:auto; }
+.hero-greeting { font-size:14.5px; font-weight:600; color:var(--tp); margin-bottom:10px; }
+.hero-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
 @keyframes handWave {
   0%,60%,100% { transform:rotate(0deg); }
   70% { transform:rotate(14deg); } 80% { transform:rotate(-8deg); } 90% { transform:rotate(12deg); }
 }
 /* 설명 문장을 걷어냈으므로 아래 여백은 이 제목이 갖는다.
    Black 은 문장이 무거워 보여서 Bold 로 낮춘다. */
-.hero-title { font-size:30px; font-weight:700; color:var(--tp); letter-spacing:-.02em; line-height:1.34; margin-bottom:22px; }
-/* 강조는 핵심 단어 하나에만. 예전에는 이 자리에서 단어가 계속 회전했는데,
-   위쪽 기사 카드가 이미 8초마다 도는 화면에서 움직이는 자리가 둘이면
-   글을 쓰려던 사람의 시선이 계속 끌려간다. */
-.hero-accent { color:var(--blue-500); }
+.hero-title { font-size:30px; font-weight:700; color:var(--tp); letter-spacing:-.02em; line-height:1.34; margin-bottom:20px; }
+
+/* 회전 단어 — 파란 그라데이션이 글자 위를 훑고 지나가는 물결 효과.
+   폭은 JS 가 실측해 넣는다(AIWorkspaceHero). 여기서는 전환만 담당해
+   단어가 바뀔 때 문장이 부드럽게 늘고 준다. */
+.hero-word-slot {
+  display:inline-block; text-align:center; vertical-align:bottom;
+  transition:width .34s cubic-bezier(.22,.8,.28,1);
+  white-space:nowrap;
+}
+.hero-word {
+  display:inline-block;
+  background:linear-gradient(100deg,
+    #0969da 0%, #4f46e5 22%, #38bdf8 42%, #6366f1 62%, #0969da 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  animation:heroWave 3.4s linear infinite, heroWordIn .42s cubic-bezier(.2,.8,.3,1);
+}
+.hero-word.is-static { animation:none; background-position:22% 0; }
+@keyframes heroWave { to { background-position:-220% 0; } }
+@keyframes heroWordIn {
+  from { opacity:0; transform:translateY(.32em); filter:blur(3px); }
+  to   { opacity:1; transform:none; filter:none; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .hero-word, .hero-wave { animation:none; }
+  .hero-word { background-position:22% 0; }
+  .hero-word-slot { transition:none; }
+}
 
 /* ── AI 입력창 — 카드보다 조금 더 강조 ── */
 /* 기본은 **연한 테두리 + 약한 그림자**다. 예전에는 홀로그램 윤곽선이 늘 켜져
@@ -870,13 +888,18 @@ tr:hover td { background:var(--surface-container-low); }
    그래서 높이·여백·제목 크기·버튼 크기를 여기서 한 벌로 정한다.
    높이를 고정하는 이유: 기사 제목 길이나 피드백 유무에 따라 카드가 늘고 줄면
    아래 AI 영역이 위아래로 흔들린다. */
-/* 146px 으로는 기사 제목 2줄 + 추천 이유가 안 들어가 마지막 줄이 잘렸다.
-   설계안의 권장치(112~140)를 조금 넘지만, 적으라고 한 내용이 다 들어가는
-   최소 높이가 이쪽이다. */
-:root { --ctx-h:152px; }
-/* minmax(0,1fr) — 그냥 1fr 이면 최소폭이 '내용이 안 잘리는 폭'이라
-   제목이 긴 기사 카드만 넓어진다. 세 카드는 언제나 같은 폭이어야 한다. */
-.ctx-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:8px; }
+/* 권장치(112~140)를 조금 넘는다. 적으라고 한 내용 — 유형·키워드·2줄 제목·
+   추천 이유·출처 — 이 다 들어가면서 마지막 줄이 잘리지 않는 최소 높이가 이쪽이다.
+   (146·152 에서는 제목 두 번째 줄 아래가 몇 px 씩 잘렸다.) */
+:root { --ctx-h:158px; }
+/* 입력창 바로 위에 선다. 폭은 입력창과 맞추지 않고 히어로 폭을 그대로 써서
+   "이건 입력창의 일부가 아니라 지금 상황을 알려주는 줄"로 읽히게 한다.
+   minmax(0,1fr) — 그냥 1fr 이면 최소폭이 '내용이 안 잘리는 폭'이라 제목이 긴
+   기사 카드만 넓어진다. 세 카드는 언제나 같은 폭이어야 한다. */
+.ctx-grid {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px; margin-bottom:16px; text-align:left;
+}
 .ctx-card {
   height:var(--ctx-h);
   /* 가로 스크롤로 바뀌는 좁은 화면에서 flex 아이템의 최소폭은 '내용이 안 잘리는
@@ -1006,41 +1029,55 @@ tr:hover td { background:var(--surface-container-low); }
 .ctx-skel-md { width:64%; }
 @keyframes skel { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
 
-/* ── 추천 탐구 질문 (수동 회전) ── */
-.rp {
-  max-width:880px; margin:14px auto 0; text-align:left;
-  border-radius:12px; background:var(--bg2); padding:10px 12px;
+/* ── 추천 탐구 — 제자리에서 문장만 바뀐다 ── */
+/* 화살표와 점을 달지 않는다. 입력창 바로 아래에 조작부가 늘어서면 그게 또 하나의
+   위젯처럼 보인다. 틀은 그대로 두고 문장만 바꾼다. */
+.rp-line {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  max-width:880px; margin:14px auto 0; min-height:26px;
 }
-.rp-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
-.rp-label { font-size:11px; font-weight:700; color:var(--tt); }
-.rp-count { font-size:11px; color:var(--tt); font-variant-numeric:tabular-nums; }
-.rp-row { display:flex; align-items:center; gap:10px; }
-.rp-text {
-  flex:1; min-width:0; text-align:left; border:none; background:transparent; cursor:pointer;
-  font-family:inherit; font-size:14px; font-weight:600; color:var(--tp); line-height:1.45;
-  padding:2px 0; word-break:keep-all;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  animation:ctxSlide .22s cubic-bezier(.2,.8,.3,1);
+.rp-line-label {
+  flex-shrink:0; font-size:11.5px; font-weight:700; color:var(--tt);
+  padding:2px 8px; border-radius:9999px; background:var(--bg3);
 }
-.rp-text:hover { color:var(--primary); }
-.rp-text:focus-visible { outline:2px solid var(--blue-400); outline-offset:2px; border-radius:6px; }
-@media (prefers-reduced-motion:reduce) { .rp-text { animation:none; } }
+/* 슬롯 높이를 고정해 문장이 바뀔 때 아래가 밀리지 않게 한다 */
+.rp-line-slot { display:inline-flex; align-items:center; min-width:0; height:24px; }
+.rp-line-text {
+  max-width:100%; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; font-size:14.5px; font-weight:600; line-height:24px;
+  color:var(--blue-500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0;
+  animation:rpSwap .42s cubic-bezier(.2,.8,.3,1);
+}
+.rp-line-text:hover { color:var(--blue-600); text-decoration:underline; }
+.rp-line-text:focus-visible { outline:2px solid var(--blue-400); outline-offset:3px; border-radius:6px; }
+@keyframes rpSwap {
+  from { opacity:0; transform:translateY(.3em); filter:blur(2px); }
+  to   { opacity:1; transform:none; filter:none; }
+}
+@media (prefers-reduced-motion:reduce) { .rp-line-text { animation:none; } }
 
-/* ── 기능 분류 pill ── */
-.cat-pills {
-  display:flex; gap:8px; width:fit-content; max-width:100%;
-  margin:12px auto 0; overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
+/* ── 빠른 실행 ── */
+/* 한 줄로 유지한다 — 줄바꿈되면 마지막 한두 개만 아래로 떨어져 어색하다.
+   좁은 화면에서는 가로 스크롤로 넘긴다. */
+.quick-actions {
+  display:flex; flex-wrap:nowrap; gap:8px;
+  /* justify-content:center 는 내용이 넘칠 때 양끝을 잘라내고 스크롤이
+     시작점까지 가지 못한다. fit-content + auto 마진이면 좁을 땐 가운데,
+     넘칠 땐 왼쪽 정렬 + 정상 스크롤이 된다. */
+  width:fit-content; max-width:100%; margin:14px auto 0;
+  overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
 }
-.cat-pills::-webkit-scrollbar { display:none; }
-.cat-pill {
-  flex:0 0 auto; padding:7px 14px; border-radius:9999px;
-  border:1px solid var(--brd); background:var(--bg1); color:var(--ts);
-  font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+.quick-actions::-webkit-scrollbar { display:none; }
+.quick-chip {
+  flex:0 0 auto;
+  padding:7px 14px; border-radius:9999px; border:1px solid var(--brd);
+  background:var(--bg1); color:var(--ts); font-family:inherit;
+  font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
   transition:background .12s, border-color .12s, color .12s;
 }
-.cat-pill:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
-.cat-pill.is-on { background:var(--blue-50); border-color:var(--blue-500); color:var(--blue-500); }
-.cat-pill:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.quick-chip:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
+.quick-chip:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
 
 /* ── 반응형 ── */
 @media (max-width:1100px) {
@@ -1058,9 +1095,8 @@ tr:hover td { background:var(--surface-container-low); }
 }
 @media (max-width:768px) {
   .dash-wrap { padding:16px 14px 32px; }
-  .dash-home { min-height:auto; }
   .hero { min-height:auto; border-radius:16px; }
-  .hero-inner { padding:22px 4px 8px; }
+  .hero-inner { padding:22px 0 8px; }
   .hero-title { font-size:22px; margin-bottom:16px; }
   .ctx-grid { margin-left:-14px; margin-right:-14px; padding:0 14px 4px; scroll-padding-left:14px; }
   /* 한 화면에 카드 한 장씩 */
