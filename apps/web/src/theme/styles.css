@@ -761,7 +761,11 @@ tr:hover td { background:var(--surface-container-low); }
    어느 시간이 어느 대화의 것인지 눈으로 이어 붙여야 했다. 지금은 제목 바로
    아래에 붙여 한 덩어리로 읽힌다. */
 .recent-convos { max-width:880px; width:100%; margin:20px auto 0; text-align:left; }
-.recent-convos-hdr { font-size:11px; font-weight:700; color:var(--tt); margin-bottom:5px; }
+/* 제목 왼쪽, "더 보기" 오른쪽 끝 — 한 줄로 묶는다 */
+.recent-convos-hdr {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:11px; font-weight:700; color:var(--tt); margin-bottom:5px;
+}
 .recent-convos ul { list-style:none; display:flex; flex-direction:column; gap:1px; }
 /* 제목 버튼과 연필 버튼은 형제다 — 버튼 안에 버튼을 넣을 수 없다 */
 .recent-convo-row { display:flex; align-items:center; gap:2px; border-radius:9px; }
@@ -792,9 +796,9 @@ tr:hover td { background:var(--surface-container-low); }
 .recent-convo-rename:focus-visible { opacity:1; outline:2px solid var(--blue-400); outline-offset:-2px; }
 @media (hover:none) { .recent-convo-rename { opacity:1; } }
 
-/* 더 보기 — 옛날 대화는 접어 둔다 */
+/* 더 보기 — 옛날 대화는 접어 둔다. 제목 줄 오른쪽 끝에 선다. */
 .recent-convo-more {
-  display:inline-flex; align-items:center; gap:4px; margin:4px 0 0 10px; padding:4px 8px;
+  flex:none; display:inline-flex; align-items:center; gap:4px; margin:-4px -8px -4px 0; padding:4px 8px;
   border:none; border-radius:7px; background:transparent;
   font-family:inherit; font-size:12px; font-weight:600; color:var(--ts);
   cursor:pointer; transition:background .12s, color .12s;

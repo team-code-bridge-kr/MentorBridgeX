@@ -48,7 +48,24 @@ export function RecentConversationList({ items, loading, onResume, onRename }) {
 
   return (
     <div className="recent-convos">
-      <div className="recent-convos-hdr">최근 대화</div>
+      {/* "더 보기"는 제목 줄 오른쪽 끝에 둔다. 목록 아래에 두면 마지막 대화와
+          붙어서 그 대화에 딸린 버튼처럼 읽힌다. */}
+      <div className="recent-convos-hdr">
+        <span>최근 대화</span>
+        {hidden > 0 && (
+          <button
+            type="button"
+            className="recent-convo-more"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? "접기" : `더 보기 ${hidden}개`}
+            <span className={`recent-convo-more-ic${expanded ? " is-open" : ""}`} aria-hidden="true">
+              <NavIcon name="arrowRight" size={13} color="currentColor" />
+            </span>
+          </button>
+        )}
+      </div>
       <ul>
         {shown.map((c) => (
           <li key={c.id} className="recent-convo-row">
@@ -92,20 +109,6 @@ export function RecentConversationList({ items, loading, onResume, onRename }) {
           </li>
         ))}
       </ul>
-
-      {hidden > 0 && (
-        <button
-          type="button"
-          className="recent-convo-more"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? "접기" : `더 보기 ${hidden}개`}
-          <span className={`recent-convo-more-ic${expanded ? " is-open" : ""}`} aria-hidden="true">
-            <NavIcon name="arrowRight" size={13} color="currentColor" />
-          </span>
-        </button>
-      )}
     </div>
   );
 }
