@@ -2092,22 +2092,54 @@ tr:hover td { background:var(--surface-container-low); }
    대화와 작업을 탭으로 가르지 않는다.
 
    .content > * 는 자식마다 가운데 정렬을 걸어서 폭이 다른 요소들이 서로 어긋난다
-   (검색창은 왼쪽 끝, 설명문은 화면 가운데에서 시작하는 식). 하나의 상자로 감싼다. */
-.act-wrap { padding-top:32px; }
+   (검색창은 왼쪽 끝, 설명문은 화면 가운데에서 시작하는 식). 하나의 상자로 감싼다.
+
+   **이 화면만 유리(frosted) 표면을 쓴다.** 목록 하나만 있는 화면이라, 흰 판을
+   흰 배경에 얹으면 경계가 안 보이고 그렇다고 테두리를 두르면 상자처럼 굳는다.
+   뒤에 아주 옅은 빛만 깔고 그 위에 반투명 흰 판을 띄우면, 가장자리는 비어 보이고
+   목록만 떠오른다. 색은 흰색 계열만 쓴다 — 강조색은 여전히 파랑 하나뿐이다. */
+.act-wrap {
+  padding-top:32px;
+  /* 유리가 흐릴 무언가가 뒤에 있어야 한다. 흰 배경 위의 반투명 흰 판은
+     그냥 흰 판이다. 히어로와 같은 계열의 옅은 빛을 깐다. */
+  background:
+    radial-gradient(60% 44% at 50% -6%, rgba(99,102,241,.20) 0%, transparent 70%),
+    radial-gradient(48% 38% at 8% 54%, rgba(9,105,218,.14) 0%, transparent 72%),
+    radial-gradient(44% 34% at 94% 30%, rgba(56,189,248,.13) 0%, transparent 74%),
+    radial-gradient(70% 50% at 50% 108%, rgba(99,102,241,.10) 0%, transparent 72%),
+    var(--bg1);
+}
 /* 읽는 목록이라 본문 최대 폭(1280)까지 늘리지 않는다. 한 줄이 너무 길면
    제목과 시간이 멀어져서 어느 시간이 어느 활동의 것인지 눈으로 이어야 한다. */
 .act-page { width:100%; max-width:860px; margin:0 auto; }
+
+/* 유리 표면 한 벌 — 검색·필터·목록이 같은 재질이어야 한 화면으로 읽힌다 */
+.act-glass {
+  background:rgba(255,255,255,.66);
+  backdrop-filter:blur(20px) saturate(165%);
+  -webkit-backdrop-filter:blur(20px) saturate(165%);
+  /* 위쪽 테두리를 더 밝게 — 빛이 판 윗면에 걸리는 것처럼 보여 두께가 생긴다 */
+  border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 12px 34px rgba(15,23,42,.09), inset 0 1px 0 rgba(255,255,255,.6);
+}
+/* 흐림을 지원하지 않는 브라우저에서는 그냥 흰 판. 반투명만 남으면 글자 뒤로
+   배경이 비쳐 읽기 어려워진다. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .act-glass { background:var(--bg1); border-color:var(--brd); }
+}
 
 /* 제목 + 검색을 한 줄에. 설명문은 두지 않는다. */
 .act-head { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
 .act-title { flex:none; font-size:26px; font-weight:700; color:var(--tp); letter-spacing:-.02em; }
 .act-search {
   flex:1; min-width:0; display:flex; align-items:center; gap:9px;
-  height:40px; padding:0 14px;
-  background:var(--bg1); border:1px solid var(--brd); border-radius:9999px;
-  box-shadow:var(--surface-1); transition:border-color .14s, box-shadow .14s;
+  height:40px; padding:0 14px; border-radius:9999px;
+  transition:border-color .14s, box-shadow .14s, background .14s;
 }
-.act-search:focus-within { border-color:var(--blue-400); box-shadow:0 0 0 4px rgba(9,105,218,.10); }
+.act-search:focus-within {
+  background:rgba(255,255,255,.86);
+  border-color:var(--blue-400); box-shadow:0 0 0 4px rgba(9,105,218,.10);
+}
 .act-search-input {
   flex:1; min-width:0; border:none; outline:none; background:transparent;
   font-family:inherit; font-size:13.5px; color:var(--tp);
@@ -2121,20 +2153,23 @@ tr:hover td { background:var(--surface-container-low); }
 
 .act-filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
 .act-filter {
-  padding:6px 13px; border:1px solid var(--brd); border-radius:9999px; background:var(--bg1);
+  padding:6px 13px; border-radius:9999px;
   font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ts); cursor:pointer;
   transition:background .12s, border-color .12s, color .12s;
 }
-.act-filter:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
-.act-filter.is-on { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
+.act-filter:hover { background:rgba(255,255,255,.9); color:var(--primary); }
+.act-filter.is-on {
+  background:rgba(9,105,218,.10); border-color:rgba(9,105,218,.28); color:var(--primary);
+}
 .act-filter:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
 
 .act-group { margin-bottom:20px; }
 .act-group-title { font-size:11.5px; font-weight:700; color:var(--tt); margin-bottom:7px; padding-left:2px; }
-/* 목록은 다른 화면의 표면 규칙을 그대로 쓴다 — 흰 판 + 그림자, 테두리 없음 */
-.act-list.card { padding:6px; }
-.act-list .ra-row + .ra-row { border-top:1px solid var(--brd); border-radius:0; }
-.act-list .ra-row:hover { background:var(--bg-low); }
+.act-list { padding:6px; border-radius:var(--r18); }
+/* 줄 사이는 아주 옅은 선으로만. 유리 위에서는 진한 선이 유리 두께처럼 보인다. */
+.act-list .ra-row + .ra-row { border-top:1px solid rgba(15,23,42,.06); border-radius:0; }
+.act-list .ra-row:hover { background:rgba(255,255,255,.72); }
+.act-list .ra-row.is-active { background:rgba(9,105,218,.09); }
 .act-list .ra-item { padding:11px 10px; gap:10px; }
 .act-list .ra-icon { margin-top:2px; }
 .act-list .ra-title { font-size:13.5px; color:var(--tp); }

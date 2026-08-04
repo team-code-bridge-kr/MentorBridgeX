@@ -54,7 +54,7 @@ export function S44({ onNav }) {
             제목과 목록이 이미 말한다. 한 번 읽고 나면 매번 자리만 차지한다. */}
         <header className="act-head">
           <h1 className="act-title">활동 기록</h1>
-          <div className="act-search" role="search">
+          <div className="act-search act-glass" role="search">
             <NavIcon name="search" size={16} color="var(--tt)" />
             <input
               className="act-search-input"
@@ -76,7 +76,7 @@ export function S44({ onNav }) {
             <button
               key={f.id}
               type="button"
-              className={`act-filter${kind === f.id ? " is-on" : ""}`}
+              className={`act-filter act-glass${kind === f.id ? " is-on" : ""}`}
               aria-pressed={kind === f.id}
               onClick={() => setKind(f.id)}
             >
@@ -86,7 +86,7 @@ export function S44({ onNav }) {
         </div>
 
         {activity.loading && (
-          <div className="ra-list act-list card" aria-busy="true">
+          <div className="ra-list act-list act-glass" aria-busy="true">
             <span className="ra-skel" /><span className="ra-skel" /><span className="ra-skel" />
             <span className="ra-skel" /><span className="ra-skel" />
           </div>
@@ -116,7 +116,7 @@ export function S44({ onNav }) {
         {!activity.loading && !activity.error && groups.map(([label, items]) => (
           <section key={label} className="act-group">
             <h2 className="act-group-title">{label}</h2>
-            <ul className="ra-list act-list card">
+            <ul className="ra-list act-list act-glass">
             {items.map((it) => (
               <RecentActivityItem
                 key={it.id}
