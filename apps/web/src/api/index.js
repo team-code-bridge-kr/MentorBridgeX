@@ -8,7 +8,7 @@
  * ──────────────────────────────────────────
  * ✅ LIVE  : auth.*, graph.*, documents.*, ingest.uploadPdf,
  *            comments.*, voice.*, forms.*, notifications.*, stats.*, settings.*
- *            (통합검색 S27 = 위 LIVE API 클라이언트 집계)
+ *            (활동 기록 S44 의 자료 검색 = 위 LIVE API 클라이언트 집계)
  * 🔶 MOCK  : auth.signInAdmin (partial), teacher.*, admin.*
  *
  * 백엔드 라우터 참고: services/api/app/routers/

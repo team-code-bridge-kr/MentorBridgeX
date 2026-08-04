@@ -268,8 +268,8 @@ a { text-decoration:none; color:inherit; }
 
 .ra-more-wrap { position:relative; flex:none; }
 .ra-more {
-  width:22px; height:22px; margin-right:4px; border:none; border-radius:6px;
-  background:transparent; color:var(--tt); font-size:13px; line-height:1; cursor:pointer;
+  width:26px; height:26px; margin-right:4px; border:none; border-radius:7px;
+  background:transparent; color:var(--ts); font-size:17px; line-height:1; cursor:pointer;
   opacity:0; transition:opacity .12s, background .12s;
 }
 .ra-row:hover .ra-more, .ra-row:focus-within .ra-more { opacity:1; }
@@ -2165,16 +2165,26 @@ tr:hover td { background:var(--surface-container-low); }
 
 .act-group { margin-bottom:20px; }
 .act-group-title { font-size:11.5px; font-weight:700; color:var(--tt); margin-bottom:7px; padding-left:2px; }
-.act-list { padding:6px; border-radius:var(--r18); }
+/* 입력창(.composer)과 같은 18px — 화면마다 다른 곡률을 쓰면 재질이 달라 보인다 */
+.act-list { padding:6px; border-radius:18px; }
 /* 줄 사이는 아주 옅은 선으로만. 유리 위에서는 진한 선이 유리 두께처럼 보인다. */
 .act-list .ra-row + .ra-row { border-top:1px solid rgba(15,23,42,.06); border-radius:0; }
 .act-list .ra-row:hover { background:rgba(255,255,255,.72); }
 .act-list .ra-row.is-active { background:rgba(9,105,218,.09); }
-.act-list .ra-item { padding:11px 10px; gap:10px; }
-.act-list .ra-icon { margin-top:2px; }
-.act-list .ra-title { font-size:13.5px; color:var(--tp); }
-.act-list .ra-sub-text, .act-list .ra-time { font-size:11.5px; }
-.act-list .ra-skel { height:46px; margin:0 4px 4px; }
+/* 넓은 화면이므로 사이드바보다 한 단계씩 키운다. 사이드바(폭 68~240px)와 같은
+   크기로 두면 화면은 넓은데 글자만 작아 목록이 멀리 있는 것처럼 보인다. */
+.act-list .ra-item { padding:13px 12px; gap:12px; }
+.act-list .ra-icon { margin-top:1px; }
+.act-list .ra-icon svg { width:19px; height:19px; }
+.act-list .ra-title { font-size:15px; color:var(--tp); }
+.act-list .ra-line { gap:10px; }
+.act-list .ra-sub { gap:6px; margin-top:2px; }
+.act-list .ra-sub-text, .act-list .ra-time { font-size:12.5px; }
+.act-list .ra-badge { font-size:11px; padding:2px 8px; }
+.act-list .ra-skel { height:52px; margin:0 4px 4px; }
+/* 더보기(⋯)는 늘 보이게 두되 옅게. 아예 감춰 두면 있는 줄도 모른다. */
+.act-list .ra-more { width:30px; height:30px; margin-right:6px; font-size:19px; opacity:.5; }
+.act-list .ra-row:hover .ra-more { opacity:1; }
 @media (max-width:768px) {
   .act-wrap { padding-top:16px; }
   .act-head { flex-wrap:wrap; gap:10px; }
