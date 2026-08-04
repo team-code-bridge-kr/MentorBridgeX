@@ -141,7 +141,14 @@ class InMemoryGraphStore:
         return node
 
     async def patch_node(
-        self, user_id: str, node_id: str, *, label: str | None, description: str | None
+        self,
+        user_id: str,
+        node_id: str,
+        *,
+        label: str | None,
+        description: str | None,
+        node_type: str | None = None,
+        external_refs: dict | None = None,
     ) -> GraphNode | None:
         node = self._nodes.get(user_id, {}).get(node_id)
         if not node:
@@ -151,6 +158,10 @@ class InMemoryGraphStore:
             data["label"] = label
         if description is not None:
             data["description"] = description
+        if node_type is not None:
+            data["type"] = node_type
+        if external_refs is not None:
+            data["external_refs"] = external_refs
         data["updated_at"] = _now()
         updated = GraphNode(**data)
         self._nodes[user_id][node_id] = updated

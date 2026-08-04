@@ -275,6 +275,9 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
   return {
     id:    n.id,
     label: n.label,
+    // 설명은 노드 상세와 편집 폼이 함께 쓴다. 없으면 편집할 때 원래 설명이
+    // 빈칸으로 보여서, 저장하는 순간 조용히 지워진다.
+    description: n.description ?? "",
     kind,
     // 트리 배치에서 이 노드가 어느 가지에 매달리는지 (그래프 뷰의 가지 선)
     parentId: opts.parentId ?? null,
@@ -467,14 +470,23 @@ const api = {
       };
     },
 
-    /** ✅ LIVE — POST /v1/students/me/graph/nodes */
+    /**
+     * ✅ LIVE — POST /v1/students/me/graph/nodes
+     *
+     * 과목·분야(section)는 external_refs 에 넣는다 — 아이콘과 배치가 그 값으로
+     * 정해진다(sectionOf). 학생이 직접 만드는 노드도 AI 가 만든 노드와 같은
+     * 자리에 같은 모양으로 서야 한다.
+     */
     async addNode(node) {
+      const refs = {};
+      if (node.section) refs.section = node.section;
       const data = await request("/v1/students/me/graph/nodes", {
         method: "POST",
         body: {
           label: node.label,
-          type: "Keyword",
+          type: node.type || "Keyword",
           description: node.description ?? "",
+          external_refs: refs,
         },
       });
       return mapNode(data, Math.floor(Math.random() * 8));
@@ -499,6 +511,25 @@ const api = {
         method: "PATCH",
         body: { label },
       });
+    },
+
+    /**
+     * ✅ LIVE — 노드 고치기. **보낸 항목만** 바뀐다.
+     * `section` 은 external_refs 로 옮겨 담는다(서버가 그 안을 본다).
+     */
+    async updateNode(id, patch) {
+      const body = {};
+      if (patch.label !== undefined) body.label = patch.label;
+      if (patch.description !== undefined) body.description = patch.description;
+      if (patch.type !== undefined) body.type = patch.type;
+      if (patch.section !== undefined) body.external_refs = { section: patch.section };
+      return request(`/v1/students/me/graph/nodes/${id}`, { method: "PATCH", body });
+    },
+
+    /** ✅ LIVE — DELETE /v1/students/me/graph/edges/{id} — 연결 끊기 */
+    async removeEdge(id) {
+      await request(`/v1/students/me/graph/edges/${id}`, { method: "DELETE" });
+      return { id };
     },
 
     /** ✅ LIVE — DELETE /v1/students/me/graph/nodes/{id} */

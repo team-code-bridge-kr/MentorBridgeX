@@ -149,17 +149,29 @@ class Neo4jGraphStore:
         )
 
     async def patch_node(
-        self, user_id: str, node_id: str, *, label: str | None, description: str | None
+        self,
+        user_id: str,
+        node_id: str,
+        *,
+        label: str | None,
+        description: str | None,
+        node_type: str | None = None,
+        external_refs: dict | None = None,
     ) -> GraphNode | None:
         now = datetime.now(UTC)
         driver = get_neo4j_driver()
+        # coalesce 로 "안 보낸 값은 그대로" 를 만든다. external_refs 는 통째로
+        # 갈아 끼운다 — 부분 병합은 호출부가 원래 값을 알아야 해서 더 헷갈린다.
+        refs_json = json.dumps(external_refs, ensure_ascii=False) if external_refs is not None else None
         async with driver.session() as session:
             result = await session.run(
                 """
                 MATCH (n:Node {user_id: $user_id, node_id: $node_id})
                 SET n.updated_at = datetime($updated_at),
                     n.label = coalesce($label, n.label),
-                    n.description = coalesce($description, n.description)
+                    n.description = coalesce($description, n.description),
+                    n.type = coalesce($node_type, n.type),
+                    n.external_refs_json = coalesce($refs_json, n.external_refs_json)
                 RETURN n.node_id AS node_id, n.type AS type, n.label AS label,
                        n.description AS description,
                        n.external_refs_json AS external_refs_json,
@@ -169,6 +181,8 @@ class Neo4jGraphStore:
                 node_id=node_id,
                 label=label,
                 description=description,
+                node_type=node_type.value if hasattr(node_type, "value") else node_type,
+                refs_json=refs_json,
                 updated_at=now.isoformat(),
             )
             record = await result.single()

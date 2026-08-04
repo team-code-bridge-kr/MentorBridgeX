@@ -112,6 +112,30 @@ export function StoreProvider({ children }) {
       dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
       toast("success", "이름을 바꿨습니다.");
     },
+    /**
+     * 노드 고치기(이름·설명·과목). 고친 뒤 그래프를 통째로 다시 받는다 —
+     * 과목이 바뀌면 아이콘뿐 아니라 **배치(어느 가지에 매달리는지)** 까지
+     * 달라지므로, 그 자리에서 한 노드만 갈아 끼우면 그림이 어긋난다.
+     */
+    async updateNode(id, patch) {
+      await api.graph.updateNode(id, patch);
+      const g = await api.graph.fetch();
+      dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
+      toast("success", "노드를 수정했습니다.");
+    },
+    /** 연결 만들기 — 만든 뒤 다시 받는다(가지 선이 새로 계산된다) */
+    async connectNodes(fromId, toId) {
+      await api.graph.addEdge({ from: fromId, to: toId });
+      const g = await api.graph.fetch();
+      dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
+      toast("success", "연결했습니다.");
+    },
+    async disconnectNodes(edgeId) {
+      await api.graph.removeEdge(edgeId);
+      const g = await api.graph.fetch();
+      dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
+      toast("success", "연결을 끊었습니다.");
+    },
     async deleteNode(id) {
       await api.graph.removeNode(id);
       dispatch({ type: "GRAPH_DEL_NODE", id });

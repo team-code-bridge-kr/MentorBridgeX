@@ -60,8 +60,17 @@ class NodeCreateRequest(BaseModel):
 
 
 class NodePatchRequest(BaseModel):
+    """노드 고치기. **보낸 항목만** 바뀐다(None 은 "그대로 두라"는 뜻).
+
+    과목·분야는 `external_refs.section` 에 들어 있다. 학생이 화면에서 과목을
+    바꾸면 여기로 온다 — 아이콘과 그래프 배치가 그 값으로 정해지므로, 이름만
+    고칠 수 있으면 잘못 분류된 노드를 바로잡을 방법이 없다.
+    """
+
     label: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=2000)
+    type: NodeType | None = None
+    external_refs: dict | None = None
 
 
 class EdgeCreateRequest(BaseModel):

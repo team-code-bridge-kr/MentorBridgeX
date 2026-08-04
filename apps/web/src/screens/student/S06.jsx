@@ -7,6 +7,7 @@ import { visualEdgesOf } from "../../theme/graphView.js";
 import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
+import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 
 // 이 개수를 넘으면 라벨을 선택적으로만 표시한다 (전부 그리면 겹쳐서 못 읽음).
 const DENSE_THRESHOLD = 30;
@@ -41,9 +42,13 @@ export function S06({ onNav }) {
   const [research, setResearch] = useState({});
   // '이 주제로 확장' 진행 중인 추천 id
   const [expanding, setExpanding] = useState(null);
-  // 노드 이름 바꾸기
-  const [renaming, setRenaming] = useState(false);
-  const [renameText, setRenameText] = useState("");
+  // 노드 직접 만들기·고치기·지우기.
+  // AI 가 뽑아 준 결과가 늘 맞지는 않는다 — 학생이 그 자리에서 고칠 수 없으면
+  // 그래프는 남의 것이 된다. 그래서 편집을 그래프 화면 안에 둔다.
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
   // 노드 위치 로컬 상태 (드래그로 변경)
   const [positions, setPositions] = useState({});
   // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
@@ -194,22 +199,67 @@ export function S06({ onNav }) {
     setGrabbing(true);
   }, []);
 
-  const handleDelete = async (id) => { await actions.deleteNode(id); };
-
-  const commitRename = useCallback(async () => {
-    const label = renameText.trim();
-    if (!sel || !label || label === sel.label) { setRenaming(false); return; }
+  /** 노드 만들기. 연결할 곳을 골랐으면 만든 뒤 바로 잇는다. */
+  const handleCreate = useCallback(async ({ label, section, description, parentId }) => {
+    setBusy(true);
     try {
-      await actions.renameNode(sel.id, label);
-      setSel(s => (s ? { ...s, label } : s));
+      const node = await actions.addNode({ label, section, description });
+      if (parentId && node?.id) await actions.connectNodes(parentId, node.id);
+      else await actions.loadGraph();
+      setCreating(false);
     } catch (e) {
-      actions.toast("error", e.message);
+      actions.toast("error", e.message || "노드를 추가하지 못했습니다.");
+    } finally {
+      setBusy(false);
     }
-    setRenaming(false);
-  }, [sel, renameText, actions]);
+  }, [actions]);
+
+  /** 노드 고치기. 이름·과목·설명을 한 번에 저장한다. */
+  const handleEdit = useCallback(async ({ label, section, description }) => {
+    if (!sel) return;
+    setBusy(true);
+    try {
+      await actions.updateNode(sel.id, { label, section, description });
+      setSel((cur) => (cur ? { ...cur, label, section: section || "기타", description } : cur));
+      setEditing(false);
+    } catch (e) {
+      actions.toast("error", e.message || "노드를 수정하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }, [sel, actions]);
+
+  const handleDelete = useCallback(async () => {
+    if (!sel) return;
+    setBusy(true);
+    try {
+      await actions.deleteNode(sel.id);
+      setConfirmDelete(false);
+      setSel(null);
+    } catch (e) {
+      actions.toast("error", e.message || "노드를 삭제하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }, [sel, actions]);
+
+  const handleConnect = useCallback(async (targetId) => {
+    if (!sel) return;
+    setBusy(true);
+    try { await actions.connectNodes(sel.id, targetId); }
+    catch (e) { actions.toast("error", e.message || "연결하지 못했습니다."); }
+    finally { setBusy(false); }
+  }, [sel, actions]);
+
+  const handleDisconnect = useCallback(async (edgeId) => {
+    setBusy(true);
+    try { await actions.disconnectNodes(edgeId); }
+    catch (e) { actions.toast("error", e.message || "연결을 끊지 못했습니다."); }
+    finally { setBusy(false); }
+  }, [actions]);
 
   // 다른 노드를 고르면 편집 상태는 닫는다
-  useEffect(()=>{ setRenaming(false); }, [sel?.id]);
+  useEffect(()=>{ setEditing(false); setConfirmDelete(false); }, [sel?.id]);
 
   // ── 가지치기 추천 ───────────────────────────────────────
   // 1단계: 웹 검색 없이 온톨로지 기반 추천 3개를 받아 상세 패널에 표시한다.
@@ -271,7 +321,8 @@ export function S06({ onNav }) {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <div className="toolbar">
-        <Btn v="primary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="plusSeed" size={15} color="#fff"/> 시드 추가</Btn>
+        <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
+        <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
         <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
@@ -487,6 +538,25 @@ export function S06({ onNav }) {
           </div>
         </div>
 
+        {/* 노드 만들기 — 상세 패널과 같은 자리에 선다. 패널을 둘로 늘리면
+            좁은 화면에서 캔버스가 사라진다. */}
+        {creating && (
+          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
+            <div className="row-between mb16" style={{marginBottom:16}}>
+              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 추가</span>
+              <button onClick={()=>setCreating(false)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
+            </div>
+            <NodeEditor
+              mode="create"
+              nodes={nodes}
+              defaultParentId={nodes.find(n=>n.kind==="root")?.id || ""}
+              busy={busy}
+              onSubmit={handleCreate}
+              onCancel={()=>setCreating(false)}
+            />
+          </div>
+        )}
+
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
           <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
@@ -499,38 +569,67 @@ export function S06({ onNav }) {
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
               <div style={{minWidth:0,flex:1}}>
-                {renaming ? (
-                  <form
-                    onSubmit={(e)=>{e.preventDefault(); commitRename();}}
-                    style={{display:"flex",gap:6,marginBottom:6}}
-                  >
-                    <input
-                      autoFocus
-                      value={renameText}
-                      onChange={(e)=>setRenameText(e.target.value)}
-                      onKeyDown={(e)=>{ if(e.key==="Escape") setRenaming(false); }}
-                      maxLength={200}
-                      style={{flex:1,minWidth:0,fontSize:16,fontWeight:700,color:TDS.textPrimary,padding:"6px 10px",borderRadius:8,border:`1px solid ${TDS.borderFocus}`,outline:"none"}}
-                    />
-                    <Btn v="primary" s="sm" type="submit">저장</Btn>
-                    <Btn v="ghost" s="sm" type="button" onClick={()=>setRenaming(false)}>취소</Btn>
-                  </form>
-                ) : (
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                    <div style={{fontSize:20,fontWeight:800,color:TDS.textPrimary,minWidth:0,overflowWrap:"anywhere"}}>{sel.label}</div>
-                    <button
-                      title="이름 바꾸기"
-                      onClick={()=>{ setRenameText(sel.label); setRenaming(true); }}
-                      style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",padding:4,lineHeight:0,color:TDS.textTertiary}}
-                    >
-                      <NavIcon name="text" size={15} color={TDS.textTertiary}/>
-                    </button>
-                  </div>
-                )}
-                <Badge t="blue">{sel.cat}</Badge>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                  <div style={{fontSize:20,fontWeight:800,color:TDS.textPrimary,minWidth:0,overflowWrap:"anywhere"}}>{sel.label}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  <Badge t="blue">{sel.cat}</Badge>
+                  {sel.section && sel.section !== "기타" && <Badge t="grey">{sel.section}</Badge>}
+                </div>
               </div>
             </div>
+
+            {/* 고치기·지우기 — 다른 화면으로 보내지 않는다. AI 가 잘못 뽑은 것을
+                보는 그 자리에서 바로 고칠 수 있어야 한다. */}
+            {!editing && !confirmDelete && (
+              <div style={{display:"flex",gap:8,marginBottom:4}}>
+                <Btn v="secondary" s="sm" onClick={()=>setEditing(true)} style={{flex:1}}>
+                  <NavIcon name="pen" size={14} color={TDS.textSecondary}/> 수정
+                </Btn>
+                <Btn v="ghost" s="sm" onClick={()=>setConfirmDelete(true)} style={{color:TDS.danger}}>
+                  <NavIcon name="trash" size={14} color={TDS.danger}/> 삭제
+                </Btn>
+              </div>
+            )}
+            {editing && (
+              <NodeEditor
+                mode="edit"
+                node={sel}
+                nodes={nodes}
+                busy={busy}
+                onSubmit={handleEdit}
+                onCancel={()=>setEditing(false)}
+              />
+            )}
+            {confirmDelete && (
+              <NodeDeleteConfirm
+                node={sel}
+                edgeCount={eList.length}
+                busy={busy}
+                onConfirm={handleDelete}
+                onCancel={()=>setConfirmDelete(false)}
+              />
+            )}
+
+            {sel.description && !editing && (
+              <p style={{fontSize:13,color:TDS.textSecondary,lineHeight:1.65,margin:"14px 0 0",wordBreak:"keep-all"}}>{sel.description}</p>
+            )}
+
             <Divider my={16} />
+
+            {!editing && !confirmDelete && (
+              <>
+                <NodeConnections
+                  node={sel}
+                  edges={edges}
+                  nodes={nodes}
+                  busy={busy}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                />
+                <Divider my={16} />
+              </>
+            )}
 
             {/* 가지치기 추천 — 상단 버튼을 누르면 여기에 카드 3개가 뜬다 */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -639,28 +738,6 @@ export function S06({ onNav }) {
             })}
 
             <Divider my={16} />
-            <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,marginBottom:10}}>연결된 엣지 {eList.length}개</p>
-            {eList.length ? eList.map((e,i)=>{
-              const other = nodeById(e.from===sel.id?e.to:e.from);
-              const om = KIND_META[other?.kind]||KIND_META.topic;
-              return (
-              <div key={e.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:other?.color||TDS.borderStrong,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <NavIcon name={other ? iconForNode(other) : om.icon} size={15} color="#fff"/>
-                </div>
-                <div style={{minWidth:0,flex:1}}>
-                  <div style={{fontSize:13,fontWeight:600,color:TDS.textPrimary}}>{other?.label||"—"}</div>
-                  <div style={{fontSize:12,color:TDS.textTertiary}}>{"하위 개념,연관 분야,선수 지식,응용 분야".split(",")[i%4]}</div>
-                </div>
-              </div>
-              );
-            }) : <div style={{fontSize:13,color:TDS.textDisabled}}>연결된 엣지가 없습니다</div>}
-            <Divider my={16} />
-            <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,marginBottom:10}}>임베딩 미리보기</p>
-            <div style={{background:TDS.bgTertiary,borderRadius:10,padding:12,fontSize:11,color:TDS.textSecondary,fontFamily:"monospace"}}>
-              [0.234, 0.891, -0.123, 0.567, ...]
-            </div>
-            <Divider my={16} />
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>코멘트 {comments.length}개</p>
             </div>
@@ -680,7 +757,6 @@ export function S06({ onNav }) {
             <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:10}}>
               <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S07")}>노드 상세 보기</Btn>
               <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
-              <Btn v="secondary" s="md" style={{width:"100%",color:TDS.danger}} onClick={()=>handleDelete(sel.id)}>노드 삭제</Btn>
             </div>
           </div>
         ); })()}
