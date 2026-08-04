@@ -160,9 +160,17 @@ class Neo4jGraphStore:
     ) -> GraphNode | None:
         now = datetime.now(UTC)
         driver = get_neo4j_driver()
-        # coalesce 로 "안 보낸 값은 그대로" 를 만든다. external_refs 는 통째로
-        # 갈아 끼운다 — 부분 병합은 호출부가 원래 값을 알아야 해서 더 헷갈린다.
-        refs_json = json.dumps(external_refs, ensure_ascii=False) if external_refs is not None else None
+        # coalesce 로 "안 보낸 값은 그대로" 를 만든다.
+        #
+        # external_refs 는 **보낸 열쇠만 덮어쓴다**(통째로 갈아 끼우지 않는다).
+        # 화면에서는 과목(section)만 보내는데, 통째로 바꾸면 그 노드가 어디서
+        # 나왔는지(source·frequency·weight)가 함께 지워진다 — 과목 한 번 고쳤다고
+        # 출처를 잃을 이유는 없다.
+        refs_json = None
+        if external_refs is not None:
+            current = await self.get_node(user_id, node_id)
+            merged = {**(current.external_refs if current else {}), **external_refs}
+            refs_json = json.dumps(merged, ensure_ascii=False)
         async with driver.session() as session:
             result = await session.run(
                 """

@@ -8,6 +8,7 @@ import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
+import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 
 // 이 개수를 넘으면 라벨을 선택적으로만 표시한다 (전부 그리면 겹쳐서 못 읽음).
 const DENSE_THRESHOLD = 30;
@@ -616,6 +617,15 @@ export function S06({ onNav }) {
             )}
 
             <Divider my={16} />
+
+            {/* 출처 — 이 노드가 생기부 어느 문장에서 나왔는지. 고치거나 지우려는
+                순간에는 판단할 근거가 필요하므로 연결·추천보다 위에 둔다. */}
+            {!editing && !confirmDelete && (
+              <>
+                <NodeEvidence nodeId={sel.id} label={sel.label} />
+                <Divider my={16} />
+              </>
+            )}
 
             {!editing && !confirmDelete && (
               <>

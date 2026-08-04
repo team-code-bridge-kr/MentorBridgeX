@@ -73,6 +73,37 @@ class NodePatchRequest(BaseModel):
     external_refs: dict | None = None
 
 
+class NodeEvidenceQuote(BaseModel):
+    """노드 이름이 실제로 적혀 있던 생기부 문장 한 줄.
+
+    `match_start`/`match_end` 는 `text` 안에서 노드 이름이 있는 자리다. 화면에서
+    그 부분만 강조하기 위한 값이라, 문장을 잘라내면 잘린 뒤 기준으로 다시 센다.
+    """
+
+    section_type: str
+    section_label: str
+    text: str
+    match_start: int
+    match_end: int
+
+
+class NodeEvidence(BaseModel):
+    """`origin` — 이 노드가 어디서 왔는지.
+
+    `document`(생기부에서 뽑음) · `student`(직접 만듦) · `branch`(가지치기 추천).
+    문장을 못 찾았을 때 왜 없는지 말하려면 필요하다. 직접 만든 노드에 출처가
+    없는 건 오류가 아니다.
+
+    `total` 은 찾은 문장 전체 개수다. `quotes` 는 그중 앞의 몇 개만 담는다.
+    """
+
+    node_id: str
+    label: str
+    origin: str
+    quotes: list[NodeEvidenceQuote] = Field(default_factory=list)
+    total: int = 0
+
+
 class EdgeCreateRequest(BaseModel):
     source_id: str
     target_id: str

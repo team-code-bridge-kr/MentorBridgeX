@@ -478,7 +478,9 @@ const api = {
      * 자리에 같은 모양으로 서야 한다.
      */
     async addNode(node) {
-      const refs = {};
+      // source 를 남겨야 "출처 문장이 없는 이유" 를 말할 수 있다. 직접 만든
+      // 노드에 생기부 문장이 없는 건 오류가 아니라 당연한 일이다.
+      const refs = { source: "student" };
       if (node.section) refs.section = node.section;
       const data = await request("/v1/students/me/graph/nodes", {
         method: "POST",
@@ -524,6 +526,26 @@ const api = {
       if (patch.type !== undefined) body.type = patch.type;
       if (patch.section !== undefined) body.external_refs = { section: patch.section };
       return request(`/v1/students/me/graph/nodes/${id}`, { method: "PATCH", body });
+    },
+
+    /**
+     * ✅ LIVE — GET /v1/students/me/graph/nodes/{id}/evidence
+     *
+     * 이 노드 이름이 적혀 있던 생기부 문장. 저장된 값이 아니라 서버가 그때그때
+     * 원문에서 찾아 준다 — 생기부를 고치면 출처도 따라 바뀐다.
+     */
+    async nodeEvidence(id) {
+      const data = await request(`/v1/students/me/graph/nodes/${id}/evidence`);
+      return {
+        origin: data.origin || "document",
+        total: data.total ?? 0,
+        quotes: (data.quotes ?? []).map((q) => ({
+          sectionLabel: q.section_label || "",
+          text: q.text || "",
+          start: q.match_start ?? 0,
+          end: q.match_end ?? 0,
+        })),
+      };
     },
 
     /** ✅ LIVE — DELETE /v1/students/me/graph/edges/{id} — 연결 끊기 */

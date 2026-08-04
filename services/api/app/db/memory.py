@@ -161,7 +161,8 @@ class InMemoryGraphStore:
         if node_type is not None:
             data["type"] = node_type
         if external_refs is not None:
-            data["external_refs"] = external_refs
+            # 보낸 열쇠만 덮어쓴다 — 과목만 고쳤다고 출처(source 등)까지 지우지 않는다.
+            data["external_refs"] = {**(data.get("external_refs") or {}), **external_refs}
         data["updated_at"] = _now()
         updated = GraphNode(**data)
         self._nodes[user_id][node_id] = updated

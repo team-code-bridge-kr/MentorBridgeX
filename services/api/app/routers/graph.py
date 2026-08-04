@@ -12,9 +12,12 @@ from app.schemas.graph import (
     GraphNode,
     GraphSnapshot,
     NodeCreateRequest,
+    NodeEvidence,
     NodePatchRequest,
     SeedRequest,
 )
+from app.services import node_evidence
+from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/v1/students/me/graph", tags=["ontology-graph"])
 
@@ -80,6 +83,24 @@ async def patch_node(
     if not node:
         raise AppError("DOC_NOT_FOUND", "노드를 찾을 수 없습니다.", status_code=404)
     return node
+
+
+@router.get("/nodes/{node_id}/evidence", response_model=NodeEvidence, summary="노드의 출처 문장")
+async def get_node_evidence(
+    node_id: str,
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> NodeEvidence:
+    """이 노드 이름이 적혀 있던 생기부 문장을 찾아 준다.
+
+    저장해 둔 값을 꺼내는 게 아니라 그때그때 원문에서 찾는다 —
+    까닭은 `services/node_evidence.py` 머리말에.
+    """
+    node = await _store().get_node(user.id, node_id)
+    if not node:
+        raise AppError("DOC_NOT_FOUND", "노드를 찾을 수 없습니다.", status_code=404)
+    sections = await DocumentService().list_sections(session, user.id)
+    return node_evidence.collect(node, sections)
 
 
 @router.delete("/nodes/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
