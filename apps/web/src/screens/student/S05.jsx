@@ -231,19 +231,30 @@ export function S05({ onNav }) {
     api.research.markRead(item.id).catch(() => {});
   }, []);
 
-  const pickPrompt = useCallback(
+  /**
+   * 추천 탐구 · 입력창 안 빠른 실행이 함께 쓰는 경로.
+   *
+   * 문맥을 붙이고 입력창을 채운다. **보내지는 않는다** — 바로 위 칸에 무엇이
+   * 들어갔는지 보고 고칠 기회를 준다. 예전 알약은 곧바로 보냈지만, 이제 그
+   * 문장이 입력창 **안에서** 나왔으므로 입력창을 채우는 쪽이 앞뒤가 맞는다.
+   */
+  const pickSuggestion = useCallback(
     (item) => {
+      if (item.nav) {
+        onNav(item.nav);
+        return;
+      }
       if (item.resumeId) {
         chat.resume(item.resumeId);
         return;
       }
       if (item.context) ctx.add(item.context);
-      setDraft(item.prompt || item.text);
+      setDraft(item.prompt || item.text || item.label);
       requestAnimationFrame(() => {
         document.querySelector(".hero .composer-input")?.focus({ preventScroll: true });
       });
     },
-    [chat, ctx]
+    [chat, ctx, onNav]
   );
 
   /** 사이드바 "최근 작업"도 같은 제목을 들고 있다 — 따로 다시 받지 않게 알려준다 */
@@ -332,15 +343,14 @@ export function S05({ onNav }) {
           onRenameConversation={renameConversation}
           contextCards={cards}
           prompts={prompts}
-          onPickPrompt={pickPrompt}
+          onPickPrompt={pickSuggestion}
           draft={draft}
           onDraftChange={setDraft}
           onSubmit={send}
-          onRunQuick={(prompt, contextItem) => askNow(prompt, contextItem)}
+          onPickAction={pickSuggestion}
           context={ctx.items}
           onRemoveContext={ctx.remove}
           onResume={chat.resume}
-          onNav={onNav}
         />
       ) : (
         <>

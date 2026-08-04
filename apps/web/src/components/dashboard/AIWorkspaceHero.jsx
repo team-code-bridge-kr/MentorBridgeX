@@ -8,11 +8,11 @@
  * 회전하는 단어는 MBX 가 탐구 하나만 다루는 도구가 아님을 문구로 보여준다.
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AIComposer } from "./AIComposer.jsx";
-import { QuickActionList } from "./QuickActionList.jsx";
 import { RecentConversationList } from "./RecentConversationList.jsx";
 import { RotatingPromptLine } from "./RotatingPromptLine.jsx";
+import { buildQuickActions } from "../../lib/quickActions.js";
 
 const ROTATING = ["탐구", "보고서", "생기부", "실험", "독서", "프로젝트"];
 const ROTATE_MS = 2600;
@@ -78,12 +78,17 @@ export function AIWorkspaceHero({
   draft,
   onDraftChange,
   onSubmit,
-  onRunQuick,
+  onPickAction,
   context,
   onRemoveContext,
   onResume,
-  onNav,
 }) {
+  // 빠른 실행은 입력창 안쪽 안내문 자리에서 하나씩 돌아간다 (알약 5개를 늘어놓지 않는다)
+  const actions = useMemo(
+    () => buildQuickActions({ summary, articles, isNewUser }),
+    [summary, articles, isNewUser]
+  );
+
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-glow" aria-hidden="true" />
@@ -109,18 +114,12 @@ export function AIWorkspaceHero({
           onSubmit={onSubmit}
           context={context}
           onRemoveContext={onRemoveContext}
+          actions={actions}
+          onPickAction={onPickAction}
           autoFocus
         />
 
         <RotatingPromptLine prompts={prompts} onPick={onPickPrompt} />
-
-        <QuickActionList
-          summary={summary}
-          articles={articles}
-          isNewUser={isNewUser}
-          onRun={onRunQuick}
-          onNav={onNav}
-        />
 
         <RecentConversationList
           items={conversations}

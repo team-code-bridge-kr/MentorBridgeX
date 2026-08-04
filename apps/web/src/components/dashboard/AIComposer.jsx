@@ -8,14 +8,16 @@
  * 질문 한 줄 말하려고 음성 화면까지 갔다 오게 만들면 아무도 쓰지 않는다.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AIContextChipList } from "./AIContextChip.jsx";
+import { ComposerHint } from "./ComposerHint.jsx";
 import { NavIcon } from "../NavIcon.jsx";
 import { useDictation } from "../../hooks/useDictation.js";
 
 // 입력 영역을 넉넉히 — 링크 + 질문을 함께 붙여넣는 경우가 많다
 const MAX_ROWS = 7;
 const LINE_HEIGHT = 26;
+const PLACEHOLDER = "질문하거나 기사·논문·영상 링크를 입력하세요";
 
 export function AIComposer({
   value,
@@ -27,10 +29,19 @@ export function AIComposer({
   onStop,
   autoFocus,
   compact,
+  actions,
+  onPickAction,
 }) {
   const areaRef = useRef(null);
   const fileRef = useRef(null);
   const [files, setFiles] = useState([]);
+  const hintId = useId();
+
+  /**
+   * 안내문 자리에서 빠른 실행을 돌린다. 쓴 글자가 있으면 내린다 —
+   * 쓰고 있는 문장 위에 다른 글자가 겹치면 안 된다.
+   */
+  const showHint = !value && actions?.length > 0 && !!onPickAction;
 
   /**
    * 화면을 열자마자 커서를 여기 둔다. 단, **폰에서는 두지 않는다** — 들어오자마자
@@ -112,16 +123,28 @@ export function AIComposer({
         </div>
       )}
 
-      <textarea
-        ref={areaRef}
-        className="composer-input"
-        rows={1}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="질문하거나 기사·논문·영상 링크를 입력하세요"
-        aria-label="MBX AI에게 질문하기"
-      />
+      <div className="composer-field">
+        <textarea
+          ref={areaRef}
+          className="composer-input"
+          rows={1}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          // 안내문을 겹쳐 그리는 동안에는 기본 placeholder 를 비운다 — 두 벌이 겹친다
+          placeholder={showHint ? "" : PLACEHOLDER}
+          aria-label="MBX AI에게 질문하기"
+          aria-describedby={showHint ? hintId : undefined}
+        />
+        {showHint && (
+          <ComposerHint
+            placeholder={PLACEHOLDER}
+            actions={actions}
+            onPick={onPickAction}
+            baseId={hintId}
+          />
+        )}
+      </div>
 
       <div className="composer-bar">
         <div className="composer-tools">

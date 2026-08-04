@@ -1,9 +1,13 @@
 /**
- * 빠른 실행 버튼.
+ * 빠른 실행 — "지금 이 학생이 누를 만한 일" 목록.
  *
  * 최근 활동이 있으면 일반 문구 대신 개인화된 문구를 만든다 — "내 그래프 확장하기"
  * 보다 "‘발음 평가’ 노드의 부족한 부분 찾기"가 다음 행동을 훨씬 명확하게 한다.
  * 하드코딩된 예시가 아니라 실제 그래프·기사·피드백에서 뽑는다.
+ *
+ * 예전에는 입력창 아래 알약 5개를 한 줄로 늘어놓았다. 지금은 **입력창 안쪽
+ * 안내문 자리에서 한 번에 하나씩** 돌아간다(ComposerHint) — 다섯 개를 한꺼번에
+ * 늘어놓으면 고르는 일이 되고, 정작 눌러야 할 입력창이 뒤로 밀린다.
  */
 
 const BASE_ACTIONS = [
@@ -44,7 +48,7 @@ function personalize(summary, articles) {
     actions[0] = {
       id: "articles",
       label: "기사를 그래프와 연결",
-      prompt: `최근 읽을 만한 기사를 내 지식 그래프와 어떻게 연결하면 좋을지 알려줘.`,
+      prompt: "최근 읽을 만한 기사를 내 지식 그래프와 어떻게 연결하면 좋을지 알려줘.",
       context: { type: "article", id: article.id, label: article.title },
     };
   }
@@ -59,22 +63,6 @@ function personalize(summary, articles) {
   return actions;
 }
 
-export function QuickActionList({ summary, articles, isNewUser, onRun, onNav }) {
-  const actions = isNewUser ? NEW_USER_ACTIONS : personalize(summary, articles);
-
-  return (
-    <div className="quick-actions" role="group" aria-label="빠른 실행">
-      {actions.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          className="quick-chip"
-          onClick={() => (a.nav ? onNav(a.nav) : onRun(a.prompt, a.context))}
-          title={a.label}
-        >
-          {a.label}
-        </button>
-      ))}
-    </div>
-  );
+export function buildQuickActions({ summary, articles, isNewUser }) {
+  return isNewUser ? NEW_USER_ACTIONS : personalize(summary, articles);
 }

@@ -1113,27 +1113,38 @@ tr:hover td { background:var(--surface-container-low); }
 }
 @media (prefers-reduced-motion:reduce) { .rp-line-text { animation:none; } }
 
-/* ── 빠른 실행 ── */
-/* 한 줄로 유지한다 — 줄바꿈되면 마지막 한두 개만 아래로 떨어져 어색하다.
-   좁은 화면에서는 가로 스크롤로 넘긴다. */
-.quick-actions {
-  display:flex; flex-wrap:nowrap; gap:8px;
-  /* justify-content:center 는 내용이 넘칠 때 양끝을 잘라내고 스크롤이
-     시작점까지 가지 못한다. fit-content + auto 마진이면 좁을 땐 가운데,
-     넘칠 땐 왼쪽 정렬 + 정상 스크롤이 된다. */
-  width:fit-content; max-width:100%; margin:14px auto 0;
-  overflow-x:auto; scrollbar-width:none; padding-bottom:2px;
+/* ── 빠른 실행 — 입력창 안내문 자리에서 돌아간다 ──
+   예전에는 입력창 아래 알약 5개를 늘어놓았다. 그러면 "고르는 일"이 되고
+   정작 눌러야 할 입력창이 뒤로 밀린다. 지금은 안내문 뒤에 하나씩 바뀐다. */
+.composer-field { position:relative; }
+.composer-hint {
+  position:absolute; left:0; top:0; right:0;
+  display:flex; flex-wrap:wrap; align-items:center; gap:0 8px;
+  font-size:15.5px; line-height:26px; color:#8b93b5;
+  /* 안내문을 눌러도 그냥 입력창에 커서가 들어가야 한다 — 클릭을 통과시킨다 */
+  pointer-events:none;
 }
-.quick-actions::-webkit-scrollbar { display:none; }
-.quick-chip {
-  flex:0 0 auto;
-  padding:7px 14px; border-radius:9999px; border:1px solid var(--brd);
-  background:var(--bg1); color:var(--ts); font-family:inherit;
-  font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
-  transition:background .12s, border-color .12s, color .12s;
+.composer-hint-base { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.composer-hint-dot { flex:none; opacity:.55; }
+.composer-hint-slot { flex:0 1 auto; min-width:0; display:inline-flex; }
+.composer-hint-action {
+  pointer-events:auto; /* 눌리는 것은 이 문장 하나뿐이다 */
+  max-width:100%; padding:0; border:none; background:transparent;
+  font-family:inherit; font-size:15.5px; line-height:26px; font-weight:700;
+  color:var(--primary); cursor:pointer; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+  animation:rpSwap .34s cubic-bezier(.2,.8,.28,1);
 }
-.quick-chip:hover { background:var(--blue-50); border-color:var(--blue-400); color:var(--primary); }
-.quick-chip:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.composer-hint-action:hover { text-decoration:underline; }
+.composer-hint-action:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; border-radius:5px; }
+@media (prefers-reduced-motion:reduce) { .composer-hint-action { animation:none; } }
+/* 좁은 화면에서는 안내문 아래 줄로 내려간다 — 입력창은 비어 있을 때 두 줄
+   높이(min-height:52px)라 자리가 이미 있다. 어느 쪽도 잘리지 않는다. */
+@media (max-width:640px) {
+  .composer-hint { gap:0 6px; }
+  .composer-hint-base { flex:1 0 100%; }
+  .composer-hint-dot { display:none; }
+}
 
 /* ── 반응형 ── */
 @media (max-width:1100px) {
