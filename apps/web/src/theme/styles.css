@@ -741,6 +741,7 @@ tr:hover td { background:var(--surface-container-low); }
 .composer-send {
   /* 원형 — 첨부 아이콘들과 형태를 구분해 '보내기'가 즉시 읽히게 한다 */
   width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
   background:var(--blue-500); color:#fff; font-size:17px; font-weight:700; line-height:1;
   transition:background .12s, opacity .12s;
 }
@@ -1020,7 +1021,15 @@ tr:hover td { background:var(--surface-container-low); }
   padding:1px 6px; border-radius:5px; background:var(--bg3); color:var(--ts);
   font-size:10.5px; font-weight:700; flex-shrink:0;
 }
-.ctx-kind.is-paper { background:var(--blue-50); color:var(--blue-500); }
+/* 종류 꼬리표는 뉴스·논문 모두 회색 — 파랑은 "내 관심사"에만 쓴다 */
+.ctx-kind.is-paper { background:var(--bg3); color:var(--ts); }
+/* 걸린 내 키워드. 여러 개면 여러 알약. 폭이 모자라면 뒤엣것부터 잘린다
+   (kicker 가 overflow:hidden 이라 줄이 늘어나 카드 높이를 밀지 않는다). */
+.ctx-kw {
+  padding:2px 8px; border-radius:9999px; flex-shrink:0;
+  background:var(--blue-50); color:var(--primary);
+  font-size:10.5px; font-weight:700; letter-spacing:-.01em;
+}
 .ctx-title-link, .ctx-strong {
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   font-size:13.5px; font-weight:700; color:var(--tp); line-height:1.35;

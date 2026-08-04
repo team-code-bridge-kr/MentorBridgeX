@@ -182,10 +182,13 @@ export function AIComposer({
             className="composer-send"
             onClick={submit}
             disabled={!canSend}
-            aria-label="전송"
+            aria-label="전송 (Enter)"
+            title="Enter 로 보내기"
             aria-disabled={!canSend}
           >
-            ↑
+            {/* 위 화살표는 "올린다"로 읽힌다. 실제 조작은 Enter 이므로
+                자판에 있는 그 모양(⏎)을 그대로 보여준다. */}
+            <NavIcon name="enter" size={19} color="currentColor" />
           </button>
         )}
       </div>

@@ -38,6 +38,10 @@ from .rss import RssFetcher
 logger = logging.getLogger("research.ingest")
 
 MAX_FAILURES_BEFORE_PAUSE = 3
+# 발행일이 이만큼 미래면 원문 쪽 날짜를 믿지 않는다. 일부 학술지가 2109~2121년으로
+# 들어오는데(이슬람력을 잘못 환산한 값으로 보인다), 최신순 정렬에서는 그런 글이
+# 영원히 맨 앞을 차지한다. 시차와 예약 발행을 감안해 이틀은 봐준다.
+FUTURE_TOLERANCE = timedelta(days=2)
 PAUSE_DURATION = timedelta(hours=24)
 
 
@@ -134,6 +138,18 @@ async def _run_one(
     return log
 
 
+def _publish_time(value: datetime | None, now: datetime) -> datetime:
+    """믿을 수 있는 발행일이면 그대로, 아니면 수집 시각."""
+    if value is None:
+        return value or now
+    # 시간대가 없는 값이 섞여 오면 비교에서 터진다 — UTC 로 본다
+    stamped = value if value.tzinfo else value.replace(tzinfo=UTC)
+    if stamped > now + FUTURE_TOLERANCE:
+        logger.warning("future publish date dropped: %s", stamped.isoformat())
+        return now
+    return stamped
+
+
 async def _store_items(
     session: AsyncSession, source: SourceRow, items: list[FetchedItem]
 ) -> int:
@@ -167,7 +183,8 @@ async def _store_items(
                 "image_url": item.image_url,
                 # 발행일이 없는 피드가 있다. NULL 을 두면 keyset 커서 비교가
                 # NULLS LAST 처리 때문에 복잡해지므로 수집 시각으로 채운다.
-                "published_at": item.published_at or now,
+                # 미래 날짜도 "모르는 것"으로 본다 (FUTURE_TOLERANCE 참고).
+                "published_at": _publish_time(item.published_at, now),
                 "fetched_at": now,
                 "title_hash": thash,
                 "search_text": search_text(item.title, item.summary),

@@ -36,6 +36,16 @@ SORT_LATEST = "latest"
 SORT_OLDEST = "oldest"
 SORTS = {SORT_LATEST, SORT_OLDEST}
 
+# 발행일이 미래인 글은 내보내지 않는다.
+#
+# 원문 쪽 날짜가 잘못 오는 경우가 있다 — 일부 학술지(DOAJ 경유)가 2109~2121년으로
+# 들어온다. 최신순 정렬에서 그런 글은 **영원히 맨 앞**을 차지해서, 피드도
+# 대시보드 "오늘의 관심 기사"도 그 몇 건으로 굳는다. 실제로 최신 40건이 전부
+# 미래 날짜 논문이라 뉴스가 한 건도 보이지 않았다.
+#
+# 시차와 예약 발행을 감안해 이틀만 봐준다.
+FUTURE_TOLERANCE = timedelta(days=2)
+
 
 def encode_cursor(published_at: datetime, article_id: str) -> str:
     raw = f"{published_at.astimezone(UTC).isoformat()}|{article_id}"
@@ -163,6 +173,11 @@ def build_feed_query(
         stmt = stmt.where(
             ArticleRow.published_at >= datetime.now(UTC) - timedelta(days=days)
         )
+
+    # 날짜가 깨진 글이 최신순 맨 앞을 영구 점유하지 못하게 한다 (FUTURE_TOLERANCE 참고).
+    # 저장함은 사용자가 직접 담은 글이라 건드리지 않는다.
+    if tab != TAB_SAVED:
+        stmt = stmt.where(ArticleRow.published_at <= datetime.now(UTC) + FUTURE_TOLERANCE)
 
     # keyset 커서는 정렬 방향과 짝이 맞아야 한다. 방향이 뒤집히면 비교도 뒤집는다.
     ascending = sort == SORT_OLDEST

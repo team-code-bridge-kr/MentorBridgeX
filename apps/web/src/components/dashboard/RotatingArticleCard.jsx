@@ -13,7 +13,6 @@ import { useEffect } from "react";
 import { useCarousel } from "../../hooks/useCarousel.js";
 import { CarouselControls } from "./CarouselControls.jsx";
 import { ContextButton, ContextCard, ContextEmpty, timeAgo } from "./ContextCard.jsx";
-import { displayKeyword } from "../../lib/keywordAliases.js";
 
 const ROTATE_MS = 8000;
 
@@ -41,8 +40,8 @@ export function RotatingArticleCard({ articles, onOpen, onAsk, onNav, onCurrentC
     );
   }
 
-  // 한글·영문이 같은 개념이면 한 번만 — "알고리즘 · algorithm"은 두 개가 아니다
-  const keywords = [...new Set((item.matched_keywords || []).map(displayKeyword))].slice(0, 2);
+  // 걸린 내 키워드 (useDashboardData 에서 표기를 다듬어 넣어 준다)
+  const keywords = item.keywords || [];
 
   return (
     <ContextCard
@@ -72,11 +71,16 @@ export function RotatingArticleCard({ articles, onOpen, onAsk, onNav, onCurrentC
     >
       {/* key 를 바꿔 내용만 페이드로 교체한다 — 카드 자체는 움직이지 않는다 */}
       <div className="ctx-slide" key={item.id}>
+        {/* 종류는 회색 꼬리표, **걸린 내 키워드는 파란 알약**. 색을 나눠야
+            "이건 논문이다"와 "이건 내 관심사다"가 섞이지 않는다. 여러 개가
+            걸렸으면 여러 개를 보여준다 — 하나만 보이면 우연히 걸린 것처럼 읽힌다. */}
         <p className="ctx-kicker">
           <span className={`ctx-kind ${item.kind === "paper" ? "is-paper" : ""}`}>
             {item.kind === "paper" ? "논문" : "뉴스"}
           </span>
-          {keywords.join(" · ")}
+          {keywords.map((k) => (
+            <span key={k} className="ctx-kw">{k}</span>
+          ))}
         </p>
         <a
           className="ctx-title-link"
@@ -88,10 +92,11 @@ export function RotatingArticleCard({ articles, onOpen, onAsk, onNav, onCurrentC
         >
           {item.title}
         </a>
+        {/* 키워드 알약이 "왜 이 글인지"를 이미 말하므로, 여기서는 출처와 시각만.
+            "내 키워드 ‘X’와 관련된 글입니다"를 또 쓰면 같은 말을 두 번 한다. */}
         <p className="ctx-sub">
-          {item.reason}
-          {item.outlet && <span className="ctx-sub-dim"> · {item.outlet}</span>}
-          {item.published_at && <span className="ctx-sub-dim"> {timeAgo(item.published_at)}</span>}
+          {item.outlet && <span className="ctx-sub-dim">{item.outlet}</span>}
+          {item.published_at && <span className="ctx-sub-dim"> · {timeAgo(item.published_at)}</span>}
         </p>
       </div>
     </ContextCard>

@@ -73,23 +73,43 @@ export function useRecentConversations(limit = 3) {
  * 내려오므로 그걸로 문장을 만든다 — 컴포넌트가 아니라 여기서 만드는 이유는
  * 나중에 서버가 reason 을 내려주면 이 함수만 지우면 되기 때문이다.
  */
-export function useRecommendedArticles(limit = 3) {
+/**
+ * 오늘의 관심 기사 — **뉴스와 논문을 번갈아** 세운다.
+ *
+ * 한 번에 최신순으로만 받으면 한쪽 종류가 카드를 통째로 차지한다. 실제로
+ * 그런 일이 있었다(논문만 넉 장). 종류별로 따로 받아 번갈아 끼우면, 한쪽이
+ * 모자랄 때만 다른 쪽으로 채워진다 — 억지로 균형을 맞추느라 빈칸을 만들지 않는다.
+ */
+export function useRecommendedArticles(limit = 4) {
   return useResource(async () => {
-    const feed = await api.research.feed({ tab: "all", limit });
-    return (feed.items || []).map((item) => ({
-      ...item,
-      reason: reasonFor(item),
-    }));
+    const half = Math.ceil(limit / 2);
+    const [news, papers] = await Promise.all([
+      api.research.feed({ tab: "news", limit: half }),
+      api.research.feed({ tab: "paper", limit: half }),
+    ]);
+    return alternate(news.items || [], papers.items || [])
+      .slice(0, limit)
+      .map((item) => ({ ...item, keywords: keywordsOf(item) }));
   }, [limit]);
 }
 
-function reasonFor(item) {
-  // 등록된 낱말 그대로 쓰면 "algorithm 과 관련된 글입니다"가 된다.
-  // 걸린 결과는 그대로 두고 표기만 한국어 쪽으로 바꾼다.
-  const matched = [...new Set((item.matched_keywords || []).map(displayKeyword))];
-  if (!matched.length) return "관심 분야와 관련된 글입니다.";
-  if (matched.length === 1) return `내 키워드 ‘${matched[0]}’와 관련된 글입니다.`;
-  return `내 키워드 ‘${matched[0]}’, ‘${matched[1]}’와 관련된 글입니다.`;
+/** 뉴스 → 논문 → 뉴스 … 한쪽이 끝나면 남은 쪽을 그대로 잇는다. */
+function alternate(a, b) {
+  const out = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    if (a[i]) out.push(a[i]);
+    if (b[i]) out.push(b[i]);
+  }
+  return out;
+}
+
+/**
+ * 이 글이 걸린 내 키워드. 등록된 낱말 그대로 쓰면 "algorithm"처럼 영문이 나오므로
+ * 표기만 한국어 쪽으로 바꾼다(걸린 결과 자체는 건드리지 않는다).
+ * 같은 개념의 한글·영문은 한 번만 — "알고리즘 · algorithm"은 두 개가 아니다.
+ */
+function keywordsOf(item) {
+  return [...new Set((item.matched_keywords || []).map(displayKeyword))].slice(0, 3);
 }
 
 /** 최근 지식 그래프 — 요약 API 에서 이미 오므로 재요청하지 않고 잘라 쓴다. */

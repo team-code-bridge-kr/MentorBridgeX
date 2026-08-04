@@ -64,6 +64,9 @@ export const NAV_ICON_PATHS = {
   bolt:      <><path d="M13 3.2 5.6 13.6H12l-1 7.2 7.4-10.4H12z"/></>,
   calendar:  <><rect x="3.5" y="5.2" width="17" height="15.3" rx="2"/><path d="M8 3v4.2M16 3v4.2M3.5 10.2h17"/></>,
   arrowRight:<><path d="M4.5 12h14M13 6.2 18.8 12 13 17.8"/></>,
+  /* Enter(⏎) — 전송 버튼. 화살표만 있으면 "위로 올린다"로 읽히는데, 실제 조작은
+     Enter 다. 자판에 있는 그 모양을 그대로 쓴다. */
+  enter:     <><path d="M19 6.5v5a3.5 3.5 0 0 1-3.5 3.5H6.5"/><path d="M10 11 6 15l4 4"/></>,
 };
 
 export function NavIcon({ name, size=18, color }) {
