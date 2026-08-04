@@ -42,7 +42,19 @@ function useResource(loader, deps = [], { enabled = true } = {}) {
     return () => { alive.current = false; };
   }, [reload]);
 
-  return { ...state, reload };
+  /**
+   * 이미 받아 둔 값을 화면에서 고친다(이름 바꾸기 등).
+   * reload 를 쓰면 목록이 잠깐 스켈레톤으로 돌아갔다 오므로, 한 글자 바꾼
+   * 결과를 보여주자고 화면을 깜빡이게 하지 않는다.
+   */
+  const setData = useCallback((update) => {
+    setState((s) => ({
+      ...s,
+      data: typeof update === "function" ? update(s.data) : update,
+    }));
+  }, []);
+
+  return { ...state, reload, setData };
 }
 
 /** 사용자 이름 · 주간 활동 · 그래프 요약 · 확인할 피드백 · 미확인 알림 */

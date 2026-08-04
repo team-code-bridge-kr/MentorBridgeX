@@ -3,6 +3,7 @@
 - POST   /v1/assistant/chat                 대화 (SSE 스트리밍)
 - GET    /v1/assistant/conversations        최근 대화
 - GET    /v1/assistant/conversations/{id}   대화 이어보기
+- PATCH  /v1/assistant/conversations/{id}   대화 이름 바꾸기
 - DELETE /v1/assistant/conversations/{id}
 - GET    /v1/assistant/dashboard            대시보드 요약
 
@@ -38,6 +39,7 @@ from .schemas import (
     ConversationDetailOut,
     ConversationListOut,
     ConversationOut,
+    ConversationRenameIn,
     DashboardOut,
     GraphSummaryOut,
     MessageOut,
@@ -54,7 +56,10 @@ router = APIRouter(prefix="/v1/assistant", tags=["assistant"])
 CurrentUser = Annotated[UserRow, Depends(get_current_user)]
 DbSession = Annotated[AsyncSession | None, Depends(get_db_session)]
 
+# 서버가 첫 질문에서 잘라 만드는 제목의 길이
 TITLE_MAX = 60
+# 사용자가 직접 붙인 이름의 상한 = 컬럼 길이(String(120))
+TITLE_STORE_MAX = 120
 RECENT_CONVERSATIONS = 3
 
 
@@ -160,12 +165,21 @@ async def chat(body: ChatIn, user: CurrentUser, session: DbSession) -> Streaming
     await db.commit()
 
     conversation_id = conversation.id
+    # 제목도 함께 알려준다 — 대화 화면 머리에 이름을 띄우고 바로 고칠 수 있게.
+    # 스트림이 시작되면 세션이 만료될 수 있으므로 여기서 값을 빼 둔다.
+    conversation_title = conversation.title
 
     async def event_stream() -> AsyncIterator[str]:
         answer: list[str] = []
         cards: list[dict] = []
 
-        yield sse({"type": "start", "conversation_id": conversation_id})
+        yield sse(
+            {
+                "type": "start",
+                "conversation_id": conversation_id,
+                "title": conversation_title,
+            }
+        )
 
         async for event in stream_reply(history, body.message, context_block, profile_block):
             if event["type"] == "delta":
@@ -263,6 +277,39 @@ async def get_conversation(
             )
             for m in rows.scalars().all()
         ],
+    )
+
+
+@router.patch(
+    "/conversations/{conversation_id}",
+    response_model=ConversationOut,
+    summary="대화 이름 바꾸기",
+)
+async def rename_conversation(
+    conversation_id: str,
+    body: ConversationRenameIn,
+    user: CurrentUser,
+    session: DbSession,
+) -> ConversationOut:
+    """이름만 바꾼다. **updated_at 은 건드리지 않는다** — 이름을 고쳤다고 해서
+    그 대화가 방금 한 대화가 되지는 않는다. 목록 순서가 흔들리면 안 된다."""
+    db = _require_db(session)
+    conversation = await db.get(ConversationRow, conversation_id)
+    if conversation is None or conversation.user_id != user.id:
+        raise AppError("ASSISTANT_NOT_FOUND", "대화를 찾을 수 없습니다.", status_code=404)
+
+    title = " ".join(body.title.split())[:TITLE_STORE_MAX]
+    if not title:
+        raise AppError("ASSISTANT_TITLE_EMPTY", "이름을 입력해 주세요.", status_code=400)
+
+    conversation.title = title
+    await db.commit()
+    return ConversationOut(
+        id=conversation.id,
+        title=conversation.title,
+        subject=conversation.subject,
+        message_count=conversation.message_count,
+        updated_at=conversation.updated_at,
     )
 
 

@@ -32,9 +32,14 @@ import { AIWorkspaceHero } from "../../components/dashboard/AIWorkspaceHero.jsx"
 import { AIComposer } from "../../components/dashboard/AIComposer.jsx";
 import { AIConversation } from "../../components/dashboard/AIConversation.jsx";
 import { DashboardContextGrid } from "../../components/dashboard/DashboardContextGrid.jsx";
+import { RenameField } from "../../components/dashboard/RenameField.jsx";
+import { NavIcon } from "../../components/NavIcon.jsx";
 import { takeAsk } from "../../lib/handoff.js";
 
 const ARTICLE_ROTATION = 4;
+// 화면에는 최신 2개만 세우고 나머지는 "더 보기"로 편다. 펼쳤을 때 보여줄 몫까지
+// 한 번에 받아 둔다 — 더 보기를 누르고 나서 또 기다리게 하지 않는다.
+const RECENT_LIMIT = 10;
 
 /** 대화 중에 쓰는 문맥을 한 줄로 — "기사 1 · 그래프 1 · 피드백 1" */
 function contextSummary(items) {
@@ -53,13 +58,15 @@ export function S05({ onNav }) {
 
   const summaryRes = useDashboardSummary();
   const articlesRes = useRecommendedArticles(ARTICLE_ROTATION);
-  const convosRes = useRecentConversations(3);
+  const convosRes = useRecentConversations(RECENT_LIMIT);
 
   const chat = useAIChat();
   const ctx = useAIContext();
   const [draft, setDraft] = useState("");
   const [busyNode, setBusyNode] = useState("");
   const [currentArticle, setCurrentArticle] = useState(null);
+  // 이름을 고치는 중인 대화의 id. 대화가 바뀌면 저절로 닫힌다.
+  const [editingTitle, setEditingTitle] = useState(null);
   const lastSent = useRef(null);
   const threadTopRef = useRef(null);
 
@@ -239,6 +246,48 @@ export function S05({ onNav }) {
     [chat, ctx]
   );
 
+  /** 사이드바 "최근 작업"도 같은 제목을 들고 있다 — 따로 다시 받지 않게 알려준다 */
+  const announceRename = useCallback((id, title) => {
+    window.dispatchEvent(new CustomEvent("mbx:convo-renamed", { detail: { id, title } }));
+  }, []);
+
+  /** 목록에서 이름 바꾸기. 화면을 먼저 고치고 서버에 보낸다. */
+  const renameConversation = useCallback(
+    async (id, title) => {
+      const before = convosRes.data;
+      const put = (t) =>
+        convosRes.setData((list) =>
+          (list || []).map((c) => (c.id === id ? { ...c, title: t } : c))
+        );
+      put(title);
+      try {
+        const row = await api.assistant.renameConversation(id, title);
+        put(row.title);
+        announceRename(id, row.title);
+      } catch (e) {
+        convosRes.setData(before);
+        actions.toast("error", e.message || "이름을 바꾸지 못했습니다.");
+      }
+    },
+    [convosRes, actions, announceRename]
+  );
+
+  /** 대화 화면 머리에서 이름 바꾸기 — 최근 대화 목록도 같이 맞춰 둔다 */
+  const renameCurrent = useCallback(
+    async (title) => {
+      const row = await chat.rename(title);
+      if (!row) {
+        actions.toast("error", "이름을 바꾸지 못했습니다.");
+        return;
+      }
+      convosRes.setData((list) =>
+        (list || []).map((c) => (c.id === row.id ? { ...c, title: row.title } : c))
+      );
+      announceRename(row.id, row.title);
+    },
+    [chat, convosRes, actions, announceRename]
+  );
+
   const cards = (
     <DashboardContextGrid
       articles={articlesRes}
@@ -280,6 +329,7 @@ export function S05({ onNav }) {
           articles={articlesRes.data}
           conversations={convosRes.data}
           conversationsLoading={convosRes.loading}
+          onRenameConversation={renameConversation}
           contextCards={cards}
           prompts={prompts}
           onPickPrompt={pickPrompt}
@@ -297,13 +347,38 @@ export function S05({ onNav }) {
           <div ref={threadTopRef} />
           <div className="chat-mode">
             <div className="chat-head">
-              <button
-                type="button"
-                className="btn-inline"
-                onClick={() => { chat.reset(); ctx.clear(); }}
-              >
-                ← 새로 시작하기
-              </button>
+              <div className="chat-head-left">
+                <button
+                  type="button"
+                  className="btn-inline"
+                  onClick={() => { chat.reset(); ctx.clear(); }}
+                >
+                  ← 새로 시작하기
+                </button>
+
+                {/* 이 대화의 이름. 서버가 첫 질문에서 잘라 붙인 것이라 대개
+                    길다 — 여기서 바로 짧게 고칠 수 있다. */}
+                {chat.title && (
+                  editingTitle === chat.conversationId ? (
+                    <RenameField
+                      value={chat.title}
+                      className="rn-chat"
+                      onSave={(t) => { setEditingTitle(null); renameCurrent(t); }}
+                      onCancel={() => setEditingTitle(null)}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="chat-head-title"
+                      title="이름 바꾸기"
+                      onClick={() => setEditingTitle(chat.conversationId)}
+                    >
+                      <span className="chat-head-title-text">{chat.title}</span>
+                      <NavIcon name="pen" size={13} color="currentColor" />
+                    </button>
+                  )
+                )}
+              </div>
               {/* 카드를 걷어냈으므로, 무엇을 물고 있는지는 여기서만 알 수 있다 */}
               {activeContext.length > 0 && (
                 <span className="chat-head-ctx">

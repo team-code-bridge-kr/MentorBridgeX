@@ -763,17 +763,58 @@ tr:hover td { background:var(--surface-container-low); }
 .recent-convos { max-width:880px; width:100%; margin:20px auto 0; text-align:left; }
 .recent-convos-hdr { font-size:11px; font-weight:700; color:var(--tt); margin-bottom:5px; }
 .recent-convos ul { list-style:none; display:flex; flex-direction:column; gap:1px; }
+/* 제목 버튼과 연필 버튼은 형제다 — 버튼 안에 버튼을 넣을 수 없다 */
+.recent-convo-row { display:flex; align-items:center; gap:2px; border-radius:9px; }
+.recent-convo-row:hover { background:var(--bg2); }
 .recent-convo {
-  width:100%; display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:1px;
   padding:7px 10px; border-radius:9px; border:none; background:transparent;
-  font-family:inherit; text-align:left; cursor:pointer; transition:background .12s;
+  font-family:inherit; text-align:left; cursor:pointer;
 }
-.recent-convo:hover { background:var(--bg2); }
 .recent-convo:focus-visible { outline:2px solid var(--blue-400); outline-offset:-2px; }
 .recent-convo-title { max-width:100%; font-size:13.5px; color:var(--tp); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .recent-convo-meta { display:flex; gap:5px; align-items:center; font-size:11.5px; color:var(--tt); max-width:100%; }
 .recent-convo-subject { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .recent-convo-skel { display:block; height:30px; border-radius:9px; margin-bottom:3px; background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 37%,var(--bg2) 63%); background-size:400% 100%; animation:skel 1.3s ease infinite; }
+
+/* 이름 바꾸기 — 줄에 커서를 올리거나 포커스가 들어올 때만 보인다.
+   늘 떠 있으면 목록이 도구 모음처럼 보인다. 손가락으로 쓰는 기기에는
+   hover 가 없으므로 그때는 항상 보여준다. */
+.recent-convo-rename {
+  flex:none; display:inline-flex; align-items:center; justify-content:center;
+  width:26px; height:26px; margin-right:6px; padding:0;
+  border:none; border-radius:7px; background:transparent; color:var(--tt);
+  cursor:pointer; opacity:0; transition:opacity .12s, color .12s, background .12s;
+}
+.recent-convo-row:hover .recent-convo-rename,
+.recent-convo-row:focus-within .recent-convo-rename { opacity:1; }
+.recent-convo-rename:hover { background:var(--bg3); color:var(--tp); }
+.recent-convo-rename:focus-visible { opacity:1; outline:2px solid var(--blue-400); outline-offset:-2px; }
+@media (hover:none) { .recent-convo-rename { opacity:1; } }
+
+/* 더 보기 — 옛날 대화는 접어 둔다 */
+.recent-convo-more {
+  display:inline-flex; align-items:center; gap:4px; margin:4px 0 0 10px; padding:4px 8px;
+  border:none; border-radius:7px; background:transparent;
+  font-family:inherit; font-size:12px; font-weight:600; color:var(--ts);
+  cursor:pointer; transition:background .12s, color .12s;
+}
+.recent-convo-more:hover { background:var(--bg2); color:var(--tp); }
+.recent-convo-more:focus-visible { outline:2px solid var(--blue-400); outline-offset:-2px; }
+.recent-convo-more-ic { display:inline-flex; transition:transform .18s; }
+.recent-convo-more-ic.is-open { transform:rotate(-90deg); } /* 펼치면 "접기" 쪽(위)을 가리킨다 */
+@media (prefers-reduced-motion:reduce) { .recent-convo-more-ic { transition:none; } }
+
+/* ── 이름 바꾸기 입력 ── */
+.rn-form { flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:3px 4px; }
+.rn-input {
+  flex:1; min-width:0; padding:5px 8px;
+  border:1px solid var(--blue-400); border-radius:8px; background:var(--bg0);
+  font-family:inherit; font-size:13.5px; font-weight:600; color:var(--tp);
+}
+.rn-input:focus { outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.16); }
+.rn-hint { flex:none; font-size:11px; color:var(--tt); white-space:nowrap; }
+@media (max-width:560px) { .rn-hint { display:none; } }
 
 /* ── 대화 모드 ──
    답변이 시작되면 하단 카드 3개를 숨기고 대화만 남긴다. 화면이 바뀌는 것을
@@ -792,7 +833,22 @@ tr:hover td { background:var(--surface-container-low); }
   to   { opacity:1; transform:none; }
 }
 @media (prefers-reduced-motion:reduce) { .chat-mode { animation:none; } }
-.chat-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.chat-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.chat-head-left { display:flex; align-items:center; gap:10px; min-width:0; flex:1; }
+/* 대화 이름 — 눌러서 그 자리에서 고친다 */
+.chat-head-title {
+  display:inline-flex; align-items:center; gap:6px; min-width:0; max-width:420px;
+  padding:4px 8px; border:none; border-radius:8px; background:transparent;
+  font-family:inherit; font-size:13px; font-weight:700; color:var(--tp);
+  cursor:pointer; transition:background .12s;
+}
+.chat-head-title-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chat-head-title svg { flex:none; opacity:0; transition:opacity .12s; }
+.chat-head-title:hover { background:var(--bg2); }
+.chat-head-title:hover svg, .chat-head-title:focus-visible svg { opacity:.7; }
+.chat-head-title:focus-visible { outline:2px solid var(--blue-400); outline-offset:-2px; }
+@media (hover:none) { .chat-head-title svg { opacity:.7; } }
+.rn-chat { max-width:420px; }
 .chat-head-ctx { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ts); }
 .chat-head-ctx-label { font-size:11px; font-weight:700; color:var(--tt); }
 .chat-composer { margin-top:14px; }

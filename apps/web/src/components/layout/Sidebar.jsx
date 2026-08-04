@@ -100,6 +100,18 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
     return () => { cancelled = true; };
   }, [dark, role, state.session?.token]);
 
+  // 대시보드에서 대화 이름을 바꾸면 여기 목록도 같은 이름이어야 한다.
+  // 이 목록만 따로 받아 오므로, 다시 받지 말고 알림만 받아 고친다.
+  useEffect(() => {
+    const onRenamed = (e) => {
+      const { id, title } = e.detail || {};
+      if (!id) return;
+      setRecent((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+    };
+    window.addEventListener("mbx:convo-renamed", onRenamed);
+    return () => window.removeEventListener("mbx:convo-renamed", onRenamed);
+  }, []);
+
   const go = (item) => {
     close(); // 고른 화면을 사이드바가 덮고 있으면 안 된다
     if (item.action === "newChat") {

@@ -30,11 +30,12 @@ export function useAIContext() {
   return { items, add, remove, clear };
 }
 
-const emptyState = { messages: [], conversationId: null };
+const emptyState = { messages: [], conversationId: null, title: "" };
 
 export function useAIChat() {
   const [messages, setMessages] = useState(emptyState.messages);
   const [conversationId, setConversationId] = useState(emptyState.conversationId);
+  const [title, setTitle] = useState(emptyState.title);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const streamRef = useRef(null);
@@ -44,6 +45,7 @@ export function useAIChat() {
     streamRef.current = null;
     setMessages(emptyState.messages);
     setConversationId(emptyState.conversationId);
+    setTitle(emptyState.title);
     setStreaming(false);
     setError("");
   }, []);
@@ -54,6 +56,7 @@ export function useAIChat() {
     try {
       const detail = await api.assistant.conversation(id);
       setConversationId(detail.id);
+      setTitle(detail.title || "");
       setMessages(
         (detail.messages || []).map((m) => ({
           id: m.id,
@@ -103,6 +106,9 @@ export function useAIChat() {
           switch (ev.type) {
             case "start":
               setConversationId(ev.conversation_id);
+              // 이어가는 대화라면 이미 들고 있는 이름이 맞다 —
+              // 사용자가 방금 바꾼 이름을 서버 값으로 덮어쓰지 않는다.
+              setTitle((prev) => prev || ev.title || "");
               break;
             case "delta":
               patchDraft((m) => ({ text: m.text + ev.text, pending: false }));
@@ -137,9 +143,35 @@ export function useAIChat() {
     setStreaming(false);
   }, []);
 
+  /**
+   * 대화 이름 바꾸기.
+   *
+   * 화면에는 먼저 새 이름을 보여주고 서버에 보낸다 — 이름을 고치는 일에
+   * 로딩을 기다리게 할 이유가 없다. 실패하면 원래 이름으로 되돌리고 null 을
+   * 돌려준다. 이름 실패를 대화 오류로 띄우면 답변이 잘못된 것처럼 보인다.
+   */
+  const rename = useCallback(
+    async (next) => {
+      const clean = next.trim();
+      if (!conversationId || !clean) return null;
+      const before = title;
+      setTitle(clean);
+      try {
+        const row = await api.assistant.renameConversation(conversationId, clean);
+        setTitle(row.title);
+        return row;
+      } catch {
+        setTitle(before);
+        return null;
+      }
+    },
+    [conversationId, title]
+  );
+
   return {
     messages,
     conversationId,
+    title,
     streaming,
     error,
     started: messages.length > 0,
@@ -147,5 +179,6 @@ export function useAIChat() {
     stop,
     reset,
     resume,
+    rename,
   };
 }

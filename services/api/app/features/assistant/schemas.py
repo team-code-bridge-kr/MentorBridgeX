@@ -36,6 +36,16 @@ class MessageOut(BaseModel):
     created_at: datetime
 
 
+class ConversationRenameIn(BaseModel):
+    """대화 이름 바꾸기.
+
+    서버가 붙이는 제목은 첫 질문의 앞부분이라 대개 길고, 목록에서 서로 구분이
+    안 된다. 사용자가 직접 짧게 고칠 수 있어야 한다.
+    """
+
+    title: str = Field(min_length=1, max_length=120)
+
+
 class ConversationOut(BaseModel):
     id: str
     title: str

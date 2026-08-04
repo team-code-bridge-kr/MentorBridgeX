@@ -944,6 +944,13 @@ const api = {
     async conversation(id) {
       return request(`/v1/assistant/conversations/${id}`);
     },
+    /** 대화 이름 바꾸기. 서버가 앞뒤 공백을 다듬어 최종 이름을 돌려준다. */
+    async renameConversation(id, title) {
+      return request(`/v1/assistant/conversations/${id}`, {
+        method: "PATCH",
+        body: { title },
+      });
+    },
     async removeConversation(id) {
       return request(`/v1/assistant/conversations/${id}`, { method: "DELETE" });
     },

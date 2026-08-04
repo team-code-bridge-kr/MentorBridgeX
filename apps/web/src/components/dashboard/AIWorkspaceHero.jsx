@@ -71,6 +71,7 @@ export function AIWorkspaceHero({
   articles,
   conversations,
   conversationsLoading,
+  onRenameConversation,
   contextCards,
   prompts,
   onPickPrompt,
@@ -125,6 +126,7 @@ export function AIWorkspaceHero({
           items={conversations}
           loading={conversationsLoading}
           onResume={onResume}
+          onRename={onRenameConversation}
         />
       </div>
     </section>
