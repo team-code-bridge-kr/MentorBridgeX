@@ -117,6 +117,7 @@
 - 카드 제목 14.5px/700, 본문 13.5px, 보조 설명 12.5px, 메타 11.5px.
 - 행간은 본문 1.6~1.8. 제목만 1.34 정도로 좁힌다.
 - 인사말 등 히어로 문구도 본문색(`--tp`)을 쓴다 — 회색으로 흐리지 않는다.
+- 인사말은 **"안녕하세요! ○○님 👋"**. 쉼표보다 느낌표가 인사에 가깝다.
 
 ## 6. 버튼
 
@@ -250,6 +251,10 @@
 - **빈 상태**: 공용 `<Empty title hint cta onCta />` 를 쓴다. 무엇이 없는지 한 줄,
   왜 그런지 한 줄, 다음 행동 버튼 하나. 회색 문장 한 줄만 덩그러니 두면
   "고장난 건가?"로 읽힌다.
+- **다 끝낸 상태는 빈 상태와 다르게 쓴다.** "모든 피드백을 확인했어요!" 처럼
+  느낌표를 붙이고, 앞에 **파란 체크**(`.ctx-empty-check`)를 둔다. 회색 체크는
+  "아무것도 없음"으로 읽히는데 이건 없는 게 아니라 **해낸 것**이다. 초록을 쓰지
+  않는 이유는 이 앱의 강조색이 파랑 하나뿐이기 때문이다 — 색이 늘면 뜻을 잃는다.
 - **오류**: 실패했다고만 쓰지 말고 "다시 시도" 버튼을 함께 준다.
 - **스켈레톤**: 목록은 `ListSkeleton` 으로 자리를 잡아둔다. 로딩 중에 높이가
   바뀌면 화면이 튄다.
@@ -323,6 +328,14 @@
 
 ## 14. 사이드바
 
+- 맨 위는 **로고(36px, `--r10`) + "MBX"**. 제품 이름은 문서·안내문에서는
+  MentorBridgeX 지만, 화면에서는 **MBX** 로 줄인다 — 레일이 68px 이라 긴 이름은
+  펼쳤을 때만 다 보이고, 매번 읽을 글자도 아니다.
+- 로고 그림(`assets/brand/mbx_logo.png`)은 **어두운 배경을 품은 정사각형**이라
+  밝은 레일과 어두운 레일에서 같은 파일을 쓴다. 앱 아이콘처럼 모서리만 둥글린다
+  (`object-fit:contain`). 밝은/어두운 두 벌을 두던 예전 로고와 달리 분기가 없다.
+- 원본은 1024px 이지만 화면에서는 36px 이다. **원본을 그대로 넣지 말 것** —
+  1.5MB 를 매번 내려받게 된다. 256px 로 줄여 두었다(49KB).
 - 기본은 아이콘 레일(68px). 커서를 올리면 **140ms 뒤에 펼쳐지고 그대로 고정된다.**
   커서가 벗어나자마자 닫히면 메뉴를 고르는 도중에 사라져서 쓸 수가 없다.
 - 닫는 방법은 세 가지: « 버튼, Esc, 바깥 클릭. 메뉴를 고르면 자동으로 닫는다
@@ -396,7 +409,11 @@
 - 그래프 선 규칙(공용): `apps/web/src/theme/graphView.js`
 - 메인 화면: `apps/web/src/screens/student/S05.jsx`
 - 대시보드 컴포넌트: `apps/web/src/components/dashboard/`
-- 회전 목록(기사·추천 질문 공용): `apps/web/src/hooks/useCarousel.js`
+- 회전 목록(기사·추천 질문·추천 실행 공용): `apps/web/src/hooks/useCarousel.js`
+- 입력창 안 추천 실행: `apps/web/src/components/dashboard/ComposerSuggestions.jsx`
+  (문구 생성은 `apps/web/src/lib/quickActions.js`)
+- 대화 이름 바꾸기(목록·대화 머리 공용): `apps/web/src/components/dashboard/RenameField.jsx`
+- 브랜드 로고: `apps/web/src/assets/brand/mbx_logo.png`
 - 피드 시각 판: `apps/web/src/components/research/ArticleVisual.jsx`
 - 공용 UI(버튼·배지·카드·빈 상태): `apps/web/src/components/ui.jsx`
 - 내비게이션·별칭: `apps/web/src/nav/menus.js`

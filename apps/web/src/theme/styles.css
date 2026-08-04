@@ -1095,9 +1095,12 @@ tr:hover td { background:var(--surface-container-low); }
 /* 빈 상태 / 오류 — 카드 높이는 그대로 두고 안쪽만 바꾼다 */
 .ctx-empty { display:flex; flex-direction:column; gap:3px; align-items:flex-start; justify-content:center; height:100%; }
 .ctx-empty-title { display:flex; align-items:center; gap:5px; font-size:13px; font-weight:600; color:var(--tp); }
+/* 다 끝냈다는 표시. 회색이면 "비어 있음"으로 읽히는데 이건 빈 상태가 아니라
+   **해낸 상태**다 — 파랑으로 알린다. 초록을 쓰지 않는 것은 이 앱의 강조색이
+   파랑 하나뿐이라서다(색이 늘면 색이 뜻을 잃는다). */
 .ctx-empty-check {
-  width:15px; height:15px; border-radius:50%; background:var(--bg3); color:var(--ts);
-  font-size:9px; display:inline-flex; align-items:center; justify-content:center;
+  width:15px; height:15px; border-radius:50%; background:var(--blue-50); color:var(--primary);
+  font-size:9px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;
 }
 .ctx-empty-hint { font-size:11.5px; color:var(--tt); line-height:1.45; word-break:keep-all; }
 .ctx-empty .ctx-btn { margin-top:5px; }

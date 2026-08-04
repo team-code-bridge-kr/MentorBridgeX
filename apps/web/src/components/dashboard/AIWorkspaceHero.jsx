@@ -95,7 +95,7 @@ export function AIWorkspaceHero({
 
       <div className="hero-inner">
         <p className="hero-greeting">
-          안녕하세요, {userName}님 <span className="hero-wave" aria-hidden="true">👋</span>
+          안녕하세요! {userName}님 <span className="hero-wave" aria-hidden="true">👋</span>
         </p>
         {/* 스크린리더에는 회전 단어 대신 고정 문장을 읽힌다 */}
         <h1 className="hero-title" id="hero-title">

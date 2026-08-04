@@ -21,7 +21,7 @@ export function PendingFeedbackContextCard({ items, count, onNav, onAsk }) {
       <ContextCard title="확인할 피드백">
         <ContextEmpty
           done
-          title="모든 피드백을 확인했어요."
+          title="모든 피드백을 확인했어요!"
           hint="새로운 코멘트가 등록되면 이곳에서 알려드릴게요."
         />
       </ContextCard>

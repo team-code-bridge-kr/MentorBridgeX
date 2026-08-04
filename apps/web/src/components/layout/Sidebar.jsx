@@ -19,8 +19,7 @@ import { Av } from "../ui.jsx";
 import { NavIcon } from "../NavIcon.jsx";
 import { S_UTIL } from "../../nav/menus.js";
 import api from "../../api/index.js";
-import logoBlack from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
-import logoWhite from "../../assets/brand/TeamCodeBridge_Logo_White_Web.png";
+import mbxLogo from "../../assets/brand/mbx_logo.png";
 
 const PIN_KEY = "mbx_sidebar_pinned";
 // 커서가 스치기만 해도 열리면 성가시다 — 잠깐 머물러야 연다
@@ -133,12 +132,10 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
     >
       <div className={`sidebar sb-${dark ? "dark" : "light"}`}>
         <div className="sb-logo">
-          <img
-            className="sb-logo-icon"
-            src={dark ? logoWhite : logoBlack}
-            alt="Team Code Bridge"
-          />
-          <span className="sb-logo-text sb-fade">MentorBridgeX</span>
+          {/* 로고 자체가 어두운 배경을 품은 그림이라 밝은/어두운 레일 양쪽에서
+              같은 파일을 쓴다. 앱 아이콘처럼 모서리만 둥글린다. */}
+          <img className="sb-logo-icon" src={mbxLogo} alt="MBX" />
+          <span className="sb-logo-text sb-fade">MBX</span>
           <button
             type="button"
             className="sb-collapse sb-fade"
