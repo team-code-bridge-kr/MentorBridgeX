@@ -138,14 +138,25 @@ export function S05({ onNav }) {
     [chat, ctx]
   );
 
-  /** 최근 활동에서 "이어서 하기" — 대화와 그때 쓰던 문맥을 함께 되살린다 */
+  /**
+   * 최근 활동에서 "이어서 하기" — 대화와 그때 쓰던 문맥을 함께 되살린다.
+   *
+   * 대화가 없는 활동(그날 읽은 기사, 그래프 정리 등)은 되살릴 대화가 없다.
+   * 그럴 때는 문맥을 붙이고 **물어볼 문장까지 채워** 둔다 — 칩 하나만 조용히
+   * 늘면 눌러도 아무 일이 없는 것처럼 보인다. **보내지는 않는다.**
+   */
   const restoreFromActivity = useCallback(
-    ({ conversationId, contexts }) => {
+    ({ conversationId, contexts, draft: opener }) => {
       ctx.clear();
       if (conversationId) chat.resume(conversationId);
       else chat.reset();
       (contexts || []).forEach((c) => ctx.add(c));
-      setDraft("");
+      setDraft(opener || "");
+      if (opener) {
+        requestAnimationFrame(() => {
+          document.querySelector(".hero .composer-input")?.focus({ preventScroll: true });
+        });
+      }
     },
     [chat, ctx]
   );

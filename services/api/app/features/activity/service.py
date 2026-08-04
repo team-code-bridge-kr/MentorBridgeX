@@ -87,6 +87,7 @@ class Activity:
     resolved_comment_count: int = 0
     saved_article_count: int = 0
     modified_document_count: int = 0
+    read_count: int = 0
     search_hint: str = ""
 
     def touch(self, when: datetime) -> None:
@@ -270,7 +271,12 @@ def _in_window(activity: Activity, when: datetime) -> bool:
 async def _article_activities(
     db: AsyncSession, user_id: str, since: datetime, by_article: dict[str, Activity]
 ) -> list[Activity]:
-    """읽거나 저장한 기사. 그때 그 기사로 대화했다면 그 활동에 접어 넣는다."""
+    """읽거나 저장한 기사.
+
+    **글 하나를 열었다고 활동 하나를 만들지 않는다.** 그러면 목록이 "읽기 기록"이
+    되어, 정작 이어서 할 일(대화)이 읽은 글 사이에 파묻힌다. 그 글로 대화한 적이
+    있으면 그 활동에 접어 넣고, 없으면 **하루치를 한 덩어리**로 묶는다.
+    """
     rows = (
         await db.execute(
             select(UserReadRow, ArticleRow)
@@ -281,7 +287,7 @@ async def _article_activities(
         )
     ).all()
 
-    out: list[Activity] = []
+    buckets: dict[str, list[tuple]] = {}
     for read, article in rows:
         host = by_article.get(article.id)
         if host is not None and _in_window(host, read.read_at):
@@ -289,25 +295,37 @@ async def _article_activities(
                 host.saved_article_count += 1
             host.touch(read.read_at)
             continue
-        kind = TYPE_PAPER if article.kind == "paper" else TYPE_ARTICLE
-        label = TYPE_LABEL[kind]
+        buckets.setdefault(read.read_at.date().isoformat(), []).append((read, article))
+
+    out: list[Activity] = []
+    for day, entries in buckets.items():
+        latest_read, latest_article = max(entries, key=lambda e: e[0].read_at)
+        saved = sum(1 for r, _ in entries if r.saved)
+        papers = sum(1 for _, a in entries if a.kind == "paper")
+        # 그날 더 많이 읽은 쪽을 대표 유형으로 — 배지가 실제와 어긋나지 않게
+        kind = TYPE_PAPER if papers * 2 > len(entries) else TYPE_ARTICLE
+        head = titles.shorten(latest_article.title)
+        title = (
+            f"{head} 외 {len(entries) - 1}건 읽기" if len(entries) > 1 else f"{head} 읽기"
+        )
         out.append(
             Activity(
-                key=f"article:{article.id}",
-                title=titles.shorten(
-                    f"{titles.shorten(article.title)} {label} {'저장' if read.saved else '읽기'}",
-                    titles.TITLE_MAX,
-                ),
+                key=f"read:{day}",
+                title=titles.shorten(title, titles.TITLE_MAX),
                 generated_title=True,
                 primary_type=kind,
-                updated_at=read.read_at,
-                created_at=read.read_at,
+                updated_at=latest_read.read_at,
+                created_at=min(r.read_at for r, _ in entries),
                 context_types=[kind],
-                contexts=[{"type": "article", "id": article.id, "label": article.title}],
-                article=(article.id, article.title),
+                # 이어서 물을 때 붙일 문맥은 그날 마지막으로 본 글 하나면 된다
+                contexts=[
+                    {"type": "article", "id": latest_article.id, "label": latest_article.title}
+                ],
+                article=(latest_article.id, latest_article.title),
                 route="S41",
-                saved_article_count=1 if read.saved else 0,
-                search_hint=f"{article.title} {article.outlet or ''}",
+                saved_article_count=saved,
+                read_count=len(entries),
+                search_hint=" ".join(a.title for _, a in entries),
             )
         )
     return out
@@ -500,6 +518,9 @@ def context_summary(activity: Activity) -> str:
         results.append(f"대화 {activity.message_count}개")
     if activity.added_node_count:
         results.append(f"노드 {activity.added_node_count}개 추가")
+    if activity.read_count:
+        label = TYPE_LABEL[TYPE_PAPER if activity.primary_type == TYPE_PAPER else TYPE_ARTICLE]
+        results.append(f"{label} {activity.read_count}건 읽음")
     if activity.saved_article_count:
         results.append(f"기사 {activity.saved_article_count}개 저장")
     if activity.resolved_comment_count:
