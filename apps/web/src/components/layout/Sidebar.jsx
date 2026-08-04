@@ -134,8 +134,13 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
         <div className="sb-logo">
           {/* 로고 자체가 어두운 배경을 품은 그림이라 밝은/어두운 레일 양쪽에서
               같은 파일을 쓴다. 앱 아이콘처럼 모서리만 둥글린다. */}
-          <img className="sb-logo-icon" src={mbxLogo} alt="MBX" />
-          <span className="sb-logo-text sb-fade">MBX</span>
+          <img className="sb-logo-icon" src={mbxLogo} alt="팀코드브릿지 MBX" />
+          {/* 팀 이름은 진하게, 제품 이름은 한 단계 옅게 — 팀코드브릿지의 다른
+              제품(Arena 등)과 같은 짜임이다. 스크린리더에는 로고 alt 로 이미
+              같은 문장이 읽히므로 여기서는 장식으로 둔다. */}
+          <span className="sb-logo-text sb-fade" aria-hidden="true">
+            팀코드브릿지 <span className="sb-logo-product">MBX</span>
+          </span>
           <button
             type="button"
             className="sb-collapse sb-fade"

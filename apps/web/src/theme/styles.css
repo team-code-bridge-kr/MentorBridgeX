@@ -178,8 +178,12 @@ a { text-decoration:none; color:inherit; }
 .sb-logo  { height:60px; min-height:60px; box-sizing:border-box; padding:0 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--brd); overflow:hidden; }
 .sb-dark .sb-logo { border-bottom-color:#2f3847; }
 .sb-logo-icon { width:36px; height:36px; border-radius:10px; object-fit:contain; flex-shrink:0; display:block; background:transparent; }
-.sb-logo-text { font-size:16px; font-weight:700; color:var(--tp); }
+/* "팀코드브릿지 MBX" — 팀 이름은 진하게, 제품 이름은 한 단계 옅게.
+   레일이 좁아 두 줄로 접히면 로고 줄 높이(60px)가 흔들리므로 한 줄로 유지한다. */
+.sb-logo-text { font-size:15.5px; font-weight:700; color:var(--tp); white-space:nowrap; letter-spacing:-.01em; }
+.sb-logo-product { font-weight:600; color:var(--ts); margin-left:1px; }
 .sb-dark .sb-logo-text { color:#fff; }
+.sb-dark .sb-logo-product { color:#9aa6b8; }
 .sb-section { flex:1; padding:8px 8px 0; overflow-y:auto; overflow-x:hidden; }
 .sb-item { display:flex; align-items:center; gap:10px; padding:9px 17px; border-radius:var(--r8); cursor:pointer; transition:background .12s, color .12s; margin-bottom:1px; font-size:14px; font-weight:500; color:var(--ts); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sb-item:hover { background:var(--bg-low); color:var(--primary); }
