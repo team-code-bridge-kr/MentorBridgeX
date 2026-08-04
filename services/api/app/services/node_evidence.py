@@ -94,6 +94,17 @@ def _hint_type(section_title: str | None) -> SectionType | None:
     return None
 
 
+def _label(section: DocumentSection) -> str:
+    """인용 위에 붙일 출처 이름.
+
+    세특은 과목마다 항목이 따로 있으므로 "교과 세부능력 및 특기사항" 대신
+    "국어 세특" 이라고 말한다 — 46과목 중 어디인지가 사실상의 출처다.
+    """
+    if section.subject_id:
+        return f"{section.subject_id} 세특"
+    return SECTION_LABELS.get(section.section_type, str(section.section_type))
+
+
 def _pattern(label: str) -> re.Pattern[str] | None:
     """낱말 사이에 공백·줄바꿈이 끼어 있어도 찾도록 만든 정규식."""
     chars = [re.escape(c) for c in label.strip() if not c.isspace()]
@@ -142,8 +153,19 @@ def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
     if pattern is None or not sections:
         return NodeEvidence(node_id=node.id, label=node.label, origin=origin, quotes=[], total=0)
 
-    hint = _hint_type((node.external_refs or {}).get("section"))
-    ordered = sorted(sections, key=lambda s: 0 if s.section_type == hint else 1)
+    # 어느 항목부터 뒤질지. 노드에 붙은 과목·영역과 같은 곳을 먼저 본다 —
+    # 같은 낱말이 여러 곳에 있을 때, 그 노드가 나온 자리의 문장이 첫 줄이어야 한다.
+    section_hint = " ".join(str((node.external_refs or {}).get("section") or "").split())
+    hint = _hint_type(section_hint)
+
+    def rank(s: DocumentSection) -> int:
+        if section_hint and s.subject_id == section_hint:
+            return 0  # 과목까지 같다(세특은 과목마다 항목이 따로 있다)
+        if s.section_type == hint:
+            return 1
+        return 2
+
+    ordered = sorted(sections, key=rank)
 
     quotes: list[NodeEvidenceQuote] = []
     seen: set[str] = set()
@@ -165,9 +187,7 @@ def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
                 quotes.append(
                     NodeEvidenceQuote(
                         section_type=section.section_type,
-                        section_label=SECTION_LABELS.get(
-                            section.section_type, str(section.section_type)
-                        ),
+                        section_label=_label(section),
                         text=text,
                         match_start=start,
                         match_end=end,

@@ -648,6 +648,15 @@ const api = {
         body: { content },
       });
     },
+    /**
+     * ✅ LIVE — POST /v1/students/me/documents/split-subjects
+     *
+     * 한 덩어리로 저장된 세특을 과목별 영역으로 가른다. 글자는 버리지 않고
+     * `[과목]` 표시를 되짚어 나누기만 한다. 여러 번 불러도 안전하다.
+     */
+    async splitSubjects() {
+      return request("/v1/students/me/documents/split-subjects", { method: "POST" });
+    },
   },
 
   jobs: {

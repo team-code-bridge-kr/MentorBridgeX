@@ -587,6 +587,38 @@ tr:hover td { background:var(--surface-container-low); }
   background:linear-gradient(180deg, rgba(255,255,255,0), var(--bg1) 82%);
 }
 
+/* ── 세특 과목 카드 ──
+   세부능력 및 특기사항은 다른 일곱 영역과 모양이 다르다. 한 영역이 아니라
+   과목 수십 개다(표본 46과목 21,000자). 영역 카드 한 장에 밀어 넣으면 원하는
+   과목을 스크롤로 뒤져야 하므로, 과목마다 한 장으로 펼친다.
+   과목 이름은 알약으로 — 카드에서 가장 먼저 읽혀야 하는 건 과목명이다. */
+.subj-head { display:flex; align-items:baseline; gap:10px; margin:0 0 12px; }
+.subj-title { font-size:17px; font-weight:700; color:var(--tp); }
+.subj-count { font-size:12.5px; color:var(--tt); }
+.subj-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(212px,1fr));
+  gap:12px; margin-bottom:28px;
+}
+.subj-card {
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  padding:14px 16px; border-radius:18px; background:var(--bg1); cursor:pointer;
+  box-shadow:var(--surface-1); transition:box-shadow .16s, transform .16s;
+}
+.subj-card:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
+.subj-pill {
+  max-width:100%; padding:4px 11px; border-radius:9999px;
+  background:var(--blue-50); color:var(--primary);
+  font-size:12.5px; font-weight:700; letter-spacing:-.01em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+/* 세 줄만 보여준다. 카드 높이가 과목마다 들쭉날쭉하면 격자가 흔들린다. */
+.subj-preview {
+  margin:0; font-size:12px; line-height:1.7; color:var(--ts);
+  word-break:keep-all; display:-webkit-box; -webkit-line-clamp:3;
+  -webkit-box-orient:vertical; overflow:hidden;
+}
+.subj-meta { font-size:11.5px; color:var(--tt); font-variant-numeric:tabular-nums; }
+
 /* ── Session card ── */
 .sess-card {
   padding:16px 20px; border-radius:18px; border:none; background:var(--bg1);

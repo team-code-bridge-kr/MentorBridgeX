@@ -56,6 +56,19 @@ async def patch_document(
     return section
 
 
+@router.post("/split-subjects", response_model=list[DocumentSection])
+async def split_subjects(
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> list[DocumentSection]:
+    """세특 덩어리를 과목별 영역으로 가른다.
+
+    예전에 올린 생기부는 세특 46과목 21,000자가 한 행에 들어 있다. 글자는 하나도
+    버리지 않고 `[과목]` 표시를 되짚어 나누기만 한다. 여러 번 불러도 안전하다.
+    """
+    return await service.split_subject_sections(session, user.id)
+
+
 @router.post("/import-pdf", response_model=ImportPdfResponse)
 async def import_pdf(
     file: UploadFile = File(...),

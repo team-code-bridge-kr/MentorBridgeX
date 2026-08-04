@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Divider } from "../../components/ui.jsx";
+import { TFI, Btn, Badge, Divider, Notice } from "../../components/ui.jsx";
 import { BookViewer } from "../../components/doc/BookViewer.jsx";
 import { PdfBookViewer } from "../../components/doc/PdfBookViewer.jsx";
 import api from "../../api/index.js";
+import { hasSubjectBlocks, subjectMarkers } from "../../lib/subjectBlocks.js";
 
 const AREA_META = [
   { type: "subject_specific", id: "세특", t: "세부능력 및 특기사항", d: "교사가 작성하는 교과 세부능력 및 특기사항" },
@@ -23,6 +24,8 @@ export function S11({ onNav }) {
   const [fileMeta, setFileMeta] = useState(null);
   const [err, setErr] = useState("");
   const [creating, setCreating] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  const [splitMsg, setSplitMsg] = useState("");
 
   const load = async () => {
     try {
@@ -45,11 +48,44 @@ export function S11({ onNav }) {
     })
   );
 
+  // 세특은 다른 일곱 영역과 모양이 다르다. 한 영역이 아니라 **과목 46개**다.
+  // 과목별로 갈라져 있으면 카드 하나에 밀어 넣지 않고 따로 펼친다.
+  const subjectDocs = docs
+    .filter((d) => d.section_type === "subject_specific" && d.subject_id)
+    .sort((a, b) => a.subject_id.localeCompare(b.subject_id, "ko"));
+  const splitSelf = subjectDocs.length >= 2;
+
+  // 아직 한 덩어리로 남아 있는 세특. 나눌 수 있다는 걸 알려 준다.
+  const lump = docs.find((d) => d.section_type === "subject_specific" && hasSubjectBlocks(d.content));
+  const lumpCount = lump ? subjectMarkers(lump.content).length : 0;
+
+  const openDoc = (doc, type) => {
+    sessionStorage.setItem("mbx_doc_id", doc.id);
+    sessionStorage.setItem("mbx_doc_type", type || doc.section_type);
+    sessionStorage.setItem("mbx_doc_subject", doc.subject_id || "");
+    onNav("S12");
+  };
+
+  const splitSubjects = async () => {
+    setSplitting(true);
+    setErr("");
+    try {
+      const made = await api.documents.splitSubjects();
+      await load();
+      setSplitMsg(`세부능력 및 특기사항을 과목 ${made.length}개로 나눴습니다.`);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSplitting(false);
+    }
+  };
+
   const open = (meta) => {
     const doc = byType[meta.type];
     if (doc) {
       sessionStorage.setItem("mbx_doc_id", doc.id);
       sessionStorage.setItem("mbx_doc_type", meta.type);
+      sessionStorage.setItem("mbx_doc_subject", doc.subject_id || "");
       onNav("S12");
     } else {
       // create empty then edit
@@ -58,6 +94,7 @@ export function S11({ onNav }) {
         .then((d) => {
           sessionStorage.setItem("mbx_doc_id", d.id);
           sessionStorage.setItem("mbx_doc_type", meta.type);
+          sessionStorage.setItem("mbx_doc_subject", "");
           onNav("S12");
         })
         .catch((e) => setErr(e.message))
@@ -68,10 +105,20 @@ export function S11({ onNav }) {
   const bType = { 완료: "green", 미작성: "grey", 입력중: "orange" };
 
   // 책 뷰에 넘길 영역 — 내용이 있는 것만 (빈 쪽을 넘기게 만들 이유가 없다)
-  const bookAreas = AREA_META.map((m) => {
+  // 세특이 과목별로 갈라져 있으면 과목마다 한 쪽이다. 한 쪽에 46과목을 밀어
+  // 넣으면 책이 아니라 두루마리가 된다.
+  const bookAreas = AREA_META.flatMap((m) => {
+    if (m.type === "subject_specific" && splitSelf) {
+      return subjectDocs.map((d) => ({
+        type: m.type,
+        title: `${m.t} · ${d.subject_id}`,
+        desc: d.subject_id,
+        content: d.content && d.content !== "(작성 시작)" ? d.content : "",
+      }));
+    }
     const doc = byType[m.type];
     const content = doc?.content && doc.content !== "(작성 시작)" ? doc.content : "";
-    return { type: m.type, title: m.t, desc: m.d, content };
+    return [{ type: m.type, title: m.t, desc: m.d, content }];
   }).filter((a) => a.content);
 
   return (
@@ -91,6 +138,24 @@ export function S11({ onNav }) {
         </div>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
+
+      {/* 세특이 아직 한 덩어리일 때. 46과목 21,000자를 편집 상자 하나에 담아 두면
+          원하는 과목을 스크롤로 찾아야 하고, 노드가 어느 과목에서 나왔는지도
+          말할 수 없다. 글자는 그대로 두고 과목 단위로만 가른다. */}
+      {lump && (
+        <Notice type="info" className="mb16">
+          <div className="row-between" style={{ gap: 12, width: "100%" }}>
+            <span>
+              세부능력 및 특기사항이 <strong>{lumpCount}과목</strong>({lump.content.length.toLocaleString()}자)
+              한 덩어리로 들어 있습니다. 과목별로 나누면 하나씩 열어 볼 수 있습니다.
+            </span>
+            <Btn v="primary" s="sm" disabled={splitting} onClick={splitSubjects}>
+              {splitting ? "나누는 중…" : `과목 ${lumpCount}개로 나누기`}
+            </Btn>
+          </div>
+        </Notice>
+      )}
+      {splitMsg && <div style={{ color: TDS.success, marginBottom: 12, fontSize: 13 }}>{splitMsg}</div>}
       {view === "book" && fileMeta?.exists && (
         <>
           <div className="doc-src">
@@ -124,8 +189,27 @@ export function S11({ onNav }) {
             </div>
       )}
 
+      {/* 과목별 세특 — 이 영역만 카드 하나가 아니라 과목마다 한 장이다. */}
+      {view === "list" && splitSelf && (
+        <>
+          <div className="subj-head">
+            <span className="subj-title">세부능력 및 특기사항</span>
+            <span className="subj-count">{subjectDocs.length}과목</span>
+          </div>
+          <div className="subj-grid">
+            {subjectDocs.map((d) => (
+              <div key={d.id} className="subj-card" onClick={() => openDoc(d, "subject_specific")}>
+                <span className="subj-pill" title={d.subject_id}>{d.subject_id}</span>
+                <p className="subj-preview">{d.content}</p>
+                <span className="subj-meta">{d.content.length.toLocaleString()}자</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="grid3 g-16" style={{ gap: 16, display: view === "list" ? undefined : "none" }}>
-        {AREA_META.map((a) => {
+        {AREA_META.filter((a) => !(a.type === "subject_specific" && splitSelf)).map((a) => {
           const doc = byType[a.type];
           const chars = doc?.content ? doc.content.length : 0;
           const empty = !doc || !doc.content || doc.content === "(작성 시작)";

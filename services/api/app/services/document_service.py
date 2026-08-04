@@ -10,6 +10,7 @@ from app.db.memory import MemoryDocument, MemoryJob, get_memory_db
 from app.db.postgres import DocumentSectionRow, JobRow, utcnow
 from app.errors import AppError
 from app.parsers.pdf_extractor import ParsedPdf, parse_pdf_bytes
+from app.parsers.subject_blocks import split_subject_blocks
 from app.schemas.documents import (
     DocumentCreateRequest,
     DocumentPatchRequest,
@@ -38,33 +39,35 @@ def _document_label(owner_name: str) -> str:
     return f"{name}의 생기부" if name else "내 생기부"
 
 
-def _merge_sections_by_type(sections: list) -> list[tuple[SectionType, str]]:
-    """파싱된 조각들을 생기부 영역 단위로 합친다.
+def _merge_sections_by_type(sections: list) -> list[tuple[SectionType, str | None, str]]:
+    """파싱된 조각들을 저장 단위로 합친다. `(영역, 과목, 본문)` 을 돌려준다.
 
-    화면(S11)은 "8가지 생기부 영역"을 영역당 카드 하나로 보여주고 그 카드에
-    문서 한 건을 연결한다. 그런데 실제 생기부는 한 영역이 학년별·과목별로
-    여러 조각이다(표본 19쪽에서 세특 46, 자율활동 5, 봉사활동 6조각).
-    조각마다 행을 만들면 카드가 그중 하나만 보여줘서 나머지가 사라진 것처럼 된다.
+    화면(S11)은 "8가지 생기부 영역"을 영역당 카드 하나로 보여준다. 그런데 실제
+    생기부는 한 영역이 학년별로 여러 조각이다(표본 19쪽에서 자율활동 5, 봉사활동
+    6조각). 조각마다 행을 만들면 카드가 그중 하나만 보여줘서 나머지가 사라진
+    것처럼 된다. 그래서 영역 하나에 행 하나로 합친다.
 
-    세특은 조각 제목이 과목명이라 앞에 붙여 둔다. 나머지 영역은 제목이 영역명
-    자체라 붙여봐야 같은 말의 반복이므로 본문만 잇는다.
+    **세특만 예외로 과목마다 행을 만든다.** 표본에서 세특은 46과목 21,000자였다.
+    한 덩어리로 두면 편집 상자 하나에 21,000자가 들어가고, 노드가 어느 과목에서
+    나왔는지도 말할 수 없다. 같은 과목이 학년별로 여러 번 나오면 그건 하나로
+    합친다 — 과목마다 카드 하나여야지, 학년표가 되면 안 된다.
     """
-    order: list[SectionType] = []
-    buckets: dict[SectionType, list[str]] = {}
+    order: list[tuple[SectionType, str | None]] = []
+    buckets: dict[tuple[SectionType, str | None], list[str]] = {}
 
     for block in sections:
-        if block.section_type not in buckets:
-            buckets[block.section_type] = []
-            order.append(block.section_type)
         body = block.content.strip()
         if not body:
             continue
-        title = block.title.strip()
-        if block.section_type is SectionType.SUBJECT_SPECIFIC and title:
-            body = f"[{title}] {body}"
-        buckets[block.section_type].append(body)
+        title = " ".join(block.title.split())
+        subject = title if block.section_type is SectionType.SUBJECT_SPECIFIC and title else None
+        key = (block.section_type, subject)
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        buckets[key].append(body)
 
-    return [(t, "\n\n".join(buckets[t])) for t in order if buckets[t]]
+    return [(t, s, "\n\n".join(buckets[(t, s)])) for t, s in order if buckets[(t, s)]]
 
 
 def _sections_for_extraction(sections: list) -> list[tuple[str, str]]:
@@ -186,6 +189,93 @@ class DocumentService:
         await session.commit()
         await session.refresh(row)
         return self._to_schema_from_row(row)
+
+    async def split_subject_sections(
+        self, session: AsyncSession | None, user_id: str
+    ) -> list[DocumentSection]:
+        """이미 저장된 세특 덩어리를 과목별로 가른다.
+
+        예전에 올린 생기부는 세특 전체가 한 행에 `[과목] 본문` 꼴로 이어져 있다.
+        그 표시를 되짚어 과목마다 행을 만든다. 글자는 하나도 버리지 않는다 —
+        나누기만 한다.
+
+        여러 번 눌러도 안전하다. 갈라 놓은 행에는 과목 표시가 남지 않으므로
+        두 번째부터는 가를 것이 없다.
+
+        돌려주는 값은 **새로 만들어진 과목 행들**이다(원래 행이 첫 과목으로
+        바뀐 것 포함). 아무것도 갈리지 않았으면 빈 목록이다.
+        """
+        now = await utcnow()
+        made: list[DocumentSection] = []
+
+        if is_offline_demo():
+            db = get_memory_db()
+            targets = [
+                d
+                for d in list(db.documents.values())
+                if d.user_id == user_id and d.section_type == SectionType.SUBJECT_SPECIFIC.value
+            ]
+            for doc in targets:
+                blocks = split_subject_blocks(doc.content)
+                if len(blocks) < 2:
+                    continue
+                first, *rest = blocks
+                doc.subject_id = first[0] or None
+                doc.content = first[1]
+                doc.version += 1
+                doc.updated_at = now
+                made.append(self._to_schema_from_memory(doc))
+                for name, body in rest:
+                    extra = MemoryDocument(
+                        id=str(uuid4()),
+                        user_id=user_id,
+                        section_type=doc.section_type,
+                        content=body,
+                        period_id=doc.period_id,
+                        subject_id=name or None,
+                        version=1,
+                        source=doc.source,
+                        created_at=doc.created_at,
+                        updated_at=now,
+                    )
+                    db.documents[extra.id] = extra
+                    made.append(self._to_schema_from_memory(extra))
+            return made
+
+        result = await session.execute(
+            select(DocumentSectionRow).where(
+                DocumentSectionRow.user_id == user_id,
+                DocumentSectionRow.section_type == SectionType.SUBJECT_SPECIFIC.value,
+            )
+        )
+        for row in result.scalars().all():
+            blocks = split_subject_blocks(row.content)
+            if len(blocks) < 2:
+                continue
+            first, *rest = blocks
+            row.subject_id = first[0] or None
+            row.content = first[1]
+            row.version += 1
+            row.updated_at = now
+            made.append(self._to_schema_from_row(row))
+            for name, body in rest:
+                extra = DocumentSectionRow(
+                    id=str(uuid4()),
+                    user_id=user_id,
+                    section_type=row.section_type,
+                    content=body,
+                    period_id=row.period_id,
+                    subject_id=name or None,
+                    version=1,
+                    source=row.source,
+                    created_at=row.created_at,
+                    updated_at=now,
+                )
+                session.add(extra)
+                made.append(self._to_schema_from_row(extra))
+        if made:
+            await session.commit()
+        return made
 
     async def patch_section(
         self,
@@ -311,6 +401,7 @@ class DocumentService:
         section_type: SectionType,
         content: str,
         now,
+        subject: str | None = None,
     ) -> str:
         section_id = str(uuid4())
         if is_offline_demo():
@@ -320,7 +411,7 @@ class DocumentService:
                 section_type=section_type.value,
                 content=content,
                 period_id=None,
-                subject_id=None,
+                subject_id=subject,
                 version=1,
                 source="pdf_parsed",
                 created_at=now,
@@ -334,6 +425,7 @@ class DocumentService:
             user_id=user_id,
             section_type=section_type.value,
             content=content,
+            subject_id=subject,
             version=1,
             source="pdf_parsed",
             created_at=now,
@@ -363,13 +455,14 @@ class DocumentService:
         now = await utcnow()
         section_ids: list[str] = []
 
-        for section_type, content in _merge_sections_by_type(parsed.sections):
+        for section_type, subject, content in _merge_sections_by_type(parsed.sections):
             section_ids.append(
                 await self._persist_section(
                     session,
                     user_id,
                     section_type=section_type,
                     content=content,
+                    subject=subject,
                     now=now,
                 )
             )
