@@ -2093,15 +2093,33 @@ tr:hover td { background:var(--surface-container-low); }
 
    .content > * 는 자식마다 가운데 정렬을 걸어서 폭이 다른 요소들이 서로 어긋난다
    (검색창은 왼쪽 끝, 설명문은 화면 가운데에서 시작하는 식). 하나의 상자로 감싼다. */
-.act-wrap { padding-top:28px; }
-.act-page { width:100%; max-width:var(--page-w); margin:0 auto; }
-.act-head { margin-bottom:20px; }
-.act-head .sec-title { font-size:24px; margin-bottom:6px; }
-.act-head .sec-sub { margin-bottom:0; }
+.act-wrap { padding-top:32px; }
+/* 읽는 목록이라 본문 최대 폭(1280)까지 늘리지 않는다. 한 줄이 너무 길면
+   제목과 시간이 멀어져서 어느 시간이 어느 활동의 것인지 눈으로 이어야 한다. */
+.act-page { width:100%; max-width:860px; margin:0 auto; }
 
-.act-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:20px; }
-.act-search { max-width:300px; }
-.act-filters { display:flex; flex-wrap:wrap; gap:6px; }
+/* 제목 + 검색을 한 줄에. 설명문은 두지 않는다. */
+.act-head { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+.act-title { flex:none; font-size:26px; font-weight:700; color:var(--tp); letter-spacing:-.02em; }
+.act-search {
+  flex:1; min-width:0; display:flex; align-items:center; gap:9px;
+  height:40px; padding:0 14px;
+  background:var(--bg1); border:1px solid var(--brd); border-radius:9999px;
+  box-shadow:var(--surface-1); transition:border-color .14s, box-shadow .14s;
+}
+.act-search:focus-within { border-color:var(--blue-400); box-shadow:0 0 0 4px rgba(9,105,218,.10); }
+.act-search-input {
+  flex:1; min-width:0; border:none; outline:none; background:transparent;
+  font-family:inherit; font-size:13.5px; color:var(--tp);
+}
+.act-search-input::placeholder { color:var(--td); }
+.act-search-x {
+  flex:none; border:none; background:transparent; cursor:pointer;
+  font-size:18px; line-height:1; color:var(--tt); padding:0 2px;
+}
+.act-search-x:hover { color:var(--tp); }
+
+.act-filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
 .act-filter {
   padding:6px 13px; border:1px solid var(--brd); border-radius:9999px; background:var(--bg1);
   font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ts); cursor:pointer;
@@ -2124,6 +2142,7 @@ tr:hover td { background:var(--surface-container-low); }
 .act-list .ra-skel { height:46px; margin:0 4px 4px; }
 @media (max-width:768px) {
   .act-wrap { padding-top:16px; }
-  .act-head .sec-title { font-size:20px; }
-  .act-search { max-width:none; flex:1 0 100%; }
+  .act-head { flex-wrap:wrap; gap:10px; }
+  .act-title { font-size:20px; }
+  .act-search { flex:1 0 100%; }
 }

@@ -17,6 +17,7 @@ import { useStore } from "../../store/StoreProvider.jsx";
 import { useRecentActivity } from "../../hooks/useRecentActivity.js";
 import { RecentActivityItem } from "../../components/sidebar/RecentActivityItem.jsx";
 import { ACTIVITY_FILTERS, DATE_GROUP_ORDER, dateGroup } from "../../lib/activityMeta.js";
+import { NavIcon } from "../../components/NavIcon.jsx";
 import { activityDetailRoute, restoreActivity } from "../../lib/activityRestore.js";
 import { Empty } from "../../components/ui.jsx";
 
@@ -49,35 +50,39 @@ export function S44({ onNav }) {
       {/* .content > * 는 자식마다 가운데 정렬을 걸어서, 폭이 다른 요소들이
           서로 어긋난다. 하나의 상자로 감싸 왼쪽 줄을 맞춘다. */}
       <div className="act-page">
+        {/* 제목과 검색을 한 줄에 둔다. 설명문은 없앴다 — 이 화면이 무엇인지는
+            제목과 목록이 이미 말한다. 한 번 읽고 나면 매번 자리만 차지한다. */}
         <header className="act-head">
-          <h1 className="sec-title">활동 기록</h1>
-          <p className="sec-sub">
-            MBX 에서 한 일이 시간순으로 쌓입니다. 하나를 누르면 그때 쓰던 기사·그래프·
-            피드백 문맥과 대화를 함께 되살립니다.
-          </p>
+          <h1 className="act-title">활동 기록</h1>
+          <div className="act-search" role="search">
+            <NavIcon name="search" size={16} color="var(--tt)" />
+            <input
+              className="act-search-input"
+              value={query}
+              placeholder="대화 및 활동 검색"
+              aria-label="대화 및 활동 검색"
+              maxLength={60}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button type="button" className="act-search-x" aria-label="검색어 지우기"
+                onClick={() => setQuery("")}>×</button>
+            )}
+          </div>
         </header>
 
-        <div className="act-tools">
-          <input
-            className="inp act-search"
-            value={query}
-            placeholder="대화 및 활동 검색"
-            aria-label="대화 및 활동 검색"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="act-filters" role="group" aria-label="활동 유형 필터">
-            {ACTIVITY_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={`act-filter${kind === f.id ? " is-on" : ""}`}
-                aria-pressed={kind === f.id}
-                onClick={() => setKind(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div className="act-filters" role="group" aria-label="활동 유형 필터">
+          {ACTIVITY_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className={`act-filter${kind === f.id ? " is-on" : ""}`}
+              aria-pressed={kind === f.id}
+              onClick={() => setKind(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
         {activity.loading && (
