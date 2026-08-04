@@ -592,10 +592,10 @@ tr:hover td { background:var(--surface-container-low); }
    AI 영역이 화면의 약 2/3를 차지하되, 스크롤 없이 하단 카드 상단이 보이도록
    --hero-h 로 높이를 잡는다. 입력창이 화면을 다 덮으면 단순 챗봇처럼 보인다.
 ────────────────────────────────────────────────────────────── */
-/* 카드·입력창·추천·최근 대화가 모두 이 안에 들어간다. 화면(dash-wrap 의 위아래
-   여백 52px 을 뺀 만큼)을 그대로 채워서 아래에 죽은 여백이 남지 않게 한다.
-   내용은 가운데 정렬이라 남는 높이는 위아래로 고르게 나뉜다. */
-:root { --hero-h: calc(100% - 52px); --ai-accent:#6366f1; }
+/* 카드·입력창·추천·최근 대화가 모두 이 안에 들어간다. 히어로는 dash-wrap 의
+   여백(위 24 + 아래 28 = 52px)까지 되밀어 화면을 끝까지 덮으므로, 높이도 그만큼
+   더 잡는다. 내용은 가운데 정렬이라 남는 높이는 위아래로 고르게 나뉜다. */
+:root { --hero-h: calc(100% + 52px); --ai-accent:#6366f1; }
 
 /* 시각적으로는 감추고 스크린리더에는 읽히는 텍스트 */
 .sr-only {
@@ -612,8 +612,13 @@ tr:hover td { background:var(--surface-container-low); }
 .hero {
   position:relative; min-height:var(--hero-h);
   display:flex; align-items:center; justify-content:center;
-  border-radius:24px; background:transparent;
-  border:none; overflow:hidden;
+  background:transparent; border:none; overflow:hidden;
+}
+/* 배경을 화면 끝까지 — dash-wrap 의 여백과 본문 최대 폭(--page-w)을 되밀어
+   가장자리에 흰 테가 남지 않게 한다. 히어로는 "판"이 아니라 화면 그 자체다.
+   그래서 모서리도 둥글리지 않는다. 안쪽 내용(.hero-inner)은 그대로 980px 가운데. */
+.dash-wrap > .hero {
+  max-width:none; margin:-24px -24px -28px; border-radius:0;
 }
 /* 입력창 뒤 아주 옅은 블루~청보라. 가독성을 해치지 않을 만큼만. */
 .hero-glow {
@@ -628,15 +633,20 @@ tr:hover td { background:var(--surface-container-low); }
    입력창은 원래 폭을 유지해 비율이 흐트러지지 않게 한다. */
 .hero-inner { position:relative; width:100%; max-width:980px; padding:40px 24px; text-align:center; }
 .hero-inner .composer { max-width:880px; margin-left:auto; margin-right:auto; }
-.hero-greeting { font-size:14.5px; font-weight:600; color:var(--tp); margin-bottom:10px; }
+.hero-greeting { font-size:16px; font-weight:600; color:var(--tp); margin-bottom:14px; }
 .hero-wave { display:inline-block; animation:handWave 2.4s ease-in-out infinite; transform-origin:70% 80%; }
 @keyframes handWave {
   0%,60%,100% { transform:rotate(0deg); }
   70% { transform:rotate(14deg); } 80% { transform:rotate(-8deg); } 90% { transform:rotate(12deg); }
 }
 /* 설명 문장을 걷어냈으므로 아래 여백은 이 제목이 갖는다.
-   Black 은 문장이 무거워 보여서 Bold 로 낮춘다. */
-.hero-title { font-size:30px; font-weight:700; color:var(--tp); letter-spacing:-.02em; line-height:1.34; margin-bottom:20px; }
+   Black 은 문장이 무거워 보여서 Bold 로 낮춘다.
+   화면 폭에 따라 30 → 44px. 이 화면에서 제일 큰 글자여야 "무엇을 하는 곳인지"가
+   먼저 읽힌다 — 고정값으로 크게 잡으면 좁은 화면에서 두 줄로 접힌다. */
+.hero-title {
+  font-size:clamp(30px, 3vw, 44px); font-weight:700; color:var(--tp);
+  letter-spacing:-.022em; line-height:1.28; margin-bottom:28px;
+}
 
 /* 회전 단어 — 파란 그라데이션이 글자 위를 훑고 지나가는 물결 효과.
    폭은 JS 가 실측해 넣는다(AIWorkspaceHero). 여기서는 전환만 담당해
@@ -1157,9 +1167,13 @@ tr:hover td { background:var(--surface-container-low); }
 }
 @media (max-width:768px) {
   .dash-wrap { padding:16px 14px 32px; }
-  .hero { min-height:auto; border-radius:16px; }
+  /* 여백이 달라졌으니 되미는 값도 맞춘다 — 안 그러면 가장자리에 흰 테가 남는다.
+     높이도 여백(16+32)만큼 더 잡아 폰에서도 배경이 화면을 끝까지 덮는다. */
+  .hero { min-height:calc(100% + 48px); }
+  .dash-wrap > .hero { margin:-16px -14px -32px; padding:0 14px; }
   .hero-inner { padding:22px 0 8px; }
-  .hero-title { font-size:22px; margin-bottom:16px; }
+  .hero-greeting { font-size:14.5px; margin-bottom:10px; }
+  .hero-title { font-size:26px; margin-bottom:20px; }
   .ctx-grid { margin-left:-14px; margin-right:-14px; padding:0 14px 4px; scroll-padding-left:14px; }
   /* 한 화면에 카드 한 장씩 */
   .ctx-card { flex:0 0 calc(100% - 28px); }
