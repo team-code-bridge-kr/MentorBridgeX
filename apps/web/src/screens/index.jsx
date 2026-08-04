@@ -34,6 +34,7 @@ import { S40 } from "./student/S40.jsx";
 import { S41 } from "./student/S41.jsx";
 import { S42 } from "./student/S42.jsx";
 import { S43 } from "./student/S43.jsx";
+import { S44 } from "./student/S44.jsx";
 import { T01 } from "./teacher/T01.jsx";
 import { T02 } from "./teacher/T02.jsx";
 import { T03 } from "./teacher/T03.jsx";
@@ -94,7 +95,7 @@ export function renderScreen(id, onNav) {
     S27:<S27 onNav={onNav}/>,S28:<S28 onNav={onNav}/>,S29:<S29 onNav={onNav}/>,
     S30:<S30 onNav={onNav}/>,S31:<S31 onNav={onNav}/>,
     S32:<S32 onNav={onNav}/>,
-    S40:<S40 onNav={onNav}/>,S41:<S41 onNav={onNav}/>,S42:<S42 onNav={onNav}/>,S43:<S43 onNav={onNav}/>,
+    S40:<S40 onNav={onNav}/>,S41:<S41 onNav={onNav}/>,S42:<S42 onNav={onNav}/>,S43:<S43 onNav={onNav}/>,S44:<S44 onNav={onNav}/>,
     T01:<T01 onNav={onNav}/>,T02:<T02 onNav={onNav}/>,
     T03:<T03 onNav={onNav}/>,T04:<T04 onNav={onNav}/>,
     T05:<T05 onNav={onNav}/>,T06:<T06 onNav={onNav}/>,

@@ -956,6 +956,33 @@ const api = {
     },
   },
 
+  // ══ 최근 활동 (✅ LIVE) ═══════════════════════════════════
+  // 백엔드: services/api/app/features/activity/
+  // 사이드바와 대시보드가 **같은 엔드포인트**를 쓴다 — 두 곳이 각자 목록을
+  // 만들면 정렬이 갈리고, 한쪽에서 바꾼 이름이 다른 쪽에 반영되지 않는다.
+  activity: {
+    async recent({ limit = 8, kind = "all", q = "" } = {}) {
+      const params = new URLSearchParams({ limit: String(limit), kind });
+      if (q) params.set("q", q);
+      return request(`/v1/activity/recent?${params}`);
+    },
+    /** 이름 변경 · 고정 */
+    async update(key, patch) {
+      return request(`/v1/activity/${encodeURIComponent(key)}`, {
+        method: "PATCH",
+        body: patch,
+      });
+    },
+    /**
+     * 목록에서 숨긴다. `deleteSource` 를 켜야 대화까지 지워진다 —
+     * 그래프·기사·문서 원본은 어떤 경우에도 지우지 않는다.
+     */
+    async remove(key, { deleteSource = false } = {}) {
+      const qs = deleteSource ? "?delete_source=true" : "";
+      return request(`/v1/activity/${encodeURIComponent(key)}${qs}`, { method: "DELETE" });
+    },
+  },
+
   // ══ 온보딩 (✅ LIVE) ═════════════════════════════════════
   // 백엔드: services/api/app/features/onboarding/
   onboarding: {

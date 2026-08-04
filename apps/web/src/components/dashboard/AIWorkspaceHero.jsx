@@ -10,7 +10,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AIComposer } from "./AIComposer.jsx";
-import { RecentConversationList } from "./RecentConversationList.jsx";
+import { RecentActivitySummary } from "./RecentActivitySummary.jsx";
 import { RotatingPromptLine } from "./RotatingPromptLine.jsx";
 import { buildQuickActions } from "../../lib/quickActions.js";
 
@@ -69,9 +69,9 @@ export function AIWorkspaceHero({
   isNewUser,
   summary,
   articles,
-  conversations,
-  conversationsLoading,
-  onRenameConversation,
+  activity,
+  onOpenActivity,
+  onViewAllActivity,
   contextCards,
   prompts,
   onPickPrompt,
@@ -81,7 +81,6 @@ export function AIWorkspaceHero({
   onPickAction,
   context,
   onRemoveContext,
-  onResume,
 }) {
   // 빠른 실행은 입력창 안쪽 안내문 자리에서 하나씩 돌아간다 (알약 5개를 늘어놓지 않는다)
   const actions = useMemo(
@@ -121,11 +120,15 @@ export function AIWorkspaceHero({
 
         <RotatingPromptLine prompts={prompts} onPick={onPickPrompt} />
 
-        <RecentConversationList
-          items={conversations}
-          loading={conversationsLoading}
-          onResume={onResume}
-          onRename={onRenameConversation}
+        {/* 사이드바의 최근 활동과 **같은 데이터**다. 여기는 요약 진입점이라
+            둘만 세우고 나머지는 전체 보기로 넘긴다. */}
+        <RecentActivitySummary
+          items={activity.items}
+          loading={activity.loading}
+          error={activity.error}
+          onOpen={onOpenActivity}
+          onViewAll={onViewAllActivity}
+          onReload={activity.reload}
         />
       </div>
     </section>

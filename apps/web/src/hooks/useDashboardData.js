@@ -62,17 +62,6 @@ export function useDashboardSummary() {
   return useResource(() => api.assistant.dashboard(), []);
 }
 
-export function useRecentConversations(limit = 3) {
-  return useResource(() => api.assistant.conversations(limit), [limit]);
-}
-
-/**
- * 오늘의 관심 기사.
- *
- * 추천 이유는 아직 백엔드가 계산해주지 않는다. 기사에 매칭된 키워드가 이미
- * 내려오므로 그걸로 문장을 만든다 — 컴포넌트가 아니라 여기서 만드는 이유는
- * 나중에 서버가 reason 을 내려주면 이 함수만 지우면 되기 때문이다.
- */
 /**
  * 오늘의 관심 기사 — **뉴스와 논문을 번갈아** 세운다.
  *

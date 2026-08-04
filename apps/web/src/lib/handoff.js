@@ -11,6 +11,24 @@
  */
 
 let pending = null;
+let pendingRestore = null;
+
+/**
+ * 최근 활동에서 "이어서 하기".
+ *
+ * 대화만 다시 여는 것으로는 부족하다. 그때 물고 있던 기사·그래프·피드백까지
+ * 함께 붙여야 이어서 물을 수 있다. 그래서 conversationId 와 contexts 를 같이 넘긴다.
+ */
+export function queueRestore(payload) {
+  pendingRestore = payload;
+  window.dispatchEvent(new CustomEvent("mbx:restore-activity", { detail: payload }));
+}
+
+export function takeRestore() {
+  const value = pendingRestore;
+  pendingRestore = null;
+  return value;
+}
 
 export function queueAsk(payload) {
   pending = payload;

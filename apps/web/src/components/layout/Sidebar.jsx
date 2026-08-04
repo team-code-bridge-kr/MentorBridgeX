@@ -18,7 +18,9 @@ import TDS from "../../theme/tokens.js";
 import { Av } from "../ui.jsx";
 import { NavIcon } from "../NavIcon.jsx";
 import { S_UTIL } from "../../nav/menus.js";
-import api from "../../api/index.js";
+import { RecentActivity, SIDEBAR_LIMIT } from "../sidebar/RecentActivity.jsx";
+import { useRecentActivity } from "../../hooks/useRecentActivity.js";
+import { activityDetailRoute, restoreActivity } from "../../lib/activityRestore.js";
 import mbxLogo from "../../assets/brand/mbx_logo.png";
 
 const PIN_KEY = "mbx_sidebar_pinned";
@@ -87,28 +89,29 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
     holdClosed.current = false; // 벗어났으니 다시 hover 로 열 수 있다
   };
 
-  // 최근 작업 — MBX 엔 프로젝트 개념이 없어 최근 AI 대화를 쓴다
-  const [recent, setRecent] = useState([]);
-  useEffect(() => {
-    if (dark || role === "교사") return;
-    let cancelled = false;
-    api.assistant
-      .conversations(5)
-      .then((items) => { if (!cancelled) setRecent(items); })
-      .catch(() => { /* 사이드바 보조 정보라 조용히 실패시킨다 */ });
-    return () => { cancelled = true; };
-  }, [dark, role, state.session?.token]);
+  /**
+   * 최근 활동 — 대화·기사·그래프·피드백·문서·양식·음성을 한 목록으로.
+   *
+   * 학생 화면에서만 쓴다(교사·관리자는 탐구 흐름이 없다). 사이드바를 여닫을
+   * 때마다 다시 부르지 않는다 — 목록이 바뀌었을 때만(useRecentActivity 안의
+   * mbx:activity-changed) 다시 받는다.
+   */
+  const showActivity = !dark && role !== "교사";
+  const [kind, setKind] = useState("all");
+  const [query, setQuery] = useState("");
+  const activity = useRecentActivity({
+    limit: SIDEBAR_LIMIT,
+    kind,
+    q: query,
+    enabled: showActivity,
+  });
 
-  // 대시보드에서 대화 이름을 바꾸면 여기 목록도 같은 이름이어야 한다.
-  // 이 목록만 따로 받아 오므로, 다시 받지 말고 알림만 받아 고친다.
+  // 지금 열려 있는 활동 — 대시보드가 대화를 열 때마다 알려준다
+  const [activeConversation, setActiveConversation] = useState(null);
   useEffect(() => {
-    const onRenamed = (e) => {
-      const { id, title } = e.detail || {};
-      if (!id) return;
-      setRecent((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
-    };
-    window.addEventListener("mbx:convo-renamed", onRenamed);
-    return () => window.removeEventListener("mbx:convo-renamed", onRenamed);
+    const onActive = (e) => setActiveConversation(e.detail?.id || null);
+    window.addEventListener("mbx:active-conversation", onActive);
+    return () => window.removeEventListener("mbx:active-conversation", onActive);
   }, []);
 
   const go = (item) => {
@@ -178,28 +181,63 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
             );
           })}
 
-          {recent.length > 0 && (
-            <div className="sb-recent sb-fade">
-              <div className="sb-recent-hdr">최근 작업</div>
-              {recent.slice(0, 5).map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="sb-recent-item"
-                  title={c.title}
-                  onClick={() => {
+          {showActivity && (
+            <>
+              {/* 접힌 레일에서는 목록을 감추고 아이콘만 남긴다. 누르면 사이드바가
+                  펼쳐진다 — 떠 있는 두 번째 패널을 새로 열지 않는다. */}
+              <button
+                type="button"
+                className="sb-item sb-rail-only"
+                onClick={() => {
+                  // 좁은 화면에서는 사이드바가 가로 막대라 목록이 들어갈 자리가
+                  // 없다. 두 번째 서랍을 새로 열지 않고 활동 기록 화면으로 보낸다.
+                  if (window.matchMedia("(max-width: 768px)").matches) {
                     close();
-                    window.dispatchEvent(
-                      new CustomEvent("mbx:resume-chat", { detail: { id: c.id } })
-                    );
-                    onNav("S05");
-                  }}
-                >
-                  <span className="sb-recent-title">{c.title}</span>
-                  <span className="sb-recent-time">{ago(c.updated_at)}</span>
-                </button>
-              ))}
-            </div>
+                    onNav("S44");
+                    return;
+                  }
+                  setOpen(true);
+                }}
+                title="최근 활동"
+                aria-label="최근 활동"
+              >
+                <span className="sb-icon" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                  <NavIcon name="history" size="100%" color={dark ? "#7c8aa3" : "#6b7a90"} />
+                </span>
+              </button>
+
+              <RecentActivity
+                items={activity.items}
+                total={activity.total}
+                loading={activity.loading}
+                error={activity.error}
+                activeId={activeConversation ? `conv:${activeConversation}` : null}
+                kind={kind}
+                onKindChange={setKind}
+                query={query}
+                onQueryChange={setQuery}
+                onReload={activity.reload}
+                onOpen={(item) => { close(); restoreActivity(item, onNav); }}
+                onRename={(item, title) => activity.update(item.id, { title }).catch((e) =>
+                  actions.toast("error", e.message || "이름을 바꾸지 못했습니다.")
+                )}
+                onTogglePin={(item) =>
+                  activity.update(item.id, { pinned: !item.pinned }).catch((e) =>
+                    actions.toast("error", e.message || "고정하지 못했습니다.")
+                  )
+                }
+                onDelete={(item, deleteSource) =>
+                  activity
+                    .remove(item.id, { deleteSource })
+                    .catch((e) => actions.toast("error", e.message || "삭제하지 못했습니다."))
+                }
+                onDetail={(item) => {
+                  const route = activityDetailRoute(item);
+                  if (route) { close(); onNav(route); }
+                }}
+                onViewAll={() => { close(); onNav("S44"); }}
+              />
+            </>
           )}
         </div>
 
@@ -250,14 +288,6 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
   );
 }
 
-function ago(iso) {
-  if (!iso) return "";
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms)) return "";
-  if (ms < 3_600_000) return `${Math.max(1, Math.floor(ms / 60_000))}분`;
-  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}시간`;
-  return `${Math.floor(ms / 86_400_000)}일`;
-}
 
 /* ──────────────────────────────────────────────────────────────
    HEADER

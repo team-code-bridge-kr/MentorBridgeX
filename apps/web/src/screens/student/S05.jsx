@@ -23,9 +23,9 @@ import { useStore } from "../../store/StoreProvider.jsx";
 import api from "../../api/index.js";
 import {
   useDashboardSummary,
-  useRecentConversations,
   useRecommendedArticles,
 } from "../../hooks/useDashboardData.js";
+import { useRecentActivity, notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 import { useAIChat, useAIContext } from "../../hooks/useAIChat.js";
 import { useRecommendedPrompts } from "../../hooks/useRecommendedPrompts.js";
 import { AIWorkspaceHero } from "../../components/dashboard/AIWorkspaceHero.jsx";
@@ -34,12 +34,13 @@ import { AIConversation } from "../../components/dashboard/AIConversation.jsx";
 import { DashboardContextGrid } from "../../components/dashboard/DashboardContextGrid.jsx";
 import { RenameField } from "../../components/dashboard/RenameField.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
-import { takeAsk } from "../../lib/handoff.js";
+import { takeAsk, takeRestore } from "../../lib/handoff.js";
+import { restoreActivity } from "../../lib/activityRestore.js";
 
 const ARTICLE_ROTATION = 4;
-// 화면에는 최신 2개만 세우고 나머지는 "더 보기"로 편다. 펼쳤을 때 보여줄 몫까지
-// 한 번에 받아 둔다 — 더 보기를 누르고 나서 또 기다리게 하지 않는다.
-const RECENT_LIMIT = 10;
+// 대시보드는 최근 활동의 **요약 진입점**이다. 둘만 세우므로 넉넉히 넷만 받는다
+// (전체 목록은 사이드바와 S44 가 갖는다).
+const RECENT_LIMIT = 4;
 
 /** 대화 중에 쓰는 문맥을 한 줄로 — "기사 1 · 그래프 1 · 피드백 1" */
 function contextSummary(items) {
@@ -58,7 +59,8 @@ export function S05({ onNav }) {
 
   const summaryRes = useDashboardSummary();
   const articlesRes = useRecommendedArticles(ARTICLE_ROTATION);
-  const convosRes = useRecentConversations(RECENT_LIMIT);
+  // 사이드바와 같은 출처. 대시보드는 요약 둘만 쓰지만 정렬·이름은 한 곳에서 온다.
+  const activity = useRecentActivity({ limit: RECENT_LIMIT });
 
   const chat = useAIChat();
   const ctx = useAIContext();
@@ -99,7 +101,7 @@ export function S05({ onNav }) {
     article: currentArticle,
     summary,
     rootLabel: graphTitle,
-    conversation: convosRes.data?.[0] || null,
+    conversation: null,
   });
   // 대화가 시작되면 대화 영역으로 자연스럽게 이동시킨다
   useEffect(() => {
@@ -136,6 +138,18 @@ export function S05({ onNav }) {
     [chat, ctx]
   );
 
+  /** 최근 활동에서 "이어서 하기" — 대화와 그때 쓰던 문맥을 함께 되살린다 */
+  const restoreFromActivity = useCallback(
+    ({ conversationId, contexts }) => {
+      ctx.clear();
+      if (conversationId) chat.resume(conversationId);
+      else chat.reset();
+      (contexts || []).forEach((c) => ctx.add(c));
+      setDraft("");
+    },
+    [chat, ctx]
+  );
+
   useEffect(() => {
     const queued = takeAsk();
     if (queued) askFromElsewhere(queued);
@@ -143,10 +157,33 @@ export function S05({ onNav }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * 사이드바에서 최근 활동을 눌러 들어온 경우. 화면이 뜨기 전에 온 신호라
+   * 이벤트만으로는 놓친다 — 놔둔 값을 여기서 가져간다(lib/handoff).
+   */
+  useEffect(() => {
+    const queued = takeRestore();
+    if (queued) restoreFromActivity(queued);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 사이드바가 "지금 열려 있는 활동"을 표시할 수 있게 알려준다
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("mbx:active-conversation", { detail: { id: chat.conversationId } })
+    );
+  }, [chat.conversationId]);
+
+  // 대화가 끝나면(스트리밍 종료) 목록의 제목·개수가 달라진다
+  useEffect(() => {
+    if (!chat.streaming && chat.conversationId) notifyActivityChanged();
+  }, [chat.streaming, chat.conversationId]);
+
   // 사이드바의 "새로 시작하기" / "최근 작업"과 연결 (화면 밖에서 오는 신호)
   useEffect(() => {
     const onNew = () => { chat.reset(); ctx.clear(); setDraft(""); };
     const onResume = (e) => { if (e.detail?.id) chat.resume(e.detail.id); };
+    const onRestore = (e) => { takeRestore(); restoreFromActivity(e.detail || {}); };
     // 대시보드가 이미 떠 있을 때 온 경우. 놔둔 값도 함께 비운다 —
     // 안 그러면 다음에 이 화면에 들어올 때 같은 질문이 한 번 더 나간다.
     const onArticle = (e) => {
@@ -156,12 +193,14 @@ export function S05({ onNav }) {
     window.addEventListener("mbx:new-chat", onNew);
     window.addEventListener("mbx:resume-chat", onResume);
     window.addEventListener("mbx:ask-article", onArticle);
+    window.addEventListener("mbx:restore-activity", onRestore);
     return () => {
       window.removeEventListener("mbx:new-chat", onNew);
       window.removeEventListener("mbx:resume-chat", onResume);
       window.removeEventListener("mbx:ask-article", onArticle);
+      window.removeEventListener("mbx:restore-activity", onRestore);
     };
-  }, [chat, ctx, askFromElsewhere]);
+  }, [chat, ctx, askFromElsewhere, restoreFromActivity]);
 
   const send = useCallback(
     (text) => {
@@ -257,33 +296,12 @@ export function S05({ onNav }) {
     [chat, ctx, onNav]
   );
 
-  /** 사이드바 "최근 작업"도 같은 제목을 들고 있다 — 따로 다시 받지 않게 알려준다 */
-  const announceRename = useCallback((id, title) => {
-    window.dispatchEvent(new CustomEvent("mbx:convo-renamed", { detail: { id, title } }));
-  }, []);
-
-  /** 목록에서 이름 바꾸기. 화면을 먼저 고치고 서버에 보낸다. */
-  const renameConversation = useCallback(
-    async (id, title) => {
-      const before = convosRes.data;
-      const put = (t) =>
-        convosRes.setData((list) =>
-          (list || []).map((c) => (c.id === id ? { ...c, title: t } : c))
-        );
-      put(title);
-      try {
-        const row = await api.assistant.renameConversation(id, title);
-        put(row.title);
-        announceRename(id, row.title);
-      } catch (e) {
-        convosRes.setData(before);
-        actions.toast("error", e.message || "이름을 바꾸지 못했습니다.");
-      }
-    },
-    [convosRes, actions, announceRename]
-  );
-
-  /** 대화 화면 머리에서 이름 바꾸기 — 최근 대화 목록도 같이 맞춰 둔다 */
+  /**
+   * 대화 화면 머리에서 이름 바꾸기.
+   *
+   * 대화 제목과 활동 이름은 다른 값이다(활동 이름은 activity_meta 에 따로 있다).
+   * 여기서 바꾼 이름이 목록에도 그대로 보여야 하므로 **둘 다** 고친다.
+   */
   const renameCurrent = useCallback(
     async (title) => {
       const row = await chat.rename(title);
@@ -291,12 +309,14 @@ export function S05({ onNav }) {
         actions.toast("error", "이름을 바꾸지 못했습니다.");
         return;
       }
-      convosRes.setData((list) =>
-        (list || []).map((c) => (c.id === row.id ? { ...c, title: row.title } : c))
-      );
-      announceRename(row.id, row.title);
+      try {
+        await api.activity.update(`conv:${row.id}`, { title: row.title });
+      } catch {
+        /* 대화 제목은 이미 바뀌었다 — 목록 이름은 다음 갱신 때 맞춰진다 */
+      }
+      notifyActivityChanged();
     },
-    [chat, convosRes, actions, announceRename]
+    [chat, actions]
   );
 
   const cards = (
@@ -338,9 +358,9 @@ export function S05({ onNav }) {
           isNewUser={isNewUser}
           summary={summary}
           articles={articlesRes.data}
-          conversations={convosRes.data}
-          conversationsLoading={convosRes.loading}
-          onRenameConversation={renameConversation}
+          activity={activity}
+          onOpenActivity={(item) => restoreActivity(item, onNav)}
+          onViewAllActivity={() => onNav("S44")}
           contextCards={cards}
           prompts={prompts}
           onPickPrompt={pickSuggestion}
@@ -350,7 +370,6 @@ export function S05({ onNav }) {
           onPickAction={pickSuggestion}
           context={ctx.items}
           onRemoveContext={ctx.remove}
-          onResume={chat.resume}
         />
       ) : (
         <>
@@ -358,12 +377,14 @@ export function S05({ onNav }) {
           <div className="chat-mode">
             <div className="chat-head">
               <div className="chat-head-left">
+                {/* "새로 시작하기"는 사이드바에 이미 있다. 여기서는 행동이 아니라
+                    **어디로 가는지**를 쓴다. */}
                 <button
                   type="button"
                   className="btn-inline"
                   onClick={() => { chat.reset(); ctx.clear(); }}
                 >
-                  ← 새로 시작하기
+                  ← 대시보드
                 </button>
 
                 {/* 이 대화의 이름. 서버가 첫 질문에서 잘라 붙인 것이라 대개

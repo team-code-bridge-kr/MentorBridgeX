@@ -21,6 +21,7 @@ from app.errors import (
     unhandled_error_handler,
     validation_error_handler,
 )
+from app.features.activity import routes as activity_routes
 from app.features.assistant import routes as assistant_routes
 from app.features.onboarding import routes as onboarding_routes
 from app.features.research import routes as research_routes
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(onboarding_routes.router)
     app.include_router(onboarding_routes.classroom_router)
     app.include_router(assistant_routes.router)
+    app.include_router(activity_routes.router)
 
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
