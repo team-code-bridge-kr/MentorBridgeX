@@ -8,9 +8,9 @@
  * 질문 한 줄 말하려고 음성 화면까지 갔다 오게 만들면 아무도 쓰지 않는다.
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AIContextChipList } from "./AIContextChip.jsx";
-import { ComposerHint } from "./ComposerHint.jsx";
+import { ComposerSuggestions } from "./ComposerSuggestions.jsx";
 import { NavIcon } from "../NavIcon.jsx";
 import { useDictation } from "../../hooks/useDictation.js";
 
@@ -35,13 +35,12 @@ export function AIComposer({
   const areaRef = useRef(null);
   const fileRef = useRef(null);
   const [files, setFiles] = useState([]);
-  const hintId = useId();
 
   /**
-   * 안내문 자리에서 빠른 실행을 돌린다. 쓴 글자가 있으면 내린다 —
-   * 쓰고 있는 문장 위에 다른 글자가 겹치면 안 된다.
+   * 안내문 아래에서 추천 실행이 돈다. 쓴 글자가 있으면 내린다 — 쓰기 시작한
+   * 뒤에도 남아 있으면, 쓰던 문장을 날리는 버튼이 손 밑에 놓인다.
    */
-  const showHint = !value && actions?.length > 0 && !!onPickAction;
+  const showSuggest = !value && actions?.length > 0 && !!onPickAction;
 
   /**
    * 화면을 열자마자 커서를 여기 둔다. 단, **폰에서는 두지 않는다** — 들어오자마자
@@ -123,28 +122,20 @@ export function AIComposer({
         </div>
       )}
 
-      <div className="composer-field">
-        <textarea
-          ref={areaRef}
-          className="composer-input"
-          rows={1}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          // 안내문을 겹쳐 그리는 동안에는 기본 placeholder 를 비운다 — 두 벌이 겹친다
-          placeholder={showHint ? "" : PLACEHOLDER}
-          aria-label="MBX AI에게 질문하기"
-          aria-describedby={showHint ? hintId : undefined}
-        />
-        {showHint && (
-          <ComposerHint
-            placeholder={PLACEHOLDER}
-            actions={actions}
-            onPick={onPickAction}
-            baseId={hintId}
-          />
-        )}
-      </div>
+      {/* 비어 있을 때 두 줄 높이(min-height:52px)라, 안내문 아래 한 줄이 비고
+          그 밑에 추천 알약이 선다 */}
+      <textarea
+        ref={areaRef}
+        className="composer-input"
+        rows={1}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={PLACEHOLDER}
+        aria-label="MBX AI에게 질문하기"
+      />
+
+      {showSuggest && <ComposerSuggestions actions={actions} onPick={onPickAction} />}
 
       <div className="composer-bar">
         <div className="composer-tools">
