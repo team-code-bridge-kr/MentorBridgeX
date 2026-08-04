@@ -10,18 +10,42 @@ import api from "../../api/index.js";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 
-// 이 개수를 넘으면 라벨을 선택적으로만 표시한다 (전부 그리면 겹쳐서 못 읽음).
-const DENSE_THRESHOLD = 30;
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
 
-// 어두운 판 위의 연결선 색. 흰색을 옅게 깔아 배경과 자연스럽게 섞이게 한다.
-const GRAPH_EDGE = "rgba(255,255,255,.26)";
+// 밝은 판 위의 연결선 색.
+const GRAPH_EDGE = "rgba(15,23,42,.16)";
 
 // 선택 노드와 무관한 노드를 살짝만 내린다. 너무 흐리면 전체 지도를 못 읽는다.
 const DIM_OPACITY = 0.34;
-// 선택 라벨 카드가 캔버스 밖으로 나가지 않도록 남겨 두는 좌우 여백(%).
-const LABEL_EDGE_PAD = 14;
+// 선택 라벨 카드가 캔버스 밖으로 나가지 않도록 남겨 두는 좌우 여백(px).
+const LABEL_EDGE_PAD = 90;
+
+/**
+ * 라벨 배치.
+ *
+ * 라벨을 노드 안에 같이 그리면 두 가지가 망가진다. 확대할 때 글자까지 같이
+ * 커져서 아무리 확대해도 빽빽함이 그대로고, 이웃 노드의 라벨끼리 겹쳐 무엇도
+ * 읽히지 않는다(126개 노드에서 실제로 그랬다).
+ *
+ * 그래서 라벨은 **줌 바깥의 화면 좌표**에 그리고, 자리가 겹치면 덜 중요한 쪽을
+ * 지운다. 확대하면 노드 사이가 벌어지므로 자연스럽게 더 많은 이름이 드러난다 —
+ * "확대하면 글자가 나온다"는 게 따로 만든 기능이 아니라 이 규칙의 결과다.
+ */
+const LABEL_FONT = 11.5;   // 확대해도 이 크기 그대로다
+const LABEL_H = 19;
+const LABEL_GAP = 5;       // 노드 아래 띄우는 거리
+const LABEL_MARGIN = 3;    // 라벨끼리 최소로 벌리는 거리
+
+// 자동 포커싱 — 고른 노드로 데려갈 때의 최소 배율과 걸리는 시간.
+// 1.35 는 "이름이 읽히기 시작하는" 배율이다. 더 키우면 고른 노드만 남고 둘레가
+// 사라져서, 무엇 옆에 있던 노드인지 알 수 없게 된다.
+const FOCUS_SCALE = 1.35;
+const FLY_MS = 380;
+
+const overlaps = (a, b) =>
+  a.x1 < b.x2 + LABEL_MARGIN && a.x2 + LABEL_MARGIN > b.x1 &&
+  a.y1 < b.y2 + LABEL_MARGIN && a.y2 + LABEL_MARGIN > b.y1;
 
 // 가지치기 추천 유형별 표시 정보.
 const BRANCH_META = {
@@ -58,10 +82,15 @@ export function S06({ onNav }) {
   // 줌·팬 상태. tx/ty 는 화면 픽셀 이동량, scale 은 배율.
   const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
   const [grabbing, setGrabbing] = useState(false);
+  // 자동 포커싱으로 화면이 움직이는 동안만 true. 이때만 부드럽게 움직인다.
+  const [flying, setFlying] = useState(false);
   const panning = useRef(null);
   // 콜백 안에서 최신 배율을 읽기 위한 거울. state 를 의존성에 넣으면
   // 드래그 핸들러가 매 프레임 새로 만들어진다.
   const viewRef = useRef(view);
+  // 자동 포커싱은 "선택이 바뀔 때만" 돌아야 한다. positions 를 의존성에 넣으면
+  // 노드를 끌 때마다 화면이 따라 움직인다.
+  const positionsRef = useRef(positions);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
@@ -96,10 +125,84 @@ export function S06({ onNav }) {
     ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
     : null;
   const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
-  // 이 개수를 넘으면 라벨을 전부 그려도 겹쳐서 못 읽는다 → 선택적으로만 표시
-  const dense = nodes.length > DENSE_THRESHOLD;
-  // 과목 가지 이름은 지도의 뼈대라 밀집 상태에서도 남긴다 (수가 적을 때만).
-  const showTopicLabels = nodes.filter(n=>n.kind==="topic").length <= 20;
+
+  // 캔버스 실제 크기. 라벨을 화면 좌표에 놓으려면 픽셀 크기를 알아야 한다.
+  const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setCanvasBox((b) => (b.w === width && b.h === height ? b : { w: width, h: height }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** 노드의 화면 좌표(px). 줌·팬을 그대로 반영한다. */
+  const screenOf = useCallback((n) => {
+    const pos = getPos(n);
+    return {
+      x: (parseFloat(pos.x) / 100) * canvasBox.w * view.scale + view.tx,
+      y: (parseFloat(pos.y) / 100) * canvasBox.h * view.scale + view.ty,
+      r: (n.size / 2) * view.scale,
+    };
+  }, [getPos, canvasBox, view]);
+
+  /**
+   * 이번 화면에서 이름을 보여줄 노드들. 중요한 것부터 자리를 잡고, 이미 놓인
+   * 라벨이나 노드와 겹치면 건너뛴다. 노드 자체도 장애물로 둔다 — 남의 이름표가
+   * 동그라미를 덮으면 그 노드가 없는 것처럼 보인다.
+   */
+  const shownLabels = useMemo(() => {
+    if (!canvasBox.w || !nodes.length) return new Map();
+    const rank = (n) => {
+      if (n.id === activeId) return 0;
+      if (matched?.includes(n.id)) return 1;
+      if (connectedIds?.has(n.id)) return 2;
+      if (n.kind === "root") return 3;
+      if (n.kind === "topic") return 4;
+      return 5;
+    };
+    const cands = nodes
+      .map((n) => ({ n, s: screenOf(n), rank: rank(n) }))
+      // 화면 밖은 계산에서 뺀다. 안 보이는 자리를 두고 다투게 두면 정작 보이는
+      // 노드의 이름이 밀려난다.
+      .filter(({ s }) => s.x > -80 && s.x < canvasBox.w + 80 && s.y > -40 && s.y < canvasBox.h + 40)
+      // 다 축소한 상태에서는 말단 노드 이름까지 다투게 두지 않는다(지도가 흐려진다).
+      .filter(({ n }) => view.scale >= 0.85 || n.kind !== "leaf" || rank(n) <= 2)
+      .sort((a, b) => a.rank - b.rank || b.n.size - a.n.size);
+
+    // 노드 동그라미부터 장애물로 깔아 둔다.
+    const blocks = cands.map(({ s }) => ({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r }));
+    const out = new Map();
+    for (const { n, s, rank: r } of cands) {
+      const text = n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
+      const w = text.length * LABEL_FONT * 0.92 + 16;
+      // 아래가 막혔으면 위·오른쪽·왼쪽 순으로 자리를 옮겨 본다. 한 자리만
+      // 보고 포기하면 빽빽한 곳에서 이름이 통째로 사라진다.
+      const spots = [
+        { x: s.x, y: s.y + s.r + LABEL_GAP },
+        { x: s.x, y: s.y - s.r - LABEL_GAP - LABEL_H },
+        { x: s.x + s.r + LABEL_GAP + w / 2, y: s.y - LABEL_H / 2 },
+        { x: s.x - s.r - LABEL_GAP - w / 2, y: s.y - LABEL_H / 2 },
+      ];
+      const boxAt = (p) => ({ x1: p.x - w / 2, x2: p.x + w / 2, y1: p.y, y2: p.y + LABEL_H });
+      let box = spots.map(boxAt).find((b) => !blocks.some((o) => overlaps(b, o)));
+      // 지금 보고 있는 노드와 검색에 걸린 노드는 자리가 없어도 반드시 보여준다.
+      if (!box && r <= 1) box = boxAt(spots[0]);
+      if (!box) continue;
+      const top = box.y1;
+      blocks.push(box);
+      // 노드가 흐려졌으면 이름표도 같이 흐려져야 한다. 안 그러면 검색해서
+      // 걸러 낸 노드의 이름만 또렷하게 떠 있는다.
+      const dim =
+        (matched && !matched.includes(n.id)) ||
+        (connectedIds && n.id !== activeId && !connectedIds.has(n.id));
+      out.set(n.id, { text, left: (box.x1 + box.x2) / 2, top, dim: !!dim });
+    }
+    return out;
+  }, [nodes, canvasBox, screenOf, view.scale, activeId, matched, connectedIds]);
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -153,6 +256,7 @@ export function S06({ onNav }) {
 
   // ── 줌 · 팬 ─────────────────────────────────────────────
   useEffect(() => { viewRef.current = view; }, [view]);
+  useEffect(() => { positionsRef.current = positions; }, [positions]);
 
   const clampScale = (s) => Math.min(ZOOM.max, Math.max(ZOOM.min, s));
 
@@ -175,6 +279,54 @@ export function S06({ onNav }) {
   }, [zoomAt]);
 
   const resetView = useCallback(() => setView({ scale: 1, tx: 0, ty: 0 }), []);
+
+  /**
+   * 고른 노드를 화면 한가운데로 데려온다.
+   *
+   * 126개짜리 그래프에서는 어느 노드를 눌렀는지 눈으로 되짚기가 어렵다. 게다가
+   * 오른쪽 상세 패널이 열리면서 캔버스가 좁아져, 방금 누른 노드가 패널 뒤로
+   * 숨는 일까지 있었다. 패널이 열린 **뒤의** 크기를 재서 그 가운데로 옮긴다.
+   */
+  const focusNode = useCallback((node) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect?.width || !node) return;
+    const pos = positionsRef.current[node.id] || { x: node.x, y: node.y };
+    const gx = (parseFloat(pos.x) / 100) * rect.width;
+    const gy = (parseFloat(pos.y) / 100) * rect.height;
+    setFlying(true);
+    setView((v) => {
+      // 이미 충분히 확대돼 있으면 배율은 건드리지 않는다 — 볼 만큼 키워 둔
+      // 화면을 마음대로 되돌리지 않기 위해서다.
+      const scale = clampScale(Math.max(v.scale, FOCUS_SCALE));
+      return { scale, tx: rect.width / 2 - gx * scale, ty: rect.height / 2 - gy * scale };
+    });
+  }, []);
+
+  // 움직임이 끝나면 애니메이션을 끈다. 켜 둔 채로 두면 휠 줌·드래그가 끈적해진다.
+  useEffect(() => {
+    if (!flying) return undefined;
+    const t = setTimeout(() => setFlying(false), FLY_MS + 40);
+    return () => clearTimeout(t);
+  }, [flying]);
+
+  // 노드를 고르면 따라간다. sel 이 바뀔 때만 — 그 뒤 사용자가 화면을 끌어
+  // 옮겨 놓은 것을 다시 가운데로 되돌리면 안 된다.
+  useEffect(() => {
+    if (!sel) return;
+    const node = nodes.find((n) => n.id === sel.id);
+    if (node) focusNode(node);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [sel?.id]);
+
+  // 검색해서 걸린 것이 있으면 첫 노드로 데려간다. 찾았는데 화면 밖에 있으면
+  // 찾은 것이 아니다.
+  const firstMatch = matched?.[0] || null;
+  useEffect(() => {
+    if (!firstMatch) return;
+    const node = nodes.find((n) => n.id === firstMatch);
+    if (node) focusNode(node);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [firstMatch]);
 
   // 휠 줌. React 의 onWheel 은 passive 로 붙어 preventDefault 가 먹지 않으므로
   // 직접 non-passive 로 등록한다 (안 하면 페이지가 같이 스크롤된다).
@@ -381,6 +533,7 @@ export function S06({ onNav }) {
                 패널·라벨은 밖에 있어야 확대해도 화면에 고정된다. */}
             <div style={{position:"absolute",inset:0,transformOrigin:"0 0",
                          transform:`translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,
+                         transition:flying?`transform ${FLY_MS}ms cubic-bezier(.22,.8,.28,1)`:"none",
                          willChange:"transform"}}>
 
             {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
@@ -421,43 +574,52 @@ export function S06({ onNav }) {
               const isDraggingThis = dragging.current?.id === n.id;
               const meta = KIND_META[n.kind] || KIND_META.topic;
               const pos = getPos(n);
-              // 노드가 많으면 라벨을 전부 그릴 때 서로 겹쳐 오히려 못 읽는다.
-              // 밀집 상태에서는 뼈대(핵심·과목)와 지금 관련된 것만 남긴다.
-              // 지금 보고 있는 노드는 아래 오버레이가 따로 그리므로 여기선 뺀다.
-              const showLabel = !isActive && (
-                !dense || n.kind==="root" || (showTopicLabels && n.kind==="topic") ||
-                (connectedIds?.has(n.id) ?? false) ||
-                (matched?.includes(n.id) ?? false)
-              );
-              const shortLabel =
-                n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
               return (
                 <div key={n.id}
                   onMouseDown={(e)=>onNodeDown(e,n)}
                   onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
-                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
-                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 14px rgba(0,0,0,.2)`,border:`2px solid rgba(255,255,255,.35)`}}>
+                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
+                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
                     <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
                   </div>
-                  {showLabel && (
-                    <span title={n.label} style={{fontSize:n.size>50?12:11,fontWeight:700,color:OVERLAY_TEXT.primary,background:"rgba(20,23,32,.88)",padding:"2px 8px",borderRadius:10,boxShadow:"0 2px 8px rgba(0,0,0,.45)",whiteSpace:"nowrap",border:"1px solid rgba(255,255,255,.10)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis"}}>{shortLabel}</span>
-                  )}
                 </div>
               );
             })}
+            </div>{/* 줌·팬 레이어 끝 */}
 
-            {/* 선택·호버 라벨 — 노드와 엣지보다 항상 위에 그린다.
-                노드 안에 같이 두면 다른 노드에 가려서, 별도 레이어로 뺐다. */}
-            {activeNode && (() => {
-              const pos = getPos(activeNode);
-              const x = parseFloat(pos.x), y = parseFloat(pos.y);
-              // 카드가 캔버스 밖으로 나가지 않도록 좌우를 묶고, 아래가 좁으면 위로 띄운다.
-              const clampedX = Math.max(LABEL_EDGE_PAD, Math.min(100 - LABEL_EDGE_PAD, x));
-              const below = y < 74;
-              const gap = activeNode.size / 2 + 12;
+            {/* 이름표 — 줌 바깥이라 확대해도 글자 크기는 그대로다. 서로 겹치면
+                덜 중요한 쪽이 빠진다(자리는 shownLabels 에서 정한다). */}
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:Z.label,overflow:"hidden"}}>
+              {[...shownLabels].map(([id, l]) => (
+                id === activeId ? null : (
+                  /* 이름표도 눌러서 고를 수 있다. 동그라미보다 넓고 읽고 나서
+                     누르는 자리라, 여기서 못 고르면 매번 작은 원을 조준해야 한다. */
+                  <span key={id} title={l.text}
+                    onMouseDown={(e)=>e.stopPropagation()}
+                    onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) setSel(s=>s?.id===n.id?null:n); }}
+                    onMouseEnter={()=>setHover(id)} onMouseLeave={()=>setHover(null)}
+                    style={{position:"absolute",left:l.left,top:l.top,transform:"translateX(-50%)",
+                            pointerEvents:"auto",cursor:"pointer",opacity:l.dim?DIM_OPACITY:1,
+                            transition:"opacity .2s",
+                            fontSize:LABEL_FONT,fontWeight:700,lineHeight:`${LABEL_H - 4}px`,
+                            color:OVERLAY_TEXT.primary,background:"rgba(255,255,255,.90)",
+                            padding:"1px 8px",borderRadius:9,whiteSpace:"nowrap",
+                            border:"1px solid rgba(15,23,42,.07)",boxShadow:"0 1px 4px rgba(15,23,42,.10)"}}>
+                    {l.text}
+                  </span>
+                )
+              ))}
+            </div>
+
+            {/* 지금 보고 있는 노드 — 이름과 과목을 카드로 크게 보여준다. */}
+            {activeNode && canvasBox.w > 0 && (() => {
+              const s = screenOf(activeNode);
+              const x = Math.max(LABEL_EDGE_PAD, Math.min(canvasBox.w - LABEL_EDGE_PAD, s.x));
+              const below = s.y < canvasBox.h - 110;
+              const gap = s.r + 12;
               const isPinned = sel?.id === activeNode.id;  // 클릭한 것은 패널보다 위로
               return (
-                <div style={{position:"absolute",left:`${clampedX}%`,top:`${y}%`,zIndex:isPinned?Z.labelPinned:Z.label,pointerEvents:"none",transform:`translate(-50%, ${below?"0":"-100%"})`,marginTop:below?gap:-gap}}>
+                <div style={{position:"absolute",left:x,top:s.y,zIndex:isPinned?Z.labelPinned:Z.label,pointerEvents:"none",transform:`translate(-50%, ${below?"0":"-100%"})`,marginTop:below?gap:-gap}}>
                   <div style={{...OVERLAY_SURFACE,borderRadius:12,padding:"8px 12px",maxWidth:240,textAlign:"center"}}>
                     <div style={{fontSize:13,fontWeight:700,color:OVERLAY_TEXT.primary,lineHeight:1.35,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",wordBreak:"break-word"}}>
                       {activeNode.label}
@@ -471,7 +633,6 @@ export function S06({ onNav }) {
                 </div>
               );
             })()}
-            </div>{/* 줌·팬 레이어 끝 */}
 
             {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목 */}
             {!!nodes.length && (
@@ -489,7 +650,7 @@ export function S06({ onNav }) {
                     </div>
                   );
                 })}
-                <div style={{height:1,background:"rgba(255,255,255,.10)",margin:"10px -16px 10px"}} />
+                <div style={{height:1,background:"rgba(15,23,42,.08)",margin:"10px -16px 10px"}} />
                 <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>
                   모양 = 과목·분야
                 </div>

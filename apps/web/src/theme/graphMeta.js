@@ -7,23 +7,26 @@ export const KIND_META = {
 };
 
 /**
- * 그래프 캔버스(어두운 판) 색.
- * 노드 색이 잘 튀어 보이도록 배경은 채도를 낮춘 남색 계열로 둔다.
+ * 그래프 캔버스 색.
+ *
+ * 예전에는 어두운 판이었다. 밝은 페이지 한가운데 검은 판 하나가 강해 보였지만,
+ * 그 대가로 이 화면만 다른 앱처럼 보였고 — 판 위의 글자·카드·선을 전부 따로
+ * 관리해야 했다. 지금은 나머지 화면과 같은 표면을 쓴다. 노드 색이 이미 충분히
+ * 진해서 밝은 바탕에서도 또렷하다.
  */
 export const GRAPH_CANVAS = {
-  bg: "#0d1117",       // GitHub 다크. 밝은 페이지에 어두운 판 하나 — 이 대비가 인상의 핵심
-  bgCenter: "#161b22", // 중앙만 살짝 밝게 — 문서 노드가 놓이는 자리
-  dot: "#30363d",
-  border: "rgba(255,255,255,.10)",
+  bg: "#f7f9ff",       // 앱 배경(--bg2)과 같은 값
+  bgCenter: "#ffffff", // 중앙만 살짝 밝게 — 문서 노드가 놓이는 자리
+  dot: "#dde2ee",
+  border: "#e2e6f0",
 };
 
-/** 어두운 캔버스 위에서 쓰는 글자색 계층. */
-/* 어두운 판 위에서는 MD3 토큰을 쓰지 않는다. 회색 스케일 + white/N 이 규칙이다. */
+/** 캔버스 위에서 쓰는 글자색 계층. 본문 토큰과 같은 3단계를 쓴다. */
 export const OVERLAY_TEXT = {
-  primary: "#ffffff",
-  secondary: "#9ca3af", // gray-400
-  tertiary: "#6b7280",  // gray-500
-  accent: "#58a6ff",    // 어두운 배경 위 강조 = secondary-container
+  primary: "#181c21",
+  secondary: "#424753",
+  tertiary: "#727785",
+  accent: "#0051ae",
 };
 
 /**
@@ -32,10 +35,10 @@ export const OVERLAY_TEXT = {
  * 배경 그래프가 비쳐 글자가 묻히지 않도록 불투명도를 충분히 준다.
  */
 export const OVERLAY_SURFACE = {
-  background: "rgba(22,27,34,.90)",
-  border: "1px solid rgba(255,255,255,.10)",
+  background: "rgba(255,255,255,.92)",
+  border: "1px solid rgba(15,23,42,.07)",
   borderRadius: 16,
-  boxShadow: "0 8px 24px rgba(0,0,0,.50)",
+  boxShadow: "0 8px 24px rgba(15,23,42,.10)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
   color: OVERLAY_TEXT.primary,

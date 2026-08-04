@@ -1222,10 +1222,11 @@ tr:hover td { background:var(--surface-container-low); }
 .ctx-graph-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .ctx-graph {
   position:relative; width:66px; height:52px; flex-shrink:0; border-radius:9px; overflow:hidden;
-  background-color:#0d1117;
+  /* 큰 그래프 화면(S06)과 같은 표면. theme/graphMeta.js 의 GRAPH_CANVAS 와 같은 값이어야 한다. */
+  background-color:#f7f9ff;
   background-image:
-    radial-gradient(circle at 50% 45%, #161b22 0%, #0d1117 62%),
-    radial-gradient(circle, #30363d 1px, transparent 1.1px);
+    radial-gradient(circle at 50% 45%, #ffffff 0%, #f7f9ff 62%),
+    radial-gradient(circle, #dde2ee 1px, transparent 1.1px);
   background-size:100% 100%, 14px 14px;
 }
 .ctx-graph svg { position:absolute; inset:0; width:100%; height:100%; }
