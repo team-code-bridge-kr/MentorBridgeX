@@ -48,16 +48,33 @@ export function S11({ onNav }) {
     })
   );
 
-  // 세특은 다른 일곱 영역과 모양이 다르다. 한 영역이 아니라 **과목 46개**다.
+  // 세특은 다른 일곱 영역과 모양이 다르다. 한 영역이 아니라 **학년별 과목**이다.
   // 과목별로 갈라져 있으면 카드 하나에 밀어 넣지 않고 따로 펼친다.
   const subjectDocs = docs
     .filter((d) => d.section_type === "subject_specific" && d.subject_id)
     .sort((a, b) => a.subject_id.localeCompare(b.subject_id, "ko"));
   const splitSelf = subjectDocs.length >= 2;
 
+  // 학년으로 묶는다. 같은 과목이 1학년과 3학년에 모두 있을 수 있어서(미술),
+  // 학년이 없으면 어느 해 기록인지 알 수 없다.
+  const gradeGroups = [];
+  for (const d of subjectDocs) {
+    const grade = d.period_id || "";
+    let group = gradeGroups.find((g) => g.grade === grade);
+    if (!group) gradeGroups.push((group = { grade, docs: [] }));
+    group.docs.push(d);
+  }
+  gradeGroups.sort((a, b) => (a.grade || "￿").localeCompare(b.grade || "￿", "ko"));
+
   // 아직 한 덩어리로 남아 있는 세특. 나눌 수 있다는 걸 알려 준다.
   const lump = docs.find((d) => d.section_type === "subject_specific" && hasSubjectBlocks(d.content));
   const lumpCount = lump ? subjectMarkers(lump.content).length : 0;
+
+  // 같은 과목이 같은 학년에 두 벌 있으면 생기부를 두 번 올린 것이다.
+  const dupCount = subjectDocs.length
+    - new Set(subjectDocs.map((d) => `${d.period_id || ""}/${d.subject_id}`)).size;
+  // 학년을 아직 모르는 과목(원본 PDF 없이 나눈 것)도 정리 대상이다.
+  const noGrade = subjectDocs.filter((d) => !d.period_id).length;
 
   const openDoc = (doc, type) => {
     sessionStorage.setItem("mbx_doc_id", doc.id);
@@ -72,7 +89,7 @@ export function S11({ onNav }) {
     try {
       const made = await api.documents.splitSubjects();
       await load();
-      setSplitMsg(`세부능력 및 특기사항을 과목 ${made.length}개로 나눴습니다.`);
+      setSplitMsg(`세부능력 및 특기사항을 학년·과목 ${made.length}개로 정리했습니다.`);
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -142,15 +159,16 @@ export function S11({ onNav }) {
       {/* 세특이 아직 한 덩어리일 때. 46과목 21,000자를 편집 상자 하나에 담아 두면
           원하는 과목을 스크롤로 찾아야 하고, 노드가 어느 과목에서 나왔는지도
           말할 수 없다. 글자는 그대로 두고 과목 단위로만 가른다. */}
-      {lump && (
+      {(lump || dupCount > 0) && (
         <Notice type="info" className="mb16">
           <div className="row-between" style={{ gap: 12, width: "100%" }}>
             <span>
-              세부능력 및 특기사항이 <strong>{lumpCount}과목</strong>({lump.content.length.toLocaleString()}자)
-              한 덩어리로 들어 있습니다. 과목별로 나누면 하나씩 열어 볼 수 있습니다.
+              {lump
+                ? <>세부능력 및 특기사항이 <strong>{lumpCount}과목</strong>({lump.content.length.toLocaleString()}자) 한 덩어리로 들어 있습니다. 학년·과목별로 나누면 하나씩 열어 볼 수 있습니다.</>
+                : <>같은 과목이 <strong>{dupCount}개</strong> 겹쳐 있습니다. 생기부를 두 번 올린 것으로 보입니다.</>}
             </span>
             <Btn v="primary" s="sm" disabled={splitting} onClick={splitSubjects}>
-              {splitting ? "나누는 중…" : `과목 ${lumpCount}개로 나누기`}
+              {splitting ? "정리하는 중…" : lump ? `과목 ${lumpCount}개로 나누기` : "세특 정리하기"}
             </Btn>
           </div>
         </Notice>
@@ -195,16 +213,31 @@ export function S11({ onNav }) {
           <div className="subj-head">
             <span className="subj-title">세부능력 및 특기사항</span>
             <span className="subj-count">{subjectDocs.length}과목</span>
+            {/* 학년을 모르는 과목이 있으면 여기서 다시 정리한다. 원본을 나중에
+                올린 경우가 이에 해당한다 — 학년은 원본에만 적혀 있다. */}
+            {noGrade > 0 && (
+              <button type="button" className="subj-fix" disabled={splitting} onClick={splitSubjects}>
+                {splitting ? "정리하는 중…" : `학년 미상 ${noGrade}과목 정리`}
+              </button>
+            )}
           </div>
-          <div className="subj-grid">
-            {subjectDocs.map((d) => (
-              <div key={d.id} className="subj-card" onClick={() => openDoc(d, "subject_specific")}>
-                <span className="subj-pill" title={d.subject_id}>{d.subject_id}</span>
-                <p className="subj-preview">{d.content}</p>
-                <span className="subj-meta">{d.content.length.toLocaleString()}자</span>
+          {gradeGroups.map((g) => (
+            <div key={g.grade || "unknown"}>
+              <div className="subj-grade">
+                <span className="subj-grade-name">{g.grade || "학년 미상"}</span>
+                <span className="subj-grade-count">{g.docs.length}과목</span>
               </div>
-            ))}
-          </div>
+              <div className="subj-grid">
+                {g.docs.map((d) => (
+                  <div key={d.id} className="subj-card" onClick={() => openDoc(d, "subject_specific")}>
+                    <span className="subj-pill" title={d.subject_id}>{d.subject_id}</span>
+                    <p className="subj-preview">{d.content}</p>
+                    <span className="subj-meta">{d.content.length.toLocaleString()}자</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </>
       )}
 

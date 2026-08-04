@@ -101,7 +101,8 @@ def _label(section: DocumentSection) -> str:
     "국어 세특" 이라고 말한다 — 46과목 중 어디인지가 사실상의 출처다.
     """
     if section.subject_id:
-        return f"{section.subject_id} 세특"
+        grade = f"{section.period_id} " if section.period_id else ""
+        return f"{grade}{section.subject_id} 세특"
     return SECTION_LABELS.get(section.section_type, str(section.section_type))
 
 

@@ -115,6 +115,10 @@ class ParsedSection:
     section_type: SectionType
     title: str
     content: str
+    # 세특에만 있다. "1학년" 처럼 사람이 읽는 말로 담는다.
+    # 같은 과목이 학년마다 따로 있으므로(미술 1·3학년), 학년이 없으면 두 기록이
+    # 한 덩어리로 뭉쳐 어느 해 이야기인지 알 수 없게 된다.
+    grade: str | None = None
 
 
 @dataclass
@@ -227,6 +231,12 @@ def _subject_region(text: str) -> str:
     return text
 
 
+# 교과학습발달상황은 학년별 표로 나뉜다: `[1학년]` `[2학년]` `[3학년]`.
+# (MULTILINE 이 아니라 줄 단위로 match 해서 쓴다 — 본문 가운데의 "1학년 과정"
+#  같은 말은 잡히지 않아야 한다.)
+_GRADE_MARKER = re.compile(r"^\[\s*(\d)\s*학\s*년\s*\]$", re.MULTILINE)
+
+
 def _is_table_line(line: str) -> bool:
     """표의 한 칸으로 보이는 줄인가."""
     stripped = line.strip()
@@ -266,7 +276,10 @@ def _strip_grade_tables(text: str) -> str:
             run_end += 1
         if run_end - i >= _MIN_TABLE_RUN and strong >= _MIN_TABLE_STRONG:
             for k in range(i, run_end):
-                keep[k] = False
+                # 학년 표시는 표 바로 앞에 붙어 있어 표와 함께 지워진다. 이 한 줄이
+                # 이후 과목들이 몇 학년 것인지 알려주는 **유일한 단서**라 남긴다.
+                if not _GRADE_MARKER.match(lines[k].strip()):
+                    keep[k] = False
         i = run_end
 
     return "\n".join(line for line, kept in zip(lines, keep, strict=True) if kept)
@@ -276,11 +289,27 @@ def _split_subject_specific_blocks(text: str) -> list[ParsedSection]:
     cleaned = _strip_grade_tables(_subject_region(_strip_page_noise(text)))
     blocks: list[ParsedSection] = []
 
+    # 학년이 바뀌는 자리. 교과학습발달상황은 [1학년] [2학년] [3학년] 순으로
+    # 나뉘고, 그 사이의 과목들이 그 학년 것이다.
+    grade_marks = [(m.start(), f"{m.group(1)}학년") for m in _GRADE_MARKER.finditer(cleaned)]
+
+    def grade_at(pos: int) -> str | None:
+        found = None
+        for start, name in grade_marks:
+            if start <= pos:
+                found = name
+            else:
+                break
+        return found
+
     matches = list(_SUBJECT_HEADER.finditer(cleaned))
     for i, match in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(cleaned)
         subject = match.group("name").strip()
-        body = re.sub(r"\s+", " ", cleaned[match.end() : end]).strip()
+        # 학년 표시는 자리만 알려주는 이정표다. 다음 학년 표시가 앞 과목 본문 끝에
+        # 딸려 들어가지 않게 여기서 걷어낸다.
+        raw = _GRADE_MARKER.sub(" ", cleaned[match.end() : end])
+        body = re.sub(r"\s+", " ", raw).strip()
         if len(body) < 20:
             continue
         blocks.append(
@@ -288,6 +317,7 @@ def _split_subject_specific_blocks(text: str) -> list[ParsedSection]:
                 section_type=SectionType.SUBJECT_SPECIFIC,
                 title=subject,
                 content=body[:50000],
+                grade=grade_at(match.start()),
             )
         )
     return blocks
