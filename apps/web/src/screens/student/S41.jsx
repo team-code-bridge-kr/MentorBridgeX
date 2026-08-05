@@ -58,19 +58,24 @@ function fmtDate(iso) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 왜 이 글이 보이는지. 근거가 없으면 아무 말도 하지 않는다. */
-function Reason({ item }) {
+/**
+ * 이 글의 주제 — 내 관심 키워드 중 걸린 것.
+ *
+ * 예전에는 "추천 이유: 내 키워드 ‘오픈소스’와 관련" 이라는 문장이었다. 한 줄
+ * 설명으로는 길고, 정작 알고 싶은 건 **무슨 주제냐** 하나다. 그래서 문장을
+ * 지우고 주제만 남긴다. 색은 "원문 보기"와 같은 파랑 — 이 글이 왜 여기 있는지
+ * 말하는 가장 중요한 표시라서다. 두 개까지만 — 셋이 넘으면 제목보다 길어진다.
+ */
+const TOPIC_MAX = 2;
+
+function Topics({ item, query }) {
   const hits = item.matched_keywords || [];
-  if (!hits.length) return null;
+  const shown = hits.length ? hits.slice(0, TOPIC_MAX) : (query ? [query] : []);
+  if (!shown.length) return null;
   return (
-    <p className="reco-why" title={`내 관심 키워드와 겹치는 말: ${hits.join(", ")}`}>
-      <span className="reco-why-label">추천 이유</span>
-      내 키워드
-      {/* 따옴표 대신 알약 — 어느 낱말이 걸렸는지가 문장 속에서 먼저 읽혀야 한다.
-          문맥 카드의 키워드(.ctx-kw)와 같은 모양이라 뜻도 같게 읽힌다. */}
-      {hits.slice(0, 3).map((k) => <span key={k} className="reco-kw">{k}</span>)}
-      와 관련
-    </p>
+    <div className="feed-topics" title={hits.length > TOPIC_MAX ? hits.join(", ") : undefined}>
+      {shown.map((k) => <span key={k} className="feed-topic">{k}</span>)}
+    </div>
   );
 }
 
@@ -87,6 +92,37 @@ function SaveButton({ item, onToggle }) {
         color={item.saved ? "var(--primary)" : "var(--ts)"} />
       {item.saved ? "저장됨" : "저장"}
     </button>
+  );
+}
+
+/**
+ * 글 카드 — 위쪽 대표 카드와 "더 읽을거리"가 **같은 컴포넌트**를 쓴다.
+ * 같은 목록인데 위아래 모양이 다르면 다른 종류의 글처럼 보인다.
+ */
+function FeedCard({ item, query, onOpen, onSave, onAsk }) {
+  return (
+    <article className={`feed-card${item.read ? " read" : ""}`}>
+      <a href={item.url} target="_blank" rel="noopener noreferrer"
+        onClick={() => onOpen(item)} aria-label={item.title}>
+        <ArticleVisual item={item} />
+      </a>
+      <Topics item={item} query={query} />
+      <a className="feed-card-title" href={item.url} target="_blank" rel="noopener noreferrer"
+        onClick={() => onOpen(item)}>{item.title}</a>
+      {item.summary && <p className="feed-card-sum">{item.summary}</p>}
+      <div className="feed-meta feed-card-meta">
+        {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
+      </div>
+      <div className="feed-card-acts">
+        <a className="btn btn-primary btn-sm" href={item.url} target="_blank" rel="noopener noreferrer"
+          onClick={() => onOpen(item)}>원문 보기</a>
+        <button type="button" className="rs-save ask-ai" onClick={() => onAsk(item)}>
+          <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
+          Bridge AI에게 질문
+        </button>
+        <SaveButton item={item} onToggle={onSave} />
+      </div>
+    </article>
   );
 }
 
@@ -178,20 +214,23 @@ export function S41({ onNav }) {
   // 첫 페이지가 들어온 시점에 한 번만 정한다 — 스크롤로 더 불러올 때마다 맨
   // 위가 바뀌면 읽던 자리를 잃는다.
   const firstId = feed.items[0]?.id || null;
-  const featured = useMemo(() => {
+  // **id 만** 기억한다. 항목 자체를 기억해 두면 저장을 눌러도 그 자리의 카드는
+  // 옛 항목을 계속 그린다(저장 표시가 새로고침 전까지 안 바뀌던 원인).
+  const featuredIds = useMemo(() => {
     if (feed.items.length < FEATURED) return [];
-    const picked = feed.items.filter((i) => i.image_url).slice(0, FEATURED);
+    const ids = feed.items.filter((i) => i.image_url).slice(0, FEATURED).map((i) => i.id);
     for (const it of feed.items) {
-      if (picked.length >= FEATURED) break;
-      if (!picked.includes(it)) picked.push(it);
+      if (ids.length >= FEATURED) break;
+      if (!ids.includes(it.id)) ids.push(it.id);
     }
-    return picked;
+    return ids;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstId]);
-  const featuredIds = new Set(featured.map((i) => i.id));
+  const featured = featuredIds.map((id) => feed.items.find((i) => i.id === id)).filter(Boolean);
+  const idSet = new Set(featuredIds);
   const hero = featured[0] || null;
   const cards = featured.slice(1);
-  const rest = feed.items.filter((i) => !featuredIds.has(i.id));
+  const rest = feed.items.filter((i) => !idSet.has(i.id));
 
   if (!checkedProfile) {
     return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
@@ -308,14 +347,13 @@ export function S41({ onNav }) {
             <ArticleVisual item={hero} size="lg" />
           </a>
           <div className="feed-hero-body">
-            <div className="feed-kicker">{hero.matched_keywords?.[0] || filters.query || hero.outlet}</div>
+            <Topics item={hero} query={filters.query} />
             <a className="feed-hero-title" href={hero.url} target="_blank" rel="noopener noreferrer"
               onClick={() => openArticle(hero)}>{hero.title}</a>
             {hero.summary && <p className="feed-hero-sum">{hero.summary}</p>}
             <div className="feed-meta">
               {hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}
             </div>
-            <Reason item={hero} />
             <div className="feed-hero-actions">
               <a className="btn btn-primary btn-sm" href={hero.url} target="_blank" rel="noopener noreferrer"
                 onClick={() => openArticle(hero)}>원문 보기</a>
@@ -332,22 +370,8 @@ export function S41({ onNav }) {
       {!feed.loading && cards.length > 0 && (
         <div className="feed-cards">
           {cards.map((item) => (
-            <article key={item.id} className={`feed-card${item.read ? " read" : ""}`}>
-              <a href={item.url} target="_blank" rel="noopener noreferrer"
-                onClick={() => openArticle(item)} aria-label={item.title}>
-                <ArticleVisual item={item} />
-              </a>
-              <div className="feed-kicker">{item.matched_keywords?.[0] || filters.query || item.outlet}</div>
-              <a className="feed-card-title" href={item.url} target="_blank" rel="noopener noreferrer"
-                onClick={() => openArticle(item)}>{item.title}</a>
-              <Reason item={item} />
-              <div className="feed-card-foot">
-                <span className="feed-meta">
-                  {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}
-                </span>
-                <SaveButton item={item} onToggle={toggleSave} />
-              </div>
-            </article>
+            <FeedCard key={item.id} item={item} query={filters.query}
+              onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} />
           ))}
         </div>
       )}
@@ -355,38 +379,13 @@ export function S41({ onNav }) {
       {!feed.loading && rest.length > 0 && (
         <>
           <h2 className="feed-rest-hdr">더 읽을거리</h2>
-          <div className="feed-rows">
+          {/* 앞의 카드와 **같은 모양**이다. 줄글로 늘어놓으면 오른쪽이 크게 비고,
+              같은 목록인데 위아래가 다른 물건처럼 보인다. 2열인 것은 여기가
+              "더 있는 것"이라 위 3열보다 한 칸 크게 읽혀도 되기 때문이다. */}
+          <div className="feed-cards is-2col">
             {rest.map((item) => (
-              <article key={item.id} className={`feed-row${item.read ? " read" : ""}`}>
-                {/* 그림이 있으면 줄에도 작게 붙인다. 훑어볼 때 글자만 늘어선 목록보다
-                    무엇에 관한 글인지 훨씬 빨리 읽힌다. 없으면 자리도 만들지 않는다 —
-                    빈 회색 상자가 줄마다 늘어서면 그게 더 시끄럽다. */}
-                {item.image_url && (
-                  <a className="feed-row-thumb" href={item.url} target="_blank" rel="noopener noreferrer"
-                    onClick={() => openArticle(item)} aria-label={item.title}>
-                    <ArticleVisual item={item} size="sm" />
-                  </a>
-                )}
-                <div className="feed-row-main">
-                  <div className="feed-meta">
-                    <span className={`badge badge-${item.kind === "paper" ? "blue" : "grey"}`}>
-                      {item.kind === "paper" ? "논문" : "뉴스"}
-                    </span>
-                    {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
-                  </div>
-                  <a className="feed-row-title" href={item.url} target="_blank" rel="noopener noreferrer"
-                    onClick={() => openArticle(item)}>{item.title}</a>
-                  {item.summary && <p className="feed-row-sum">{item.summary}</p>}
-                  <Reason item={item} />
-                </div>
-                <div className="feed-row-acts">
-                  <button type="button" className="rs-save ask-ai" onClick={() => askMbx(item)}>
-                    <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
-                    Bridge AI에게 질문
-                  </button>
-                  <SaveButton item={item} onToggle={toggleSave} />
-                </div>
-              </article>
+              <FeedCard key={item.id} item={item} query={filters.query}
+                onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} />
             ))}
           </div>
         </>
