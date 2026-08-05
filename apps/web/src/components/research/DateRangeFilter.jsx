@@ -112,7 +112,6 @@ export function DateRangeFilter({ days, from, to, onApply }) {
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span aria-hidden="true">🗓</span>
         기간: {label}
         <span className="filter-caret" aria-hidden="true">▾</span>
       </button>

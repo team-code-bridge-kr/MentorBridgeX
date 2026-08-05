@@ -1,9 +1,8 @@
 /**
  * 내 관심 키워드 영역.
  *
- * 예전에는 키워드·기간·관리 버튼이 전부 같은 알약 모양으로 한 줄에 섞여 있어서,
- * 무엇이 내 관심사이고 무엇이 지금 걸린 조건인지 구분되지 않았다. 여기서는
- * **제목을 달고 영역을 따로 떼어** 성격이 다르다는 것을 먼저 보이게 한다.
+ * 제목("내 관심 키워드")과 관리 버튼은 위쪽 한 줄(.feed-bar)이 갖는다. 여기는
+ * **칩만** 그린다 — 제목을 두 군데서 그리면 화면에 같은 말이 두 번 나온다.
  *
  * 12개가 넘는 키워드를 다 펼치면 정작 기사가 화면 밖으로 밀린다. 기본은 6개까지
  * 보여주고 나머지는 +N 으로 접는다.
@@ -17,13 +16,12 @@ import { aliasHint } from "../../lib/keywordAliases.js";
 
 const VISIBLE = 6;
 
-export function InterestKeywordSection({ groups, selected, onToggle, onManage, loading, onRegister }) {
+export function InterestKeywordSection({ groups, selected, onToggle, loading, onRegister }) {
   const [expanded, setExpanded] = useState(false);
 
   if (loading) {
     return (
       <section className="kw-sec">
-        <h2 className="kw-sec-title">내 관심 키워드</h2>
         <div className="kw-row" aria-hidden="true">
           {Array.from({ length: 5 }).map((_, i) => <span key={i} className="kw-skel" />)}
         </div>
@@ -34,7 +32,6 @@ export function InterestKeywordSection({ groups, selected, onToggle, onManage, l
   if (!groups.length) {
     return (
       <section className="kw-sec">
-        <h2 className="kw-sec-title">내 관심 키워드</h2>
         <div className="kw-empty">
           <p className="kw-empty-title">아직 등록된 관심 키워드가 없습니다.</p>
           <p className="kw-empty-sub">관심 분야를 등록하면 관련 뉴스와 논문을 추천해드려요.</p>
@@ -51,13 +48,6 @@ export function InterestKeywordSection({ groups, selected, onToggle, onManage, l
 
   return (
     <section className="kw-sec">
-      <div className="kw-sec-hdr">
-        <h2 className="kw-sec-title">내 관심 키워드</h2>
-        <button type="button" className="kw-manage" onClick={onManage}>
-          <span aria-hidden="true">⚙</span> 키워드 관리
-        </button>
-      </div>
-
       <div className="kw-row" role="group" aria-label="내 관심 키워드">
         {shown.map((g) => {
           const on = selected.includes(g.id);

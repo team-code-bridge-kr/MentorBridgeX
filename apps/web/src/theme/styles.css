@@ -1599,7 +1599,9 @@ tr:hover td { background:var(--surface-container-low); }
 .skel-card { aspect-ratio:16/9; }
 
 /* ── 팝오버 / 서랍 ── */
-.pop-scrim { position:fixed; inset:0; z-index:900; }
+/* 본문 폭 규칙(.content > * 의 max-width/margin:auto)에 걸리면 화면 전체를
+   덮어야 할 것이 가운데 1280px 로 좁아진다. 겹침 요소는 여기서 되돌린다. */
+.pop-scrim { position:fixed; inset:0; z-index:900; max-width:none; margin:0; }
 .pop {
   position:absolute; top:calc(100% + 6px); z-index:901; min-width:230px;
   background:var(--bg1); border-radius:14px; box-shadow:var(--shadow-lg);
@@ -1639,8 +1641,27 @@ tr:hover td { background:var(--surface-container-low); }
 .cal-day:focus-visible { outline:2px solid var(--blue-500); outline-offset:-2px; }
 .cal-picked { margin-top:8px; font-size:12px; color:var(--ts); text-align:center; }
 
-.drawer-scrim { position:fixed; inset:0; z-index:1000; background:rgba(25,31,40,.42); display:flex; justify-content:flex-end; }
-.drawer { width:min(420px,100%); height:100%; background:var(--bg1); display:flex; flex-direction:column; box-shadow:var(--shadow-lg); }
+/* 오른쪽 가장자리에 딱 붙어 밀려 들어온다. 가운데 떠 있는 창은 "이 화면 위에
+   얹힌 다른 것"으로 읽히는데, 이건 지금 보던 목록을 옆에서 손보는 자리다. */
+.drawer-scrim {
+  position:fixed; inset:0; z-index:1000; background:rgba(25,31,40,.42);
+  display:flex; justify-content:flex-end;
+  /* 본문 폭 규칙(.rs-wrap > *)에 걸려 1280px 로 좁아지면 서랍이 오른쪽
+     가장자리에서 80px 떠 있게 된다. 겹침 요소는 화면 전체를 쓴다. */
+  max-width:none; margin:0;
+  animation:drawerScrim .18s ease-out;
+}
+.drawer {
+  width:min(420px,100%); height:100%; margin:0; border-radius:0;
+  background:var(--bg1); display:flex; flex-direction:column;
+  box-shadow:-18px 0 40px rgba(15,23,42,.16);
+  animation:drawerIn .26s cubic-bezier(.22,.8,.28,1);
+}
+@keyframes drawerScrim { from { opacity:0; } to { opacity:1; } }
+@keyframes drawerIn { from { transform:translateX(100%); } to { transform:none; } }
+@media (prefers-reduced-motion:reduce) {
+  .drawer-scrim, .drawer { animation:none; }
+}
 .drawer-hdr { display:flex; align-items:center; gap:12px; padding:18px 20px; border-bottom:1px solid var(--surface-container); }
 .drawer-title { font-size:16px; font-weight:700; color:var(--tp); }
 .drawer-x { margin-left:auto; border:none; background:transparent; font-size:22px; line-height:1; color:var(--tt); cursor:pointer; }
@@ -2458,3 +2479,26 @@ tr:hover td { background:var(--surface-container-low); }
 .back-btn-ic { display:inline-flex; line-height:0; }
 .back-btn-t { white-space:nowrap; }
 @media (max-width:560px) { .back-btn-t { display:none; } .back-btn { width:34px; padding:0; justify-content:center; } }
+
+/* ── 탐구 피드 한 줄 도구띠 ──
+   왼쪽은 내 관심사, 오른쪽은 지금 걸 조건. 예전에는 검색 한 줄, 키워드 한 줄,
+   기간·정렬 한 줄로 세 줄이었고 그만큼 기사가 아래로 밀렸다. */
+.feed-bar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;
+}
+.feed-bar .kw-sec-title { flex-shrink:0; margin-right:2px; }
+/* 검색은 남는 폭을 가져가되 너무 길어지지 않게 묶어 둔다 */
+.feed-bar .feed-search.is-inline {
+  flex:1 1 240px; min-width:190px; max-width:420px;
+  margin-bottom:0; padding:5px 5px 5px 14px; gap:8px;
+}
+.feed-bar .feed-search-input { font-size:13.5px; height:28px; }
+.feed-bar .feed-search-go { width:30px; height:30px; }
+.feed-bar .kw-manage { margin-left:auto; flex-shrink:0; }
+/* 조건 단추는 한 줄에 서므로 검색창과 높이를 맞춘다 */
+.feed-bar .filter-btn { height:36px; }
+@media (max-width:720px) {
+  .feed-bar { gap:8px; }
+  .feed-bar .feed-search.is-inline { flex:1 0 100%; max-width:none; order:3; }
+  .feed-bar .kw-manage { margin-left:0; }
+}

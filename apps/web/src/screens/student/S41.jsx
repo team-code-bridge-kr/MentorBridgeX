@@ -5,9 +5,12 @@
  * 전부 같은 알약으로 한 줄에 섞여 있어서, 무엇이 내 관심사이고 무엇이 지금 걸린
  * 조건인지 구분되지 않았다.
  *
- *   1. 내 관심 키워드 — 내가 등록해 둔 것 (제목 있는 별도 구역)
- *   2. 필터          — 기간·정렬 (버튼 + 팝오버)
+ *   1. 한 줄 도구띠  — 제목·검색·기간·정렬·관리 (.feed-bar)
+ *   2. 내 관심 키워드 — 내가 등록해 둔 칩들
  *   3. 현재 적용 중   — 지금 결과에 걸린 조건 (없으면 통째로 숨김)
+ *
+ * 검색·기간·정렬을 세 줄로 흩어 두면 기사가 화면 아래로 밀리고, 무엇이 조건인지도
+ * 흩어져 보인다. 조건은 한 줄에 모으고 그 아래를 전부 기사에 준다.
  *
  * 블로그형 배치(히어로 1 + 카드 3 + 줄글)와 기사 데이터 연결은 그대로 둔다.
  * 히어로·카드는 첫 페이지의 앞 4개로 고정된다 — 스크롤로 더 불러올 때마다 맨
@@ -25,6 +28,7 @@ import api from "../../api/index.js";
 import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
 import { DateRangeFilter } from "../../components/research/DateRangeFilter.jsx";
 import { InterestKeywordSection } from "../../components/research/InterestKeywordSection.jsx";
+import { SortFilter } from "../../components/research/SortFilter.jsx";
 import { KeywordManagementDrawer } from "../../components/research/KeywordManagementDrawer.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import { useExplorationFeed } from "../../hooks/useExplorationFeed.js";
@@ -189,50 +193,48 @@ export function S41({ onNav }) {
         ))}
       </div>
 
-      <form className="feed-search" onSubmit={submitSearch} role="search">
-        <NavIcon name="search" size={19} color="var(--tt)" />
-        <input
-          className="feed-search-input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="새롭게 탐구할 주제나 키워드를 입력하세요"
-          aria-label="탐구 주제 검색"
-          maxLength={60}
-        />
-        {draft && (
-          <button type="button" className="feed-search-x" aria-label="검색어 지우기"
-            onClick={() => { setDraft(""); patch({ query: "" }); }}>×</button>
-        )}
-        <button type="submit" className="feed-search-go" aria-label="검색" disabled={feed.loading}>
-          <NavIcon name="arrowRight" size={18} color="#fff" />
-        </button>
-      </form>
-
-      <InterestKeywordSection
-        groups={interests.groups}
-        selected={filters.keywords}
-        onToggle={toggleKeyword}
-        onManage={() => setDrawer(true)}
-        onRegister={() => setDrawer(true)}
-        loading={interests.loading}
-      />
-
-      <div className="filter-bar" role="group" aria-label="검색 필터">
+      {/* 상단 한 줄 — 내 관심사(왼쪽)와 지금 걸 조건(오른쪽)이 한눈에 들어온다.
+          예전에는 검색·키워드·기간·정렬이 세 줄로 흩어져 있어서, 기사가 화면
+          아래로 밀리고 무엇이 조건인지도 흩어져 보였다. */}
+      <div className="feed-bar">
+        <h2 className="kw-sec-title">내 관심 키워드</h2>
+        <form className="feed-search is-inline" onSubmit={submitSearch} role="search">
+          <NavIcon name="search" size={17} color="var(--tt)" />
+          <input
+            className="feed-search-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="탐구할 주제나 키워드 검색"
+            aria-label="탐구 주제 검색"
+            maxLength={60}
+          />
+          {draft && (
+            <button type="button" className="feed-search-x" aria-label="검색어 지우기"
+              onClick={() => { setDraft(""); patch({ query: "" }); }}>×</button>
+          )}
+          <button type="submit" className="feed-search-go" aria-label="검색" disabled={feed.loading}>
+            <NavIcon name="arrowRight" size={16} color="#fff" />
+          </button>
+        </form>
         <DateRangeFilter
           days={filters.days}
           from={filters.from}
           to={filters.to}
           onApply={(v) => patch(v)}
         />
-        <label className="filter-btn as-select">
-          정렬
-          <select value={filters.sort} onChange={(e) => patch({ sort: e.target.value })}
-            aria-label="정렬 기준">
-            <option value="latest">최신순</option>
-            <option value="oldest">오래된순</option>
-          </select>
-        </label>
+        <SortFilter value={filters.sort} onChange={(sort) => patch({ sort })} />
+        <button type="button" className="kw-manage" onClick={() => setDrawer(true)}>
+          키워드 관리
+        </button>
       </div>
+
+      <InterestKeywordSection
+        groups={interests.groups}
+        selected={filters.keywords}
+        onToggle={toggleKeyword}
+        onRegister={() => setDrawer(true)}
+        loading={interests.loading}
+      />
 
       {feed.active.length > 0 && (
         <section className="applied">
