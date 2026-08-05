@@ -2509,6 +2509,11 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .feed-card-meta { margin-top:10px; }
 .feed-card-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
-/* 2열 — "더 읽을거리"는 위 3열보다 한 칸 크게 읽혀도 된다 */
-.feed-cards.is-2col { grid-template-columns:repeat(2,minmax(0,1fr)); }
-@media (max-width:900px) { .feed-cards.is-2col { grid-template-columns:1fr; } }
+/* "더 읽을거리" — 그림 없이 한 줄씩. 담기는 것과 순서는 카드와 같다. */
+.feed-list { display:flex; flex-direction:column; }
+.feed-item { padding:20px 0; border-bottom:1px solid var(--surface-container); }
+.feed-item:first-child { padding-top:14px; }
+.feed-item .feed-topics { margin-top:0; }
+.feed-item .feed-card-title { -webkit-line-clamp:2; font-size:17px; }
+.feed-item .feed-card-sum { -webkit-line-clamp:2; max-width:74ch; }
+.feed-item.read .feed-card-title { color:var(--ts); }

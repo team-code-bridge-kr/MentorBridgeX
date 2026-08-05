@@ -96,16 +96,22 @@ function SaveButton({ item, onToggle }) {
 }
 
 /**
- * 글 카드 — 위쪽 대표 카드와 "더 읽을거리"가 **같은 컴포넌트**를 쓴다.
- * 같은 목록인데 위아래 모양이 다르면 다른 종류의 글처럼 보인다.
+ * 글 하나 — 위쪽 대표 카드와 "더 읽을거리"가 **같은 컴포넌트**를 쓴다.
+ * 같은 목록인데 모양이 갈라지면 다른 종류의 글처럼 보인다.
+ *
+ * `row` 는 그림 없이 한 줄로 세우는 꼴이다("더 읽을거리"). 뒤쪽 목록까지 큰
+ * 그림을 붙이면 훑어보기가 아니라 계속 읽는 화면이 된다. 안에 담기는 것과
+ * 그 순서(주제 → 제목 → 요약 → 출처 → 단추)는 위와 똑같이 둔다.
  */
-function FeedCard({ item, query, onOpen, onSave, onAsk }) {
+function FeedCard({ item, query, onOpen, onSave, onAsk, row }) {
   return (
-    <article className={`feed-card${item.read ? " read" : ""}`}>
-      <a href={item.url} target="_blank" rel="noopener noreferrer"
-        onClick={() => onOpen(item)} aria-label={item.title}>
-        <ArticleVisual item={item} />
-      </a>
+    <article className={`${row ? "feed-item" : "feed-card"}${item.read ? " read" : ""}`}>
+      {!row && (
+        <a href={item.url} target="_blank" rel="noopener noreferrer"
+          onClick={() => onOpen(item)} aria-label={item.title}>
+          <ArticleVisual item={item} />
+        </a>
+      )}
       <Topics item={item} query={query} />
       <a className="feed-card-title" href={item.url} target="_blank" rel="noopener noreferrer"
         onClick={() => onOpen(item)}>{item.title}</a>
@@ -379,12 +385,10 @@ export function S41({ onNav }) {
       {!feed.loading && rest.length > 0 && (
         <>
           <h2 className="feed-rest-hdr">더 읽을거리</h2>
-          {/* 앞의 카드와 **같은 모양**이다. 줄글로 늘어놓으면 오른쪽이 크게 비고,
-              같은 목록인데 위아래가 다른 물건처럼 보인다. 2열인 것은 여기가
-              "더 있는 것"이라 위 3열보다 한 칸 크게 읽혀도 되기 때문이다. */}
-          <div className="feed-cards is-2col">
+          {/* 그림 없이 한 줄씩. 담기는 것과 순서는 위 카드와 같다. */}
+          <div className="feed-list">
             {rest.map((item) => (
-              <FeedCard key={item.id} item={item} query={filters.query}
+              <FeedCard key={item.id} item={item} query={filters.query} row
                 onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} />
             ))}
           </div>
