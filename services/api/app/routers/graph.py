@@ -11,12 +11,14 @@ from app.schemas.graph import (
     GraphEdge,
     GraphNode,
     GraphSnapshot,
+    LinkSuggestion,
     NodeCreateRequest,
     NodeEvidence,
     NodePatchRequest,
+    RelationType,
     SeedRequest,
 )
-from app.services import node_evidence
+from app.services import node_evidence, node_links
 from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/v1/students/me/graph", tags=["ontology-graph"])
@@ -101,6 +103,38 @@ async def get_node_evidence(
         raise AppError("DOC_NOT_FOUND", "노드를 찾을 수 없습니다.", status_code=404)
     sections = await DocumentService().list_sections(session, user.id)
     return node_evidence.collect(node, sections)
+
+
+@router.get("/links/suggested", response_model=list[LinkSuggestion], summary="이어 볼 만한 노드 짝")
+async def suggest_links(
+    limit: int = 30,
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> list[LinkSuggestion]:
+    """생기부 **같은 문장**에 함께 나온 노드 짝을 찾아 준다.
+
+    잇지는 않는다. 근거 문장을 함께 돌려주고 결정은 학생이 한다 — 근거가 약한
+    연결이 자동으로 늘면 그래프가 다시 못 읽는 그림이 된다.
+    """
+    snapshot = await _store().get_snapshot(user.id)
+    existing = {
+        (e.source_id, e.target_id) if e.source_id < e.target_id else (e.target_id, e.source_id)
+        for e in snapshot.edges
+    }
+    sections = await DocumentService().list_sections(session, user.id)
+    found = node_links.suggest_links(snapshot.nodes, sections, existing, limit=max(1, min(limit, 60)))
+    return [
+        LinkSuggestion(
+            source_id=s.source_id,
+            target_id=s.target_id,
+            source_label=s.source_label,
+            target_label=s.target_label,
+            count=s.count,
+            section_label=s.section_label,
+            sentence=s.sentence,
+        )
+        for s in found
+    ]
 
 
 @router.delete("/nodes/{node_id}", status_code=status.HTTP_204_NO_CONTENT)

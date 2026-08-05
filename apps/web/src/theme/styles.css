@@ -2581,3 +2581,20 @@ tr:hover td { background:var(--surface-container-low); }
 @media (prefers-reduced-motion:reduce) {
   .graph-canvas::before, .graph-canvas::after { animation:none; opacity:.86; }
 }
+
+/* ── 관계 찾기 ──
+   근거 문장은 출처 문장(NodeEvidence)과 같은 재질이다 — 둘 다 "생기부에 이렇게
+   적혀 있었다"는 같은 뜻이라, 다르게 생기면 다른 종류의 정보로 읽힌다. */
+.lnk-card { padding:12px 0 14px; border-bottom:1px solid rgba(15,23,42,.07); }
+.lnk-card:last-child { border-bottom:none; }
+.lnk-pair { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:5px; }
+.lnk-name { font-size:13.5px; font-weight:700; color:var(--tp); word-break:keep-all; }
+.lnk-where { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--tt); margin-bottom:7px; }
+.lnk-count { padding:1px 7px; border-radius:9999px; background:var(--bg3); color:var(--ts); font-weight:700; }
+.lnk-quote {
+  margin:0; padding:9px 11px; border-left:3px solid var(--blue-200);
+  background:var(--surface-zebra); border-radius:0 8px 8px 0;
+  font-size:12px; line-height:1.7; color:var(--ts); word-break:keep-all;
+  max-height:120px; overflow:auto;
+}
+.lnk-acts { display:flex; gap:8px; margin-top:10px; }

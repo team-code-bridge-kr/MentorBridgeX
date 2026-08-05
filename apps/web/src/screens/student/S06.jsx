@@ -9,6 +9,7 @@ import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
+import { LinkSuggestions } from "../../components/graph/LinkSuggestions.jsx";
 
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
@@ -77,6 +78,9 @@ export function S06({ onNav }) {
   // AI 가 뽑아 준 결과가 늘 맞지는 않는다 — 학생이 그 자리에서 고칠 수 없으면
   // 그래프는 남의 것이 된다. 그래서 편집을 그래프 화면 안에 둔다.
   const [creating, setCreating] = useState(false);
+  // 이어 볼 만한 짝 — { loading, error, items }
+  const [links, setLinks] = useState(null);
+  const [linkBusy, setLinkBusy] = useState(null);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -256,7 +260,7 @@ export function S06({ onNav }) {
     if (!d) return;
     if (!d.moved) {
       const n = nodes.find(n=>n.id===d.id);
-      if (n) setSel(s => s?.id===n.id ? null : n);
+      if (n) { setLinks(null); setSel(s => s?.id===n.id ? null : n); }
     }
   }, [nodes]);
 
@@ -357,6 +361,35 @@ export function S06({ onNav }) {
     panning.current = { cx: e.clientX, cy: e.clientY, tx0: v.tx, ty0: v.ty };
     setGrabbing(true);
   }, []);
+
+  /** 생기부 같은 문장에 함께 나온 짝 찾기. */
+  const findLinks = useCallback(async () => {
+    setSel(null);
+    setCreating(false);
+    setLinks({ loading: true });
+    try {
+      setLinks({ loading: false, items: await api.graph.suggestedLinks(30) });
+    } catch (e) {
+      setLinks({ loading: false, error: e.message || "찾지 못했습니다." });
+    }
+  }, []);
+
+  const dropLink = (s) =>
+    setLinks((cur) => (cur?.items
+      ? { ...cur, items: cur.items.filter((x) => !(x.source_id === s.source_id && x.target_id === s.target_id)) }
+      : cur));
+
+  const acceptLink = useCallback(async (s) => {
+    setLinkBusy(`${s.source_id}-${s.target_id}`);
+    try {
+      await actions.connectNodes(s.source_id, s.target_id);
+      dropLink(s);
+    } catch (e) {
+      actions.toast("error", e.message || "잇지 못했습니다.");
+    } finally {
+      setLinkBusy(null);
+    }
+  }, [actions]);
 
   /** 노드 만들기. 연결할 곳을 골랐으면 만든 뒤 바로 잇는다. */
   const handleCreate = useCallback(async ({ label, section, description, parentId }) => {
@@ -483,6 +516,7 @@ export function S06({ onNav }) {
         <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
+        <Btn v="secondary" s="sm" onClick={findLinks}><NavIcon name="link" size={15} color={TDS.textSecondary}/> 관계 찾기</Btn>
         <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
         <div style={{flex:1}} />
@@ -724,6 +758,23 @@ export function S06({ onNav }) {
               busy={busy}
               onSubmit={handleCreate}
               onCancel={()=>setCreating(false)}
+            />
+          </div>
+        )}
+
+        {/* 관계 찾기 — 상세·만들기와 같은 자리에 선다 */}
+        {links && (
+          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
+            <div className="row-between mb16" style={{marginBottom:16}}>
+              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>관계 찾기</span>
+              <button onClick={()=>setLinks(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
+            </div>
+            <LinkSuggestions
+              state={links}
+              busyId={linkBusy}
+              onAccept={acceptLink}
+              onSkip={dropLink}
+              onRetry={findLinks}
             />
           </div>
         )}

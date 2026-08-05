@@ -104,6 +104,22 @@ class NodeEvidence(BaseModel):
     total: int = 0
 
 
+class LinkSuggestion(BaseModel):
+    """같은 문장에 함께 나온 두 노드 — 이어 볼 만한 짝.
+
+    근거는 `sentence` 하나뿐이다. 지어낸 유사도가 아니라 **생기부에 실제로
+    그렇게 적혀 있었다**는 사실이라, 화면에서 그대로 읽어 보고 정할 수 있다.
+    """
+
+    source_id: str
+    target_id: str
+    source_label: str
+    target_label: str
+    count: int
+    section_label: str
+    sentence: str
+
+
 class EdgeCreateRequest(BaseModel):
     source_id: str
     target_id: str
