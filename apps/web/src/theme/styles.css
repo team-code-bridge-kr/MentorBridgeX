@@ -2460,14 +2460,15 @@ tr:hover td { background:var(--surface-container-low); }
   display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;
 }
 .feed-bar .kw-sec-title { flex-shrink:0; margin-right:2px; }
-/* 검색은 남는 폭을 가져가되 너무 길어지지 않게 묶어 둔다 */
+/* 검색은 남는 폭을 **전부** 가져간다. 조건 단추 둘만 오른쪽에 서면 되므로
+   좁혀 둘 이유가 없다 — 검색어는 문장에 가까울 때가 많다. */
 .feed-bar .feed-search.is-inline {
-  flex:1 1 240px; min-width:190px; max-width:420px;
-  margin-bottom:0; padding:5px 5px 5px 14px; gap:8px;
+  flex:1 1 auto; min-width:220px;
+  margin-bottom:0; padding:5px 5px 5px 16px; gap:8px;
 }
 .feed-bar .feed-search-input { font-size:13.5px; height:28px; }
 .feed-bar .feed-search-go { width:30px; height:30px; }
-.feed-bar .kw-manage { margin-left:auto; flex-shrink:0; }
+
 /* 조건 단추는 한 줄에 서므로 검색창과 높이를 맞춘다 */
 .feed-bar .filter-btn { height:36px; }
 @media (max-width:720px) {
@@ -2480,6 +2481,8 @@ tr:hover td { background:var(--surface-container-low); }
 .kw-line { display:flex; align-items:flex-start; gap:12px; margin-bottom:18px; }
 .kw-line .kw-sec-title { flex-shrink:0; padding-top:8px; }
 .kw-line .kw-sec { flex:1; min-width:0; margin-bottom:0; }
+/* 키워드 관리는 자기가 다루는 것(칩) 과 같은 줄, 오른쪽 끝 */
+.kw-line .kw-manage { flex-shrink:0; padding-top:7px; }
 
 /* 추천 이유의 키워드 — 문맥 카드(.ctx-kw)와 같은 알약 */
 
@@ -2508,7 +2511,11 @@ tr:hover td { background:var(--surface-container-low); }
   margin-top:8px; font-size:13.5px; line-height:1.7; color:var(--ts); word-break:keep-all;
 }
 .feed-card-meta { margin-top:10px; }
+/* 두 줄로 선다: 위는 취향(내 반응), 아래는 실행(질문·저장). 첫 줄만 여백이
+   크고 둘째 줄은 붙여 둔다 — 두 줄이 한 덩어리로 읽혀야 한다. */
 .feed-card-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
+.feed-card-acts + .feed-card-acts { margin-top:6px; }
+.feed-hero-actions + .feed-hero-actions { margin-top:6px; }
 /* "더 읽을거리" — 그림 없이 글만, **두 칸**으로 세운다. 한 칸으로 늘어놓으면
    글 한 줄이 화면 폭을 다 쓰지 못해 오른쪽이 크게 빈다.
    담기는 것과 순서는 위 카드와 같다. */
@@ -2534,9 +2541,15 @@ tr:hover td { background:var(--surface-container-low); }
   font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
   transition:background .12s, color .12s, border-color .12s;
 }
-.taste-btn:hover { background:var(--bg3); color:var(--tp); }
+/* 좋아요는 파랑, 관심 없어요는 빨강. 하는 일이 반대라 색도 갈라 둔다 —
+   글자까지 같은 회색이면 둘 중 무엇을 눌렀는지 손이 기억하지 못한다. */
+.taste-btn { color:var(--primary); }
+.taste-btn.is-no { color:var(--danger); }
+.taste-btn:hover { background:var(--blue-50); }
+.taste-btn.is-no:hover { background:var(--dangerbg); }
 .taste-btn:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
-.taste-btn.is-on { background:var(--blue-50); border-color:var(--blue-200); color:var(--primary); }
+.taste-btn.is-no:focus-visible { outline-color:var(--danger); }
+.taste-btn.is-on { background:var(--blue-50); border-color:var(--blue-200); }
 
 /* 팝오버 항목의 부연 — 무엇을 고르는지 한 줄로 */
 .pop-item-hint { margin-left:8px; font-size:11.5px; font-weight:500; color:var(--tt); }

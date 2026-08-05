@@ -97,16 +97,16 @@ function TasteButtons({ item, onFeedback }) {
         title={liked ? "좋아요 취소" : "이런 주제를 더 보고 싶어요"}
         onClick={() => onFeedback(item, liked ? "none" : "like")}
       >
-        <NavIcon name="thumbUp" size={14} color={liked ? "var(--primary)" : "var(--ts)"} />
-        {liked ? "좋아요" : "좋아요"}
+        <NavIcon name="thumbUp" size={14} color="var(--primary)" />
+        좋아요
       </button>
       <button
         type="button"
-        className="taste-btn"
+        className="taste-btn is-no"
         title="이 글을 목록에서 빼고 다시 보지 않기"
         onClick={() => onFeedback(item, "hide")}
       >
-        <NavIcon name="thumbDown" size={14} color="var(--ts)" />
+        <NavIcon name="thumbDown" size={14} color="var(--danger)" />
         관심 없어요
       </button>
     </>
@@ -153,13 +153,17 @@ function FeedCard({ item, query, onOpen, onSave, onAsk, onFeedback, row }) {
       <div className="feed-meta feed-card-meta">
         {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
       </div>
+      {/* 두 줄로 나눈다. 넷을 한 줄에 두면 좁은 칸에서 마지막 하나만 다음 줄로
+          떨어져 짝이 어긋나 보인다. 위는 취향(내 반응), 아래는 실행이다. */}
+      <div className="feed-card-acts">
+        <TasteButtons item={item} onFeedback={onFeedback} />
+      </div>
       <div className="feed-card-acts">
         <button type="button" className="rs-save ask-ai" onClick={() => onAsk(item)}>
           <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
           Bridge AI에게 질문
         </button>
         <SaveButton item={item} onToggle={onSave} />
-        <TasteButtons item={item} onFeedback={onFeedback} />
       </div>
     </article>
   );
@@ -354,9 +358,6 @@ export function S41({ onNav }) {
           onApply={(v) => patch(v)}
         />
         <SortFilter value={filters.sort} onChange={(sort) => patch({ sort })} />
-        <button type="button" className="kw-manage" onClick={() => setDrawer(true)}>
-          키워드 관리
-        </button>
       </div>
 
       <div className="kw-line">
@@ -368,6 +369,9 @@ export function S41({ onNav }) {
           onRegister={() => setDrawer(true)}
           loading={interests.loading}
         />
+        <button type="button" className="kw-manage" onClick={() => setDrawer(true)}>
+          키워드 관리
+        </button>
       </div>
 
       {feed.active.length > 0 && (
@@ -427,12 +431,14 @@ export function S41({ onNav }) {
               {hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}
             </div>
             <div className="feed-hero-actions">
+              <TasteButtons item={hero} onFeedback={setFeedback} />
+            </div>
+            <div className="feed-hero-actions">
               <button type="button" className="btn btn-secondary btn-sm ask-ai" onClick={() => askMbx(hero)}>
                 <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
                 Bridge AI에게 질문
               </button>
               <SaveButton item={hero} onToggle={toggleSave} />
-              <TasteButtons item={hero} onFeedback={setFeedback} />
             </div>
           </div>
         </article>
