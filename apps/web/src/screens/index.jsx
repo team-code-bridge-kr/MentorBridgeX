@@ -13,7 +13,6 @@ import { S12 } from "./student/S12.jsx";
 import { S13 } from "./student/S13.jsx";
 import { S14 } from "./student/S14.jsx";
 import { S15 } from "./student/S15.jsx";
-import { S16 } from "./student/S16.jsx";
 import { S17 } from "./student/S17.jsx";
 import { S18 } from "./student/S18.jsx";
 import { S19 } from "./student/S19.jsx";
@@ -86,7 +85,7 @@ export function renderScreen(id, onNav) {
     S10:<S10 onNav={onNav}/>,S11:<S11 onNav={onNav}/>,
     S12:<S12 onNav={onNav}/>,S13:<S13 onNav={onNav}/>,
     S14:<S14 onNav={onNav}/>,S15:<S15 onNav={onNav}/>,
-    S16:<S16 onNav={onNav}/>,S17:<S17 onNav={onNav}/>,
+    S17:<S17 onNav={onNav}/>,
     S18:<S18 onNav={onNav}/>,S19:<S19 onNav={onNav}/>,
     S20:<S20 onNav={onNav}/>,S21:<S21 onNav={onNav}/>,
     S22:<S22 onNav={onNav}/>,S23:<S23 onNav={onNav}/>,
@@ -125,7 +124,7 @@ export function renderScreen(id, onNav) {
 ────────────────────────────────────────────────────────────── */
 /* 역할 공용 화면: 음성·양식·알림·설정 등은 학생/교사가 함께 사용 →
    어느 역할로 로그인해도 접근 가능하고, 현재 로그인한 역할의 레이아웃(사이드바)로 표시 */
-const SHARED_SCREENS = ["S15","S16","S17","S18","S19","S20","S21","S22","S25","S26","S30","S31","S32"];
+const SHARED_SCREENS = ["S15","S17","S18","S19","S20","S21","S22","S25","S26","S30","S31","S32"];
 function getLayout(s, sessionRole){
   if(["S01","S03","S04","A00"].includes(s))return "full";
   // 공용 화면(음성·양식·알림·설정)은 현재 로그인한 역할의 레이아웃으로 표시
@@ -136,7 +135,7 @@ function getLayout(s, sessionRole){
   if(s.startsWith("A"))return "admin";
   return "student";
 }
-const NO_HDR=["S06","S16","T07","T08"];
+const NO_HDR=["S06","T07","T08"];
 
 /* ──────────────────────────────────────────────────────────────
    SCREEN PICKER FAB

@@ -682,7 +682,9 @@ export function S06({ onNav }) {
             )}
 
             {/* 줌 컨트롤 — 휠/드래그와 같은 상태를 쓴다 */}
-            <div data-graph-panel style={{position:"absolute",bottom:16,right:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
+            {/* 오른쪽 아래는 녹음 도크가 쓰는 자리다. 겹치지 않게 왼쪽에 둔다 —
+                두 조작부가 같은 모서리에 있으면 어느 쪽을 누르는지 헷갈린다. */}
+            <div data-graph-panel style={{position:"absolute",bottom:16,left:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
               {[
                 { key:"in",    text:"+", title:"확대",       onClick:()=>zoomByButton(ZOOM.step) },
                 { key:"out",   text:"−", title:"축소",       onClick:()=>zoomByButton(1/ZOOM.step) },

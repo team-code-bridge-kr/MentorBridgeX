@@ -12,6 +12,7 @@ import { Toast } from "./components/Toast.jsx";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
 import { GlobalHeader } from "./components/layout/GlobalHeader.jsx";
 import { ScreenPicker } from "./components/ScreenPicker.jsx";
+import { VoiceDock } from "./components/voice/VoiceDock.jsx";
 import { renderScreen } from "./screens/index.jsx";
 import { S_NAV, T_NAV, A_NAV, TITLES, NO_HDR, NAV_ALIAS,
          SHARED_SCREENS, getLayout } from "./nav/menus.js";
@@ -203,6 +204,9 @@ function AppShell() {
           </div>
         </div>
       </div>
+      {/* 녹음 도크는 화면 밖(껍데기)에 있다. 그래야 화면을 옮겨도 다시 그려지지
+          않아 녹음이 이어진다 — 화면 안에 두면 이동하는 순간 끊긴다. */}
+      {session && <VoiceDock onNav={nav} />}
       {devPicker}
     </>
   );

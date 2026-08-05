@@ -11,7 +11,7 @@ const ALL_SCREENS=[
   {id:"S08",icon:"🔗",label:"엣지 상세",g:"학생"},{id:"S09",icon:"➕",label:"시드 추가",g:"학생"},
   {id:"S10",icon:"📜",label:"변경 이력",g:"학생"},{id:"S12",icon:"✏️",label:"텍스트 편집",g:"학생"},
   {id:"S13",icon:"📎",label:"PDF 업로드",g:"학생"},{id:"S14",icon:"🔍",label:"파싱 결과",g:"학생"},
-  {id:"S16",icon:"🔴",label:"녹음 중",g:"학생"},{id:"S17",icon:"📋",label:"보고서 검토",g:"학생"},
+  {id:"S17",icon:"📋",label:"보고서 검토",g:"학생"},
   {id:"S18",icon:"👥",label:"참여자 관리",g:"학생"},{id:"S19",icon:"🤝",label:"매칭 제안",g:"학생"},
   {id:"S21",icon:"📄",label:"결과물 목록",g:"학생"},{id:"S22",icon:"📖",label:"결과물 상세",g:"학생"},
   {id:"S23",icon:"✂️",label:"가지치기 추천",g:"학생"},{id:"S26",icon:"📰",label:"피드",g:"학생"},

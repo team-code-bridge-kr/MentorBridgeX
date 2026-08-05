@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Empty } from "../../components/ui.jsx";
 import api from "../../api/index.js";
+import { openVoiceDock } from "../../components/voice/VoiceDock.jsx";
 
 export function S15({ onNav }) {
   const [sessions, setSessions] = useState([]);
@@ -24,15 +25,10 @@ export function S15({ onNav }) {
     return () => { cancelled = true; };
   }, []);
 
-  const startNew = async () => {
-    try {
-      const s = await api.voice.createSession(`녹음 ${new Date().toLocaleString("ko-KR")}`);
-      sessionStorage.setItem("mbx_voice_session", s.id);
-      onNav("S16");
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
+  // 녹음은 이 화면이 아니라 도크에서 한다. 녹음할 상황은 다른 일을 하는 도중에
+  // 생기는데, 녹음 화면으로 옮겨 가야 하면 하던 일을 멈춰야 하기 때문이다.
+  // 이 화면은 지난 녹음을 모아 보는 자리로 남는다.
+  const startNew = () => openVoiceDock();
 
   const open = (s) => {
     sessionStorage.setItem("mbx_voice_session", s.id);
@@ -42,7 +38,7 @@ export function S15({ onNav }) {
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div className="sec-sub" style={{ marginBottom: 0 }}>녹음은 서버에 저장되지 않고 STT 텍스트만 보관합니다 (≤5MB)</div>
+        <div className="sec-sub" style={{ marginBottom: 0 }}>오른쪽 아래 마이크 단추로 어느 화면에서든 녹음할 수 있습니다. 소리는 저장하지 않고 옮겨 적은 글만 남습니다 (≤5MB)</div>
         <Btn v="primary" onClick={startNew}><TFI>🎙️</TFI> 새 녹음 시작</Btn>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}

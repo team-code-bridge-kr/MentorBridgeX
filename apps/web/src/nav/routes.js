@@ -13,12 +13,21 @@ export function screenToPath(id) {
   return `/${id}`;
 }
 
+/**
+ * 없앤 화면 → 그 일을 이어받은 화면.
+ * 예전 주소를 눌러도 빈 화면이 나오지 않게 한다.
+ *   S16(녹음 중) — 녹음은 화면이 아니라 도크(VoiceDock)가 맡는다. 목록으로 보낸다.
+ */
+const RETIRED = { S16: "S15", S27: "S44" };
+
 export function pathToScreen(pathname) {
   if (!pathname || pathname === "/") return null;
   if (pathname.startsWith("/oauth/callback")) return "S02";
   if (pathname === "/login") return "S01";
   const m = pathname.match(/^\/([STA]\d+)$/i);
-  return m ? m[1].toUpperCase() : null;
+  if (!m) return null;
+  const id = m[1].toUpperCase();
+  return RETIRED[id] || id;
 }
 
 export function homeScreenForRole(role, grade) {
