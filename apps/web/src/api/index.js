@@ -57,6 +57,8 @@ function fmtDur(sec) {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   if (h) return `${h}시간 ${m}분`;
+  // 1분이 안 되는 녹음을 "0분" 이라고 하면 녹음이 안 된 것처럼 보인다.
+  if (!m) return `${Math.round(s)}초`;
   return `${m}분`;
 }
 

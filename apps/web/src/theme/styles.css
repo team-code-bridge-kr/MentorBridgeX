@@ -2353,12 +2353,36 @@ tr:hover td { background:var(--surface-container-low); }
 .vdock-btn.is-primary { background:var(--blue-500); border-color:transparent; color:#fff; }
 .vdock-btn.is-primary:hover { background:var(--blue-600); color:#fff; }
 
+/* 목록 한 줄 = 열기(넓은 쪽) + 이름 바꾸기(연필). 연필은 평소 옅게 두되
+   숨기지는 않는다 — 아예 감추면 있는 줄도 모른다. */
+.vdock-row { display:flex; align-items:center; gap:2px; }
+.vdock-row .rn-form { padding:4px 2px; }
 .vdock-item {
-  display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
+  flex:1; min-width:0;
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px;
   padding:9px 10px; border:none; border-radius:10px; background:transparent;
   cursor:pointer; font-family:inherit; text-align:left;
 }
 .vdock-item:hover { background:var(--bg2); }
+.vdock-pen {
+  flex-shrink:0; width:28px; height:28px; border:none; border-radius:8px;
+  background:transparent; cursor:pointer; opacity:.45;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:opacity .12s, background .12s;
+}
+.vdock-row:hover .vdock-pen { opacity:1; }
+.vdock-pen:hover { background:var(--bg3); }
+/* 방금 녹음한 것의 이름 — 눌러서 그 자리에서 고친다 */
+.vdock-name {
+  display:inline-flex; align-items:center; gap:6px; max-width:100%;
+  margin-bottom:9px; padding:3px 7px; border:1px solid transparent; border-radius:8px;
+  background:var(--bg2); cursor:pointer; font-family:inherit;
+}
+.vdock-name:hover { border-color:var(--brd); }
+.vdock-name-t {
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; font-weight:600; color:var(--ts);
+}
 .vdock-item-t { font-size:13px; font-weight:600; color:var(--tp); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vdock-item-m { font-size:11.5px; color:var(--tt); }
 .vdock-err { margin:10px 0 0; font-size:12px; color:var(--danger); line-height:1.55; word-break:keep-all; }
@@ -2396,3 +2420,16 @@ tr:hover td { background:var(--surface-container-low); }
   .vdock-fab { right:14px; bottom:74px; }
   .vdock { right:14px; bottom:138px; }
 }
+
+/* 녹음 목록의 이름 — 눌러서 그 자리에서 고친다 */
+.sess-name {
+  display:inline-flex; align-items:center; gap:7px; max-width:100%;
+  margin:0 0 4px -6px; padding:2px 6px; border:1px solid transparent; border-radius:8px;
+  background:transparent; cursor:pointer; font-family:inherit;
+}
+.sess-name:hover { border-color:var(--brd); background:var(--bg1); }
+.sess-name-t {
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:15px; font-weight:600; color:var(--tp);
+}
+.sess-card .rn-form { padding:0 0 4px; }

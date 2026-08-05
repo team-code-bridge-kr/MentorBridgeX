@@ -16,6 +16,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import TDS from "../../theme/tokens.js";
 import { NavIcon } from "../NavIcon.jsx";
 import api from "../../api/index.js";
+import { RenameField } from "../dashboard/RenameField.jsx";
+import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 
 /** 다른 화면에서 도크를 열 때 쓴다. */
 export const VOICE_OPEN = "mbx:voice-open";
@@ -42,6 +44,8 @@ export function VoiceDock({ onNav }) {
   const [recent, setRecent] = useState([]);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
+  // 이름을 고치는 중인 녹음 id
+  const [renaming, setRenaming] = useState(null);
 
   const recRef = useRef(null);
   const chunksRef = useRef([]);
@@ -180,6 +184,19 @@ export function VoiceDock({ onNav }) {
     teardownMeter();
   }, [teardownMeter]);
 
+  /** 녹음 이름 바꾸기. 서버가 붙인 "녹음 26. 8. 5. …" 로는 나중에 못 찾는다. */
+  const rename = useCallback(async (id, title) => {
+    setRenaming(null);
+    setRecent((list) => list.map((s) => (s.id === id ? { ...s, t: title } : s)));
+    setResult((r) => (r?.id === id ? { ...r, t: title } : r));
+    try {
+      await api.voice.patchSession(id, { title });
+      notifyActivityChanged();  // 최근 활동에도 이 녹음이 이름으로 떠 있다
+    } catch (e) {
+      setErr(e.message || "이름을 바꾸지 못했습니다.");
+    }
+  }, []);
+
   const openReview = (id) => {
     sessionStorage.setItem("mbx_voice_session", id);
     setOpen(false);
@@ -231,6 +248,22 @@ export function VoiceDock({ onNav }) {
                       : `${fmt(result.duration_sec || sec)} 녹음을 글로 옮겼어요`}
                   {result.stt_mode === "mock" && <span className="vdock-tag">모의</span>}
                 </div>
+
+                {/* 이름은 방금 녹음한 지금이 가장 붙이기 좋다. 목록에서 나중에
+                    고치려면 어느 것이 무엇이었는지 이미 잊는다. */}
+                {renaming === result.id ? (
+                  <RenameField
+                    value={result.t}
+                    label="녹음 이름"
+                    onSave={(title) => rename(result.id, title)}
+                    onCancel={() => setRenaming(null)}
+                  />
+                ) : (
+                  <button type="button" className="vdock-name" onClick={() => setRenaming(result.id)}>
+                    <span className="vdock-name-t">{result.t}</span>
+                    <NavIcon name="pen" size={12} color={TDS.textTertiary} />
+                  </button>
+                )}
                 {result.transcript
                   ? <p className="vdock-quote">{result.transcript}</p>
                   : <p className="vdock-hint">
@@ -256,20 +289,38 @@ export function VoiceDock({ onNav }) {
 
             {phase === "idle" && (
               <div className="vdock-idle">
-                <p className="vdock-hint">
-                  멘토링·발표를 녹음하면 글로 옮겨 탐구 기록에 씁니다.
-                  <br />소리는 서버에 남기지 않습니다.
-                </p>
-                {!!recent.length && (
+                {recent.length ? (
                   <>
                     <div className="vdock-sub">최근 녹음</div>
                     {recent.map((s) => (
-                      <button key={s.id} type="button" className="vdock-item" onClick={() => openReview(s.id)}>
-                        <span className="vdock-item-t">{s.t}</span>
-                        <span className="vdock-item-m">{s.date} · {s.dur}</span>
-                      </button>
+                      <div key={s.id} className="vdock-row">
+                        {renaming === s.id ? (
+                          <RenameField
+                            value={s.t}
+                            label="녹음 이름"
+                            onSave={(title) => rename(s.id, title)}
+                            onCancel={() => setRenaming(null)}
+                          />
+                        ) : (
+                          <>
+                            <button type="button" className="vdock-item" onClick={() => openReview(s.id)}>
+                              <span className="vdock-item-t">{s.t}</span>
+                              <span className="vdock-item-m">{s.date} · {s.dur}</span>
+                            </button>
+                            <button
+                              type="button" className="vdock-pen" title="이름 바꾸기"
+                              aria-label={`${s.t} 이름 바꾸기`}
+                              onClick={() => setRenaming(s.id)}
+                            >
+                              <NavIcon name="pen" size={13} color={TDS.textTertiary} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     ))}
                   </>
+                ) : (
+                  <p className="vdock-hint">아직 녹음이 없습니다.</p>
                 )}
               </div>
             )}
