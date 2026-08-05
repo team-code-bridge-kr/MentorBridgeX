@@ -176,6 +176,28 @@ class UserReadRow(Base):
     saved: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class ArticleFeedbackRow(Base):
+    """이 글이 내 취향이었는지.
+
+    읽음·저장(user_reads)과 **따로 둔다.** 저장은 "나중에 다시 볼 것"이고
+    이건 "이런 걸 더/그만 보고 싶다"라서, 한 행에 섞으면 저장을 지울 때
+    취향까지 지워진다.
+
+    값은 둘뿐이다:
+      like — 이런 주제를 더 보고 싶다 (정렬 '취향순'이 이 주제를 앞으로 올린다)
+      hide — 관심 없다 (목록에서 빼고 다시 보여주지 않는다)
+
+    개인정보로 취급 — 계정 삭제 시 함께 지운다.
+    """
+
+    __tablename__ = "article_feedback"
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    article_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    value: Mapped[str] = mapped_column(String(8))  # like | hide
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class FetchLogRow(Base):
     """소스별 수집 결과. 개인 식별 정보는 넣지 않는다."""
 

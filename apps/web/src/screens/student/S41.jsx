@@ -79,6 +79,40 @@ function Topics({ item, query }) {
   );
 }
 
+/**
+ * 취향 단추 — 따봉(더 보고 싶다) / 관심 없어요.
+ *
+ * 이 둘은 **하는 일이 다르다.** 따봉은 정렬 "취향순"이 그 주제를 앞으로 올리는
+ * 근거가 되고(누른다고 지금 목록이 바뀌지는 않는다), 관심 없어요는 이 글을
+ * 그 자리에서 목록에서 뺀다. 그래서 관심 없어요만 사라지는 동작을 갖는다.
+ */
+function TasteButtons({ item, onFeedback }) {
+  const liked = item.feedback === "like";
+  return (
+    <>
+      <button
+        type="button"
+        className={`taste-btn${liked ? " is-on" : ""}`}
+        aria-pressed={liked}
+        title={liked ? "좋아요 취소" : "이런 주제를 더 보고 싶어요"}
+        onClick={() => onFeedback(item, liked ? "none" : "like")}
+      >
+        <NavIcon name="thumbUp" size={14} color={liked ? "var(--primary)" : "var(--ts)"} />
+        {liked ? "좋아요" : "좋아요"}
+      </button>
+      <button
+        type="button"
+        className="taste-btn"
+        title="이 글을 목록에서 빼고 다시 보지 않기"
+        onClick={() => onFeedback(item, "hide")}
+      >
+        <NavIcon name="thumbDown" size={14} color="var(--ts)" />
+        관심 없어요
+      </button>
+    </>
+  );
+}
+
 function SaveButton({ item, onToggle }) {
   return (
     <button
@@ -103,7 +137,7 @@ function SaveButton({ item, onToggle }) {
  * 그림을 붙이면 훑어보기가 아니라 계속 읽는 화면이 된다. 안에 담기는 것과
  * 그 순서(주제 → 제목 → 요약 → 출처 → 단추)는 위와 똑같이 둔다.
  */
-function FeedCard({ item, query, onOpen, onSave, onAsk, row }) {
+function FeedCard({ item, query, onOpen, onSave, onAsk, onFeedback, row }) {
   return (
     <article className={`${row ? "feed-item" : "feed-card"}${item.read ? " read" : ""}`}>
       {!row && (
@@ -120,20 +154,19 @@ function FeedCard({ item, query, onOpen, onSave, onAsk, row }) {
         {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
       </div>
       <div className="feed-card-acts">
-        <a className="btn btn-primary btn-sm" href={item.url} target="_blank" rel="noopener noreferrer"
-          onClick={() => onOpen(item)}>원문 보기</a>
         <button type="button" className="rs-save ask-ai" onClick={() => onAsk(item)}>
           <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
           Bridge AI에게 질문
         </button>
         <SaveButton item={item} onToggle={onSave} />
+        <TasteButtons item={item} onFeedback={onFeedback} />
       </div>
     </article>
   );
 }
 
 export function S41({ onNav }) {
-  const { state } = useStore();
+  const { state, actions } = useStore();
   const interests = useInterestKeywords();
   const feed = useExplorationFeed({
     groups: interests.groups,
@@ -145,6 +178,8 @@ export function S41({ onNav }) {
   const [drawer, setDrawer] = useState(false);
   const [checkedProfile, setCheckedProfile] = useState(false);
   const sentinel = useRef(null);
+  // 좋아요가 무엇을 하는지 한 세션에 한 번만 알린다
+  const toldTaste = useRef(false);
 
   // 온보딩 게이트 — 관심 분야를 아직 고르지 않았으면 온보딩으로 보낸다
   useEffect(() => {
@@ -184,6 +219,37 @@ export function S41({ onNav }) {
     } catch {
       // 실패하면 되돌린다 — 저장된 줄 알고 넘어가면 안 된다
       feed.setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, saved: !next } : i)));
+    }
+  };
+
+  /**
+   * 취향 표시. "관심 없어요"는 그 자리에서 목록에서 뺀다 — 안 보이겠다고
+   * 눌렀는데 그대로 남아 있으면 눌린 건지 알 수 없다.
+   */
+  const setFeedback = async (item, value) => {
+    if (value === "hide") {
+      feed.setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } else {
+      // 좋아요는 지금 목록을 바꾸지 않는다. 그래서 **무엇을 위한 표시인지**
+      // 한 번은 말해 준다 — 안 그러면 눌러도 아무 일이 없는 단추가 된다.
+      if (value === "like" && filters.sort !== "taste" && !toldTaste.current) {
+        toldTaste.current = true;
+        actions.toast("info", "정렬을 ‘취향순’으로 두면 좋아요한 주제를 먼저 봅니다.");
+      }
+      feed.setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, feedback: value === "none" ? "" : value } : i)),
+      );
+    }
+    try {
+      await api.research.setFeedback(item.id, value);
+    } catch {
+      // 실패하면 되돌린다 — 반영된 줄 알고 넘어가면 안 된다
+      if (value === "hide") feed.retry();
+      else {
+        feed.setItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, feedback: item.feedback || "" } : i)),
+        );
+      }
     }
   };
 
@@ -361,13 +427,12 @@ export function S41({ onNav }) {
               {hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}
             </div>
             <div className="feed-hero-actions">
-              <a className="btn btn-primary btn-sm" href={hero.url} target="_blank" rel="noopener noreferrer"
-                onClick={() => openArticle(hero)}>원문 보기</a>
               <button type="button" className="btn btn-secondary btn-sm ask-ai" onClick={() => askMbx(hero)}>
                 <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
                 Bridge AI에게 질문
               </button>
               <SaveButton item={hero} onToggle={toggleSave} />
+              <TasteButtons item={hero} onFeedback={setFeedback} />
             </div>
           </div>
         </article>
@@ -377,7 +442,7 @@ export function S41({ onNav }) {
         <div className="feed-cards">
           {cards.map((item) => (
             <FeedCard key={item.id} item={item} query={filters.query}
-              onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} />
+              onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} onFeedback={setFeedback} />
           ))}
         </div>
       )}
@@ -389,7 +454,7 @@ export function S41({ onNav }) {
           <div className="feed-list">
             {rest.map((item) => (
               <FeedCard key={item.id} item={item} query={filters.query} row
-                onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} />
+                onOpen={openArticle} onSave={toggleSave} onAsk={askMbx} onFeedback={setFeedback} />
             ))}
           </div>
         </>

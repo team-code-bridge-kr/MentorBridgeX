@@ -28,10 +28,12 @@ from app.features.onboarding.service import login_state
 
 from .feed import (
     DEFAULT_LIMIT,
+    FEEDBACK_VALUES,
     MAX_LIMIT,
     MAX_QUERY_LEN,
     PERIODS,
     SORT_LATEST,
+    SORT_TASTE,
     SORTS,
     TAB_ALL,
     TAB_SAVED,
@@ -39,6 +41,7 @@ from .feed import (
     build_feed_query,
     decode_cursor,
     encode_cursor,
+    liked_topics,
     load_keywords,
     matched_keywords,
 )
@@ -46,6 +49,7 @@ from .ingest.runner import run_ingest
 from .models import (
     KW_MANUAL,
     KW_PRESET,
+    ArticleFeedbackRow,
     ArticleTermRow,
     FetchLogRow,
     ResearchProfileRow,
@@ -58,6 +62,7 @@ from .models import (
 from .schemas import (
     ArticleOut,
     DiscoverOut,
+    FeedbackIn,
     FeedOut,
     FetchLogOut,
     IngestRunOut,
@@ -287,7 +292,7 @@ async def get_feed(
     ] = None,
     date_from: Annotated[str | None, Query(alias="from", description="시작일 YYYY-MM-DD")] = None,
     date_to: Annotated[str | None, Query(alias="to", description="종료일 YYYY-MM-DD")] = None,
-    sort: Annotated[str, Query(description="latest | oldest")] = SORT_LATEST,
+    sort: Annotated[str, Query(description="latest | oldest | taste")] = SORT_LATEST,
 ) -> FeedOut:
     db = _require_db(session)
     if tab not in TABS:
@@ -298,6 +303,10 @@ async def get_feed(
     if not keywords and not query and tab != TAB_SAVED:
         # 온보딩 전 — 키워드도 검색어도 없으면 매칭할 것이 없다
         return FeedOut(items=[], next_cursor=None)
+
+    wanted_sort = sort if sort in SORTS else SORT_LATEST
+    # 취향순일 때만 좋아요를 들춘다. 다른 정렬에서는 쓸 일이 없다.
+    preferred = await liked_topics(db, user.id, keywords) if wanted_sort == SORT_TASTE else []
 
     stmt = build_feed_query(
         user_id=user.id,
@@ -311,9 +320,24 @@ async def get_feed(
         date_from=_parse_day(date_from),
         # 종료일은 그날 하루를 포함해야 한다 — 23:59:59 까지 본다
         date_to=_parse_day(date_to, end_of_day=True),
-        sort=sort if sort in SORTS else SORT_LATEST,
+        sort=wanted_sort,
+        preferred=preferred,
     )
     rows = (await db.execute(stmt)).all()
+
+    # 화면에 지금 상태를 그대로 보여주려면 이 페이지의 글에 남긴 표시가 필요하다.
+    marks: dict[str, str] = {}
+    if rows:
+        ids = [article.id for article, _ in rows]
+        for aid, value in (
+            await db.execute(
+                select(ArticleFeedbackRow.article_id, ArticleFeedbackRow.value).where(
+                    ArticleFeedbackRow.user_id == user.id,
+                    ArticleFeedbackRow.article_id.in_(ids),
+                )
+            )
+        ).all():
+            marks[aid] = value
 
     items = [
         ArticleOut(
@@ -330,6 +354,7 @@ async def get_feed(
             matched_keywords=matched_keywords(article.search_text, keywords),
             read=read_row is not None,
             saved=bool(read_row and read_row.saved),
+            feedback=marks.get(article.id, ""),
         )
         for article, read_row in rows
     ]
@@ -337,7 +362,9 @@ async def get_feed(
     next_cursor = None
     if len(items) == limit:
         last_article = rows[-1][0]
-        next_cursor = encode_cursor(last_article.published_at, last_article.id)
+        # 취향순이면 커서에 "선호 묶음인지"까지 담아야 다음 페이지가 어긋나지 않는다
+        last_pref = 1 if preferred and matched_keywords(last_article.search_text, preferred) else 0
+        next_cursor = encode_cursor(last_article.published_at, last_article.id, last_pref)
     return FeedOut(items=items, next_cursor=next_cursor)
 
 
@@ -416,6 +443,47 @@ async def mark_read(body: ReadIn, user: CurrentUser, session: DbSession) -> OkOu
     return OkOut()
 
 
+@router.post("/feedback", response_model=OkOut, summary="취향 표시 (좋아요 / 관심 없음)")
+async def set_feedback(body: FeedbackIn, user: CurrentUser, session: DbSession) -> OkOut:
+    """이 글이 취향에 맞았는지 남긴다.
+
+    `like` 는 정렬 '취향순'이 그 주제를 앞으로 올리는 근거가 되고,
+    `hide` 는 목록에서 빼고 다시 보여주지 않는다. `none` 은 표시를 지운다.
+
+    저장(user_reads.saved)과 따로 둔다 — 저장은 "다시 볼 것", 이건 "더/그만
+    보고 싶다"라서 뜻이 다르다.
+    """
+    db = _require_db(session)
+    value = (body.value or "").strip().lower()
+    if value in {"", "none"}:
+        await db.execute(
+            delete(ArticleFeedbackRow).where(
+                ArticleFeedbackRow.user_id == user.id,
+                ArticleFeedbackRow.article_id == body.article_id,
+            )
+        )
+        await db.commit()
+        return OkOut()
+
+    if value not in FEEDBACK_VALUES:
+        raise AppError(
+            "RESEARCH_BAD_FEEDBACK", f"알 수 없는 값입니다: {body.value}", status_code=400
+        )
+
+    now = await utcnow()
+    stmt = pg_insert(ArticleFeedbackRow).values(
+        user_id=user.id, article_id=body.article_id, value=value, created_at=now
+    )
+    await db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=[ArticleFeedbackRow.user_id, ArticleFeedbackRow.article_id],
+            set_={"value": stmt.excluded.value, "created_at": stmt.excluded.created_at},
+        )
+    )
+    await db.commit()
+    return OkOut()
+
+
 @router.post("/saves", response_model=OkOut, summary="저장함 토글")
 async def toggle_save(body: SaveIn, user: CurrentUser, session: DbSession) -> OkOut:
     db = _require_db(session)
@@ -437,7 +505,8 @@ async def toggle_save(body: SaveIn, user: CurrentUser, session: DbSession) -> Ok
 async def delete_my_research_data(user: CurrentUser, session: DbSession) -> OkOut:
     """관심 키워드와 읽기 이력은 개인정보다. 요청하면 전부 지운다.
 
-    지우는 것: research_profiles, user_keywords, user_reads, user_majors.
+    지우는 것: research_profiles, user_keywords, user_reads, article_feedback,
+    user_majors.
     articles 는 공용 수집 데이터라 개인과 무관하므로 남는다.
 
     관심 설정을 지웠으면 온보딩도 되돌린다. 키워드가 하나도 없는 채로 "온보딩
@@ -449,6 +518,8 @@ async def delete_my_research_data(user: CurrentUser, session: DbSession) -> OkOu
     """
     db = _require_db(session)
     await db.execute(delete(UserReadRow).where(UserReadRow.user_id == user.id))
+    # 취향 표시도 개인정보다 — 관심사를 지우면 함께 지운다
+    await db.execute(delete(ArticleFeedbackRow).where(ArticleFeedbackRow.user_id == user.id))
     await db.execute(delete(UserKeywordRow).where(UserKeywordRow.user_id == user.id))
     await db.execute(delete(ResearchProfileRow).where(ResearchProfileRow.user_id == user.id))
     await db.execute(delete(UserMajorRow).where(UserMajorRow.user_id == user.id))

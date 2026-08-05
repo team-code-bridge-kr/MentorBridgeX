@@ -147,7 +147,8 @@ export function useExplorationFeed({ groups, defaultTab }) {
       const map = { 1: "오늘", 7: "최근 1주", 30: "최근 1개월", 90: "최근 3개월" };
       list.push({ type: "days", value: "", label: map[filters.days] || `최근 ${filters.days}일` });
     }
-    if (filters.sort !== "latest") list.push({ type: "sort", value: "", label: "오래된순" });
+    if (filters.sort === "oldest") list.push({ type: "sort", value: "", label: "오래된순" });
+    if (filters.sort === "taste") list.push({ type: "sort", value: "", label: "취향순" });
     return list;
   }, [filters]);
 

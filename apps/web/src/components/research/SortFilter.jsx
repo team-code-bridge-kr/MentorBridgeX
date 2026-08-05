@@ -12,6 +12,9 @@ import { Popover } from "../ui/Popover.jsx";
 const OPTIONS = [
   { id: "latest", label: "최신순" },
   { id: "oldest", label: "오래된순" },
+  // 좋아요(따봉)한 글의 주제부터. 관련도순이 아니다 — 근거는 내가 누른
+  // 좋아요 하나뿐이고, 그 안에서는 최신순이다.
+  { id: "taste", label: "취향순", hint: "좋아요한 주제 먼저" },
 ];
 
 export function SortFilter({ value, onChange }) {
@@ -45,6 +48,7 @@ export function SortFilter({ value, onChange }) {
               onClick={() => { onChange(o.id); setOpen(false); }}
             >
               {o.label}
+              {o.hint && <span className="pop-item-hint">{o.hint}</span>}
             </button>
           ))}
         </div>

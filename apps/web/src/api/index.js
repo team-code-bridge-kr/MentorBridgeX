@@ -915,6 +915,18 @@ const api = {
         body: { article_id: articleId, saved },
       });
     },
+    /**
+     * ✅ LIVE — POST /v1/research/feedback
+     *
+     * 취향 표시. `like` 는 정렬 "취향순"이 그 주제를 앞으로 올리는 근거가 되고,
+     * `hide` 는 목록에서 빼고 다시 보여주지 않는다. `none` 은 표시를 지운다.
+     */
+    async setFeedback(articleId, value) {
+      return request("/v1/research/feedback", {
+        method: "POST",
+        body: { article_id: articleId, value: value || "none" },
+      });
+    },
     /** 읽은 글에서 자주 나온 개념 상위 N개 */
     async discover(limit = 20) {
       return request(`/v1/research/discover?limit=${limit}`);

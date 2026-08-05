@@ -60,6 +60,14 @@ class ArticleOut(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
     read: bool = False
     saved: bool = False
+    # "" | like | hide — 내가 이 글에 남긴 취향 표시
+    feedback: str = ""
+
+
+class FeedbackIn(BaseModel):
+    article_id: str
+    # like(더 보고 싶다) | hide(관심 없다) | none(표시 지우기)
+    value: str
 
 
 class FeedOut(BaseModel):

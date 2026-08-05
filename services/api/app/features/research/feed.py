@@ -13,10 +13,17 @@ import base64
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Select, and_, false, or_, select, tuple_
+from sqlalchemy import Select, and_, case, false, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import KIND_NEWS, KIND_PAPER, ArticleRow, UserKeywordRow, UserReadRow
+from .models import (
+    KIND_NEWS,
+    KIND_PAPER,
+    ArticleFeedbackRow,
+    ArticleRow,
+    UserKeywordRow,
+    UserReadRow,
+)
 
 TAB_ALL = "all"
 TAB_NEWS = "news"
@@ -34,7 +41,15 @@ PERIODS = {0, 1, 7, 30, 90, 365}
 # 있는 척하면 사용자가 고른 대로 정렬됐다고 착각한다.
 SORT_LATEST = "latest"
 SORT_OLDEST = "oldest"
-SORTS = {SORT_LATEST, SORT_OLDEST}
+# 취향순 — 좋아요(👍)한 글의 주제부터 보여주고, 그 안에서는 최신순이다.
+# **관련도순이 아니다.** 글마다 점수를 매기는 구조는 여전히 없고, 여기서 쓰는
+# 근거는 사용자가 직접 누른 좋아요 하나뿐이다.
+SORT_TASTE = "taste"
+SORTS = {SORT_LATEST, SORT_OLDEST, SORT_TASTE}
+
+FEEDBACK_LIKE = "like"
+FEEDBACK_HIDE = "hide"
+FEEDBACK_VALUES = {FEEDBACK_LIKE, FEEDBACK_HIDE}
 
 # 발행일이 미래인 글은 내보내지 않는다.
 #
@@ -47,17 +62,25 @@ SORTS = {SORT_LATEST, SORT_OLDEST}
 FUTURE_TOLERANCE = timedelta(days=2)
 
 
-def encode_cursor(published_at: datetime, article_id: str) -> str:
-    raw = f"{published_at.astimezone(UTC).isoformat()}|{article_id}"
+def encode_cursor(published_at: datetime, article_id: str, pref: int = 0) -> str:
+    """다음 페이지의 시작점.
+
+    취향순에서는 정렬 키가 (선호 여부, 발행일, id) 세 값이라 커서도 셋을 담는다.
+    앞의 두 자리만 담으면 선호 묶음과 나머지 묶음의 경계에서 페이지가 겹치거나
+    통째로 건너뛴다.
+    """
+    raw = f"{published_at.astimezone(UTC).isoformat()}|{article_id}|{pref}"
     return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
 
 
-def decode_cursor(cursor: str) -> tuple[datetime, str] | None:
+def decode_cursor(cursor: str) -> tuple[datetime, str, int] | None:
     try:
         raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
-        iso, article_id = raw.split("|", 1)
-        return datetime.fromisoformat(iso), article_id
-    except (ValueError, UnicodeDecodeError):
+        parts = raw.split("|")
+        iso, article_id = parts[0], parts[1]
+        pref = int(parts[2]) if len(parts) > 2 else 0
+        return datetime.fromisoformat(iso), article_id, pref
+    except (ValueError, IndexError, UnicodeDecodeError):
         return None  # 조작되었거나 낡은 커서 — 첫 페이지로 취급한다
 
 
@@ -121,7 +144,7 @@ def build_feed_query(
     user_id: str,
     keywords: list[str],
     tab: str,
-    cursor: tuple[datetime, str] | None,
+    cursor: tuple[datetime, str, int] | None,
     limit: int,
     query: str = "",
     days: int = 0,
@@ -129,6 +152,7 @@ def build_feed_query(
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     sort: str = SORT_LATEST,
+    preferred: list[str] | None = None,
 ) -> Select:
     stmt = select(ArticleRow, UserReadRow).join(
         UserReadRow,
@@ -143,6 +167,19 @@ def build_feed_query(
         # 저장함은 키워드와 무관하게 내가 저장한 글 전부
         stmt = stmt.where(UserReadRow.saved.is_(True))
     else:
+        # "관심 없어요" 한 글은 다시 보여주지 않는다. 저장함은 건드리지 않는다 —
+        # 직접 담아 둔 글까지 말없이 사라지면 없어진 줄 안다.
+        stmt = stmt.where(
+            ~select(ArticleFeedbackRow.article_id)
+            .where(
+                ArticleFeedbackRow.user_id == user_id,
+                ArticleFeedbackRow.article_id == ArticleRow.id,
+                ArticleFeedbackRow.value == FEEDBACK_HIDE,
+            )
+            .exists()
+        )
+
+    if tab != TAB_SAVED:
         # 검색 중에는 **내 키워드 울타리를 걷는다.** 아직 등록하지 않은 개념을
         # 찾아보려고 검색하는 것인데 등록된 키워드로 한 번 더 거르면
         # "검색해도 안 나오는" 화면이 된다.
@@ -179,17 +216,61 @@ def build_feed_query(
     if tab != TAB_SAVED:
         stmt = stmt.where(ArticleRow.published_at <= datetime.now(UTC) + FUTURE_TOLERANCE)
 
+    # 취향순 — 좋아요한 주제에 걸리는 글을 앞으로. 걸릴 게 없으면(좋아요가
+    # 없거나 주제가 안 잡히면) 최신순과 똑같이 굴러야 한다.
+    pref_expr = None
+    if sort == SORT_TASTE and preferred:
+        pref_expr = case((keyword_filter(preferred), 1), else_=0)
+
     # keyset 커서는 정렬 방향과 짝이 맞아야 한다. 방향이 뒤집히면 비교도 뒤집는다.
     ascending = sort == SORT_OLDEST
     if cursor is not None:
-        published_at, article_id = cursor
-        pair = tuple_(ArticleRow.published_at, ArticleRow.id)
-        target = tuple_(published_at, article_id)
-        stmt = stmt.where(pair > target if ascending else pair < target)
+        published_at, article_id, pref = cursor
+        if pref_expr is not None:
+            triple = tuple_(pref_expr, ArticleRow.published_at, ArticleRow.id)
+            stmt = stmt.where(triple < tuple_(pref, published_at, article_id))
+        else:
+            pair = tuple_(ArticleRow.published_at, ArticleRow.id)
+            target = tuple_(published_at, article_id)
+            stmt = stmt.where(pair > target if ascending else pair < target)
 
-    order = (
-        (ArticleRow.published_at.asc(), ArticleRow.id.asc())
-        if ascending
-        else (ArticleRow.published_at.desc(), ArticleRow.id.desc())
-    )
+    if pref_expr is not None:
+        order = (pref_expr.desc(), ArticleRow.published_at.desc(), ArticleRow.id.desc())
+    elif ascending:
+        order = (ArticleRow.published_at.asc(), ArticleRow.id.asc())
+    else:
+        order = (ArticleRow.published_at.desc(), ArticleRow.id.desc())
     return stmt.order_by(*order).limit(limit)
+
+
+async def liked_topics(session: AsyncSession, user_id: str, keywords: list[str]) -> list[str]:
+    """좋아요한 글에서 걸렸던 내 키워드들 — 취향순이 앞으로 올릴 주제.
+
+    글마다 점수를 매기는 게 아니라 **내가 직접 누른 좋아요**만 근거로 삼는다.
+    최근 것부터 40건까지만 본다 — 취향은 바뀌고, 3년 전 좋아요까지 끌고 다니면
+    지금 관심사가 묻힌다.
+    """
+    if not keywords:
+        return []
+    rows = (
+        await session.execute(
+            select(ArticleRow.search_text)
+            .join(
+                ArticleFeedbackRow,
+                and_(
+                    ArticleFeedbackRow.article_id == ArticleRow.id,
+                    ArticleFeedbackRow.user_id == user_id,
+                    ArticleFeedbackRow.value == FEEDBACK_LIKE,
+                ),
+            )
+            .order_by(ArticleFeedbackRow.created_at.desc())
+            .limit(40)
+        )
+    ).scalars().all()
+
+    out: list[str] = []
+    for text in rows:
+        for k in matched_keywords(text, keywords):
+            if k not in out:
+                out.append(k)
+    return out
