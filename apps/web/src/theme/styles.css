@@ -2559,3 +2559,25 @@ tr:hover td { background:var(--surface-container-low); }
 
 /* 팝오버 항목의 부연 — 무엇을 고르는지 한 줄로 */
 .pop-item-hint { margin-left:8px; font-size:11.5px; font-weight:500; color:var(--tt); }
+
+/* ── 지식 그래프 캔버스 ──
+   대시보드 히어로와 같은 오로라를 깐다. 그래프도 "화면 전체"인 자리라, 여기만
+   민무늬 회색이면 앱 안에서 이 화면만 다른 종이처럼 보인다.
+   점 격자는 줌·팬을 따라 움직여야 해서 인라인 배경으로 남는다(S06). */
+.graph-canvas::before, .graph-canvas::after {
+  content:""; position:absolute; border-radius:50%; pointer-events:none; z-index:0;
+  will-change:transform, opacity;
+}
+.graph-canvas::before {
+  width:70%; height:78%; left:-6%; top:30%;
+  background:radial-gradient(circle, rgba(9,105,218,.16) 0%, rgba(9,105,218,.05) 46%, transparent 72%);
+  animation:auroraDrift 19s ease-in-out infinite;
+}
+.graph-canvas::after {
+  width:64%; height:72%; right:-4%; top:8%;
+  background:radial-gradient(circle, rgba(167,139,250,.17) 0%, rgba(99,102,241,.07) 44%, transparent 72%);
+  animation:auroraDrift 26s ease-in-out infinite reverse;
+}
+@media (prefers-reduced-motion:reduce) {
+  .graph-canvas::before, .graph-canvas::after { animation:none; opacity:.86; }
+}

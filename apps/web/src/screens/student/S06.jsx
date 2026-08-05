@@ -14,7 +14,13 @@ import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 const LABEL_MAX = 14;
 
 // 밝은 판 위의 연결선 색.
-const GRAPH_EDGE = "rgba(15,23,42,.16)";
+//
+// 예전에는 rgba(15,23,42,.16) 에 굵기 0.3 이었다. non-scaling-stroke 라 굵기가
+// 그대로 화면 픽셀이 되는데, 0.3px 는 화면에서 사실상 보이지 않는다 —
+// 노드만 떠 있고 무엇과 무엇이 이어졌는지 알 수 없었다.
+const GRAPH_EDGE = "rgba(15,23,42,.30)";
+// 굵기(px). 활성(고른 노드에 걸린 선) > 가지 > 보통 순.
+const EDGE_W = { on: 2.2, branch: 1.4, base: 1.1 };
 
 // 선택 노드와 무관한 노드를 살짝만 내린다. 너무 흐리면 전체 지도를 못 읽는다.
 const DIM_OPACITY = 0.34;
@@ -489,6 +495,7 @@ export function S06({ onNav }) {
         <div style={{flex:1,padding:20,overflow:"hidden",position:"relative"}}>
           <div
             ref={canvasRef}
+            className="graph-canvas"
             onMouseDown={onCanvasDown}
             onMouseMove={onCanvasMove}
             onMouseUp={onCanvasUp}
@@ -555,10 +562,10 @@ export function S06({ onNav }) {
                     d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
                     fill="none"
                     stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
-                    strokeWidth={on?0.7:(e.branch?0.4:0.3)}
+                    strokeWidth={on?EDGE_W.on:(e.branch?EDGE_W.branch:EDGE_W.base)}
                     vectorEffect="non-scaling-stroke"
-                    strokeDasharray={on||e.branch?"none":"1 1"}
-                    opacity={activeId && !on ? .18 : (on?.95:(e.branch?.55:.75))}
+                    strokeLinecap="round"
+                    opacity={activeId && !on ? .16 : (on?1:(e.branch?.8:.62))}
                     style={{transition:"opacity .2s, stroke-width .2s"}}
                   />
                 );
