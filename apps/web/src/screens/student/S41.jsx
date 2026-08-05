@@ -89,7 +89,10 @@ function Topics({ item, query }) {
 function TasteButtons({ item, onFeedback }) {
   const liked = item.feedback === "like";
   return (
-    <>
+    /* 두 단추를 **하나의 조작부**로 묶는다. 서로 반대되는 답이라 따로 떨어져
+       있으면 각각 다른 일을 하는 단추처럼 보인다. 가운데 선 하나로 "둘 중
+       하나"임을 알린다. */
+    <div className="taste-group" role="group" aria-label="이 글에 대한 반응">
       <button
         type="button"
         className={`taste-btn${liked ? " is-on" : ""}`}
@@ -109,7 +112,7 @@ function TasteButtons({ item, onFeedback }) {
         <NavIcon name="thumbDown" size={14} color="var(--danger)" />
         관심 없어요
       </button>
-    </>
+    </div>
   );
 }
 
