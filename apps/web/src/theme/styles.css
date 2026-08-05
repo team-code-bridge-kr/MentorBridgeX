@@ -2249,23 +2249,31 @@ tr:hover td { background:var(--surface-container-low); }
   position:fixed; right:22px; bottom:22px; z-index:1200;
   min-width:54px; height:54px; padding:0 16px; border:none; border-radius:9999px;
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  background:var(--blue-500); color:#fff; cursor:pointer; font-family:inherit;
+  /* 히어로(대시보드)와 같은 파랑→인디고. 이 앱에서 AI 가 하는 일에는 파랑에
+     인디고를 섞어 쓴다(히어로 글로우·입력창 홀로그램 테두리와 같은 계열). */
+  background:linear-gradient(135deg, var(--blue-500) 0%, #4f57e0 100%);
+  color:#fff; cursor:pointer; font-family:inherit;
   /* 그림자 대신 **번짐**으로 띄운다. 검은 그림자를 진하게 깔면 밝은 배경에서
-     단추만 무겁게 얹힌 것처럼 보인다. 색은 강조색 한 계열(파랑)만 쓴다. */
-  box-shadow:0 6px 16px rgba(9,105,218,.22), 0 0 0 7px rgba(9,105,218,.055);
-  transition:transform .16s, box-shadow .16s, background .16s;
+     단추만 무겁게 얹힌 것처럼 보인다. */
+  box-shadow:0 6px 16px rgba(79,87,224,.20), 0 0 0 7px rgba(99,102,241,.055);
+  transition:transform .16s, box-shadow .16s, filter .16s;
 }
-/* 둘레로 퍼지는 옅은 빛. 단추 뒤에 깔리므로 글자·아이콘을 흐리지 않는다. */
+/* 둘레로 퍼지는 옅은 빛 — 히어로 글로우와 같은 세 색(인디고·파랑·하늘).
+   단추 뒤에 깔리므로 글자·아이콘을 흐리지 않는다. */
 .vdock-fab::before {
-  content:""; position:absolute; inset:-22px; border-radius:inherit; z-index:-1;
-  background:radial-gradient(circle, rgba(9,105,218,.22) 0%, rgba(9,105,218,.08) 46%, transparent 72%);
-  filter:blur(5px); transition:background .2s, opacity .2s;
+  content:""; position:absolute; inset:-24px; border-radius:inherit; z-index:-1;
+  background:
+    radial-gradient(circle at 68% 30%, rgba(167,139,250,.26) 0%, transparent 58%),
+    radial-gradient(circle at 60% 62%, rgba(99,102,241,.30) 0%, transparent 62%),
+    radial-gradient(circle at 28% 72%, rgba(9,105,218,.26) 0%, transparent 64%),
+    radial-gradient(circle, rgba(56,189,248,.12) 0%, transparent 74%);
+  filter:blur(7px); transition:background .2s, opacity .2s;
 }
 .vdock-fab:hover {
-  transform:translateY(-1px);
-  box-shadow:0 8px 20px rgba(9,105,218,.28), 0 0 0 9px rgba(9,105,218,.07);
+  transform:translateY(-1px); filter:saturate(1.06);
+  box-shadow:0 8px 20px rgba(79,87,224,.26), 0 0 0 9px rgba(99,102,241,.07);
 }
-.vdock-fab.is-open { background:var(--blue-600); }
+.vdock-fab.is-open { filter:brightness(.94); }
 .vdock-fab.is-rec {
   background:var(--danger);
   box-shadow:0 6px 16px rgba(186,26,26,.22), 0 0 0 7px rgba(186,26,26,.055);
@@ -2361,11 +2369,11 @@ tr:hover td { background:var(--surface-container-low); }
 .vdock-rec {
   position:relative; width:44px; height:44px; border:none; border-radius:50%; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
-  background:var(--blue-500);
-  box-shadow:0 4px 12px rgba(9,105,218,.20), 0 0 0 6px rgba(9,105,218,.055);
-  transition:background .16s, transform .12s, box-shadow .16s;
+  background:linear-gradient(135deg, var(--blue-500) 0%, #4f57e0 100%);
+  box-shadow:0 4px 12px rgba(79,87,224,.20), 0 0 0 6px rgba(99,102,241,.055);
+  transition:background .16s, transform .12s, box-shadow .16s, filter .16s;
 }
-.vdock-rec:hover:not(:disabled) { background:var(--blue-600); }
+.vdock-rec:hover:not(:disabled) { filter:brightness(.95); }
 .vdock-rec:active:not(:disabled) { transform:scale(.94); }
 .vdock-rec:disabled { opacity:.5; cursor:default; }
 /* 녹음 중일 때는 hover 규칙보다 뒤에, 더 구체적으로 — 안 그러면 커서를 올린
