@@ -2250,12 +2250,33 @@ tr:hover td { background:var(--surface-container-low); }
   min-width:54px; height:54px; padding:0 16px; border:none; border-radius:9999px;
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
   background:var(--blue-500); color:#fff; cursor:pointer; font-family:inherit;
-  box-shadow:0 8px 22px rgba(9,105,218,.34);
+  /* 그림자 대신 **번짐**으로 띄운다. 검은 그림자를 진하게 깔면 밝은 배경에서
+     단추만 무겁게 얹힌 것처럼 보인다. 색은 강조색 한 계열(파랑)만 쓴다. */
+  box-shadow:0 6px 16px rgba(9,105,218,.22), 0 0 0 7px rgba(9,105,218,.055);
   transition:transform .16s, box-shadow .16s, background .16s;
 }
-.vdock-fab:hover { transform:translateY(-1px); box-shadow:0 10px 26px rgba(9,105,218,.42); }
+/* 둘레로 퍼지는 옅은 빛. 단추 뒤에 깔리므로 글자·아이콘을 흐리지 않는다. */
+.vdock-fab::before {
+  content:""; position:absolute; inset:-22px; border-radius:inherit; z-index:-1;
+  background:radial-gradient(circle, rgba(9,105,218,.22) 0%, rgba(9,105,218,.08) 46%, transparent 72%);
+  filter:blur(5px); transition:background .2s, opacity .2s;
+}
+.vdock-fab:hover {
+  transform:translateY(-1px);
+  box-shadow:0 8px 20px rgba(9,105,218,.28), 0 0 0 9px rgba(9,105,218,.07);
+}
 .vdock-fab.is-open { background:var(--blue-600); }
-.vdock-fab.is-rec { background:var(--danger); box-shadow:0 8px 22px rgba(186,26,26,.34); }
+.vdock-fab.is-rec {
+  background:var(--danger);
+  box-shadow:0 6px 16px rgba(186,26,26,.22), 0 0 0 7px rgba(186,26,26,.055);
+}
+/* 녹음 중에는 빛도 빨강으로. 색이 두 개면 어느 쪽이 지금 상태인지 흐려진다. */
+.vdock-fab.is-rec::before {
+  background:radial-gradient(circle, rgba(186,26,26,.24) 0%, rgba(186,26,26,.09) 46%, transparent 72%);
+  animation:vdockGlow 2.6s ease-in-out infinite;
+}
+@keyframes vdockGlow { 0%,100% { opacity:.75; } 50% { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .vdock-fab.is-rec::before { animation:none; } }
 .vdock-fab-time { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
 .vdock-dot { width:9px; height:9px; border-radius:50%; background:#fff; animation:vdockPulse 1.4s ease-in-out infinite; }
 @keyframes vdockPulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
@@ -2335,11 +2356,14 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .vdock-link { border:none; background:transparent; padding:0; cursor:pointer; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ts); }
 .vdock-link:hover { color:var(--primary); text-decoration:underline; }
+/* 패널 안 녹음 단추도 접힌 단추와 같은 재질 — 같은 일을 하는 단추가 둘인데
+   생김새가 다르면 다른 기능처럼 보인다. */
 .vdock-rec {
-  width:44px; height:44px; border:none; border-radius:50%; cursor:pointer;
+  position:relative; width:44px; height:44px; border:none; border-radius:50%; cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
-  background:var(--blue-500); box-shadow:0 4px 12px rgba(9,105,218,.30);
-  transition:background .16s, transform .12s;
+  background:var(--blue-500);
+  box-shadow:0 4px 12px rgba(9,105,218,.20), 0 0 0 6px rgba(9,105,218,.055);
+  transition:background .16s, transform .12s, box-shadow .16s;
 }
 .vdock-rec:hover:not(:disabled) { background:var(--blue-600); }
 .vdock-rec:active:not(:disabled) { transform:scale(.94); }
@@ -2347,7 +2371,8 @@ tr:hover td { background:var(--surface-container-low); }
 /* 녹음 중일 때는 hover 규칙보다 뒤에, 더 구체적으로 — 안 그러면 커서를 올린
    동안 파랑으로 되돌아가 "멈춤" 단추가 "시작" 단추처럼 보인다. */
 .vdock-rec.is-on, .vdock-rec.is-on:hover:not(:disabled) {
-  background:var(--danger); box-shadow:0 4px 12px rgba(186,26,26,.30);
+  background:var(--danger);
+  box-shadow:0 4px 12px rgba(186,26,26,.20), 0 0 0 6px rgba(186,26,26,.055);
 }
 .vdock-rec.is-on:hover:not(:disabled) { background:#8c1414; }
 .vdock-stop { width:15px; height:15px; border-radius:3px; background:#fff; }
