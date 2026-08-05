@@ -221,8 +221,23 @@ export function VoiceDock({ onNav }) {
 
             {phase === "done" && result && (
               <div className="vdock-done">
-                <div className="vdock-done-title">{fmt(result.duration_sec || sec)} 녹음을 글로 옮겼어요</div>
-                <p className="vdock-quote">{result.transcript || "인식된 말이 없습니다."}</p>
+                {/* 못 알아들었으면 못 알아들었다고 한다. 빈 결과에 그럴듯한 문장을
+                    채워 넣으면 학생 기록에 하지 않은 말이 남는다. */}
+                <div className="vdock-done-title">
+                  {result.stt_mode === "failed"
+                    ? "음성 인식에 실패했어요"
+                    : !result.transcript
+                      ? "말소리를 알아듣지 못했어요"
+                      : `${fmt(result.duration_sec || sec)} 녹음을 글로 옮겼어요`}
+                  {result.stt_mode === "mock" && <span className="vdock-tag">모의</span>}
+                </div>
+                {result.transcript
+                  ? <p className="vdock-quote">{result.transcript}</p>
+                  : <p className="vdock-hint">
+                      {result.stt_mode === "failed"
+                        ? "인식 서버에 닿지 못했습니다. 녹음은 남아 있으니 잠시 뒤 다시 시도해 주세요."
+                        : "마이크에 조금 더 가까이서, 또렷하게 말한 뒤 다시 녹음해 보세요."}
+                    </p>}
                 {!!result.keywords?.length && (
                   <div className="vdock-kws">
                     {result.keywords.slice(0, 5).map((k) => <span key={k} className="vdock-kw">{k}</span>)}

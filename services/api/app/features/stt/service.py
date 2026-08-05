@@ -26,8 +26,12 @@ class STTService:
     async def get_async(self, rid: str) -> AsyncResult:
         return await self._provider.get_async(rid)
 
-    async def sync_short(self, filename: str, audio: bytes) -> SyncResult:
-        return await self._provider.sync_short(filename, audio)
+    async def sync_short(
+        self, filename: str, audio: bytes, content_type: str | None = None
+    ) -> SyncResult:
+        # content_type 은 업로드한 쪽이 알려준 그대로 넘긴다. 여기서 바꿔 적으면
+        # Daglo 가 파일이 깨졌다고 돌려보낸다(webm 을 wav 라고 적던 문제).
+        return await self._provider.sync_short(filename, audio, content_type)
 
     def stream_realtime(
         self,

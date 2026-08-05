@@ -2297,7 +2297,9 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .vdock-time { font-size:30px; font-weight:800; color:var(--danger); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
 
-.vdock-done-title { font-size:14px; font-weight:700; color:var(--tp); margin-bottom:9px; }
+.vdock-done-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:700; color:var(--tp); margin-bottom:9px; }
+/* 모의 결과라는 표시. 진짜 인식 결과와 헷갈리면 안 된다. */
+.vdock-tag { padding:1px 7px; border-radius:9999px; background:var(--bg3); color:var(--ts); font-size:10.5px; font-weight:700; }
 /* 옮겨 적은 말은 인용처럼 — 내가 쓴 글이 아니라 받아 적은 글이다. */
 .vdock-quote {
   margin:0; padding:10px 12px; border-left:3px solid var(--blue-200); background:var(--surface-zebra);

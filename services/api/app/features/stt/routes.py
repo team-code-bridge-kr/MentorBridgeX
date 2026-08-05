@@ -99,7 +99,7 @@ async def sync_short_transcribe(
 ) -> SyncResult:
     audio = await file.read()
     try:
-        return await svc.sync_short(file.filename or "audio.wav", audio)
+        return await svc.sync_short(file.filename or "audio.wav", audio, file.content_type)
     except DagloError as e:
         raise _to_http_exception(e) from e
 

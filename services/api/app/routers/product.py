@@ -6,6 +6,7 @@ Audio for STT is processed in-memory only (max 5MB) and never written to disk.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -89,6 +90,8 @@ FORM_TEMPLATES: list[FormTemplateOut] = [
         uses=289,
     ),
 ]
+
+logger = logging.getLogger(__name__)
 
 comments_router = APIRouter(prefix="/v1/students/me/comments", tags=["comments"])
 notifications_router = APIRouter(prefix="/v1/students/me/notifications", tags=["notifications"])
@@ -724,8 +727,11 @@ async def dictate(
         raise AppError("STT_UNAVAILABLE", "음성 인식이 설정되지 않았습니다.", 503)
 
     try:
-        result = await stt_service.sync_short(file.filename or "audio.webm", audio)
+        result = await stt_service.sync_short(
+            file.filename or "audio.webm", audio, file.content_type
+        )
     except Exception as exc:  # noqa: BLE001 — 외부 서비스 실패를 사용자 메시지로 바꾼다
+        logger.warning("받아쓰기 실패 user=%s: %s", user.id, exc)
         raise AppError("STT_FAILED", "음성을 인식하지 못했습니다.", 502) from exc
     finally:
         del audio  # 바이트는 최대한 빨리 버린다
@@ -897,20 +903,26 @@ async def transcribe_voice_session(
         )
 
     settings = get_settings()
-    stt_mode = "mock"
     transcript = ""
     stt_service = getattr(request.app.state, "stt_service", None)
+
     if stt_service and settings.daglo_api_token:
+        # 인식이 되는 환경이다. 여기서는 **가짜 문장을 만들지 않는다** — 학생의
+        # 기록으로 남는 글이라, 못 알아들었으면 못 알아들었다고 해야 한다.
         try:
-            result = await stt_service.sync_short(file.filename or "audio.webm", audio)
+            result = await stt_service.sync_short(
+                file.filename or "audio.webm", audio, file.content_type
+            )
             transcript = (result.transcript or "").strip()
             stt_mode = "daglo"
-        except Exception:
-            transcript = ""
-            stt_mode = "mock"
-
-    if not transcript:
-        # Lightweight mock so UI works without Daglo token / on failure
+        except Exception as exc:  # noqa: BLE001 — 외부 서비스 실패로 저장까지 막지는 않는다
+            # 조용히 모의로 떨어뜨리지 않는다. 예전에는 그래서 형식을 잘못 적어
+            # 보내는 버그(webm 을 wav 라고 알림)가 몇 달간 "모의 STT" 로만 보였다.
+            logger.warning("Daglo 받아쓰기 실패 user=%s session=%s: %s", user.id, session_id, exc)
+            stt_mode = "failed"
+    else:
+        # 토큰이 없는 환경(로컬 데모)에서만 모의 문장을 만든다. 이때는 화면에도
+        # stt_mode="mock" 이 그대로 나가므로 진짜 인식 결과와 헷갈리지 않는다.
         snap = await get_graph_store().get_snapshot(user.id)
         labels = [n.label for n in snap.nodes][:5]
         topic = ", ".join(labels) if labels else "학습 주제"

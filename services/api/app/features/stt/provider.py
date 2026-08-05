@@ -32,7 +32,9 @@ class STTProvider(Protocol):
 
     async def get_async(self, rid: str) -> AsyncResult: ...
 
-    async def sync_short(self, filename: str, audio: bytes) -> SyncResult: ...
+    async def sync_short(
+        self, filename: str, audio: bytes, content_type: str | None = None
+    ) -> SyncResult: ...
 
     def stream_realtime(
         self,
@@ -59,8 +61,10 @@ class DagloSTTProvider:
         raw.setdefault("rid", rid)
         return AsyncResult.model_validate(raw)
 
-    async def sync_short(self, filename: str, audio: bytes) -> SyncResult:
-        raw = await self._client.sync_transcribe(filename, audio)
+    async def sync_short(
+        self, filename: str, audio: bytes, content_type: str | None = None
+    ) -> SyncResult:
+        raw = await self._client.sync_transcribe(filename, audio, content_type)
         transcript = raw.get("sttResult", {}).get("transcript", "")
         return SyncResult(transcript=transcript, rid=raw.get("rid"))
 

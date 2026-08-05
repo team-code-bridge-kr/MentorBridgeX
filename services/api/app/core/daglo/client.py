@@ -15,6 +15,20 @@ import httpx
 from .exceptions import from_response
 
 
+def _guess_type(filename: str) -> str | None:
+    """파일 이름만 보고 형식을 짚는다. 못 짚으면 None — 지어내지 않는다."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return {
+        "webm": "audio/webm",
+        "wav": "audio/wav",
+        "mp3": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "mp4": "audio/mp4",
+        "ogg": "audio/ogg",
+        "flac": "audio/flac",
+    }.get(ext)
+
+
 class DagloHTTPClient:
     """단일 httpx.AsyncClient를 감싼 Daglo REST 클라이언트 (커넥션 풀 재사용)."""
 
@@ -62,8 +76,21 @@ class DagloHTTPClient:
     # ─────────────────────────────────────────────
     # STT Sync (≤30초, 파일 업로드) — 테스트 편의용
     # ─────────────────────────────────────────────
-    async def sync_transcribe(self, filename: str, audio_bytes: bytes) -> dict:
-        files = {"file": (filename, audio_bytes, "audio/wav")}
+    async def sync_transcribe(
+        self, filename: str, audio_bytes: bytes, content_type: str | None = None
+    ) -> dict:
+        """짧은 음성을 그 자리에서 받아쓴다.
+
+        **형식을 거짓으로 알리면 안 된다.** 예전에는 무엇을 보내든 `audio/wav`
+        라고 적어 보냈는데, 브라우저가 보내는 것은 webm(Opus)이라 Daglo 가
+        `422 Corrupted audio file` 로 돌려보냈다. 그 실패가 위에서 조용히
+        삼켜져 늘 모의 결과가 나왔다.
+
+        모르면 아예 적지 않는다 — 빈 값이 틀린 값보다 낫다(Daglo 는 확장자와
+        내용으로 판별한다).
+        """
+        ctype = (content_type or "").split(";")[0].strip() or _guess_type(filename)
+        files = {"file": (filename, audio_bytes, ctype) if ctype else (filename, audio_bytes)}
         resp = await self._client.post("/stt/v1/sync/transcripts", files=files)
         return self._parse(resp)
 
