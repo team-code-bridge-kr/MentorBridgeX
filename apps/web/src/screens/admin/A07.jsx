@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function A07({ onNav }) {
@@ -9,7 +9,7 @@ export function A07({ onNav }) {
   return (
     <div className="content" style={{maxWidth:640,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A06")}>← 큐</button>
+        <Back onClick={()=>onNav("A06")} label="큐" />
         <div style={{fontSize:20,fontWeight:700}}>자격 상세 검토</div>
       </div>
       {decision&&<Notice type={decision==="approve"?"success":"danger"} style={{marginBottom:16}}>{decision==="approve"?"승인 완료":"거부 완료"} — 감사 로그 기록됨</Notice>}

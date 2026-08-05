@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function A23({ onNav }) {
@@ -12,7 +12,7 @@ export function A23({ onNav }) {
   return (
     <div className="content" style={{maxWidth:560,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A21")}>← 감사 로그</button>
+        <Back onClick={()=>onNav("A21")} label="감사 로그" />
         <div style={{fontSize:20,fontWeight:700}}>감사 로그 내보내기</div>
       </div>
       {done

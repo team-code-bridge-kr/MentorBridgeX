@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function S08({ onNav }) {
   return (
     <div className="content" style={{maxWidth:640,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("S06")}>← 그래프</button>
+        <Back onClick={()=>onNav("S06")} label="그래프" />
         <div style={{fontSize:20,fontWeight:700}}>엣지 상세</div>
       </div>
       <div className="card card-p" style={{marginBottom:16}}>

@@ -2433,3 +2433,28 @@ tr:hover td { background:var(--surface-container-low); }
   font-size:15px; font-weight:600; color:var(--tp);
 }
 .sess-card .rn-form { padding:0 0 4px; }
+
+/* ── 뒤로 가기 ──
+   화면마다 제각각이던 "← 목록 / ← 그래프 / ← 이전으로" 를 하나로 모은다.
+   뒤로 가기는 옮겨 다니며 같은 자리에 같은 모양으로 있어야 눈이 찾지 않는다.
+   바탕은 히어로와 같은 파랑→인디고를 아주 옅게 — 배경의 오로라와 같은 계열이다. */
+.back-btn {
+  display:inline-flex; align-items:center; gap:7px; flex-shrink:0;
+  height:34px; padding:0 12px 0 9px; border-radius:9999px; cursor:pointer;
+  border:1px solid rgba(99,102,241,.16);
+  background:linear-gradient(135deg, rgba(9,105,218,.07) 0%, rgba(99,102,241,.10) 100%);
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--primary);
+  transition:background .14s, border-color .14s, transform .14s, box-shadow .14s;
+}
+.back-btn.is-bare { width:34px; padding:0; justify-content:center; }
+.back-btn:hover {
+  background:linear-gradient(135deg, rgba(9,105,218,.12) 0%, rgba(99,102,241,.16) 100%);
+  border-color:rgba(99,102,241,.26);
+  box-shadow:0 2px 10px rgba(79,87,224,.14);
+}
+/* 누르면 왼쪽으로 한 뼘 — 가는 방향을 손이 먼저 안다 */
+.back-btn:active { transform:translateX(-2px); }
+.back-btn:focus-visible { outline:2px solid var(--blue-400); outline-offset:2px; }
+.back-btn-ic { display:inline-flex; line-height:0; }
+.back-btn-t { white-space:nowrap; }
+@media (max-width:560px) { .back-btn-t { display:none; } .back-btn { width:34px; padding:0; justify-content:center; } }

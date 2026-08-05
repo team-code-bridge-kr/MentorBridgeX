@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Btn } from "../../components/ui.jsx";
+import { Back, Btn } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S17({ onNav }) {
@@ -47,7 +47,7 @@ export function S17({ onNav }) {
   return (
     <div className="content" style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => onNav("S15")}>← 목록</button>
+        <Back onClick={() => onNav("S15")} label="목록" />
         <div style={{ fontSize: 20, fontWeight: 700 }}>{title || "보고서 검토·승인"}</div>
         {sttMode && <span style={{ fontSize: 12, color: TDS.textTertiary }}>STT: {sttMode}</span>}
       </div>

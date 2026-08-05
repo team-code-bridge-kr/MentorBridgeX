@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function A03({ onNav }) {
@@ -10,7 +10,7 @@ export function A03({ onNav }) {
     <div className="content">
       <div className="row-between mb16" style={{marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A02")}>← 목록</button>
+          <Back onClick={()=>onNav("A02")} label="목록" />
           <div className="sec-title">{user.name} 상세</div>
         </div>
         <div style={{display:"flex",gap:8}}>

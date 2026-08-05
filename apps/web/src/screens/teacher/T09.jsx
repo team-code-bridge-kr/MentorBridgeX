@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function T09({ onNav }) {
@@ -9,7 +9,7 @@ export function T09({ onNav }) {
   return (
     <div className="content" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("T08")}>← 그래프</button>
+        <Back onClick={()=>onNav("T08")} label="그래프" />
         <div style={{width:40,height:40,borderRadius:"50%",background:TDS.success,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:13}}>개념</div>
         <div style={{flex:1}}>
           <div style={{fontSize:20,fontWeight:700}}>{node.label}</div>

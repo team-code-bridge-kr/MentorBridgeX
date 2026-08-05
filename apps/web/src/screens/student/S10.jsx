@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function S10({ onNav }) {
@@ -16,7 +16,7 @@ export function S10({ onNav }) {
   return (
     <div className="content" style={{maxWidth:700,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("S06")}>← 그래프</button>
+        <Back onClick={()=>onNav("S06")} label="그래프" />
         <div style={{fontSize:20,fontWeight:700}}>그래프 변경 이력</div>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:16}}>

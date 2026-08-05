@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { Btn } from "../../components/ui.jsx";
+import { Back, Btn } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S31({ onNav }) {
@@ -33,7 +33,7 @@ export function S31({ onNav }) {
   return (
     <div className="content">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => onNav("S30")}>← 설정</button>
+        <Back onClick={() => onNav("S30")} label="설정" />
         <div style={{ fontSize: 20, fontWeight: 700 }}>계정 정보</div>
       </div>
       <div className="card card-p" style={{ marginBottom: 16 }}>

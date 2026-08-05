@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function S18({ onNav }) {
@@ -13,7 +13,7 @@ export function S18({ onNav }) {
   return (
     <div className="content" style={{maxWidth:560,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("S15")}>← 목록</button>
+        <Back onClick={()=>onNav("S15")} label="목록" />
         <div style={{fontSize:20,fontWeight:700}}>참여자 관리</div>
       </div>
       <div className="card card-p" style={{marginBottom:16}}>

@@ -28,6 +28,7 @@ import {
 import { useRecentActivity, notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 import { useAIChat, useAIContext } from "../../hooks/useAIChat.js";
 import { useRecommendedPrompts } from "../../hooks/useRecommendedPrompts.js";
+import { Back } from "../../components/ui.jsx";
 import { AIWorkspaceHero } from "../../components/dashboard/AIWorkspaceHero.jsx";
 import { AIComposer } from "../../components/dashboard/AIComposer.jsx";
 import { AIConversation } from "../../components/dashboard/AIConversation.jsx";
@@ -390,13 +391,7 @@ export function S05({ onNav }) {
               <div className="chat-head-left">
                 {/* "새로 시작하기"는 사이드바에 이미 있다. 여기서는 행동이 아니라
                     **어디로 가는지**를 쓴다. */}
-                <button
-                  type="button"
-                  className="btn-inline"
-                  onClick={() => { chat.reset(); ctx.clear(); }}
-                >
-                  ← 대시보드
-                </button>
+                <Back label="대시보드" onClick={() => { chat.reset(); ctx.clear(); }} />
 
                 {/* 이 대화의 이름. 서버가 첫 질문에서 잘라 붙인 것이라 대개
                     길다 — 여기서 바로 짧게 고칠 수 있다. */}

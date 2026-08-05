@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Card, Notice } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Card, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 import { subjectMarkers } from "../../lib/subjectBlocks.js";
 import { AREA_META } from "./S11.jsx";
@@ -78,7 +78,7 @@ export function S12({ onNav }) {
     <div style={{ display: "flex", height: "100%" }}>
       <div style={{ flex: 1, padding: 28, overflowY: "auto", background: TDS.bgSecondary }}>
         <div className="row g-12 mb24" style={{ gap: 12, marginBottom: 24 }}>
-          <button className="btn-inline" onClick={() => onNav("S11")}>← 목록</button>
+          <Back label="목록" onClick={() => onNav("S11")} />
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: TDS.textPrimary }}>{meta.t}</div>

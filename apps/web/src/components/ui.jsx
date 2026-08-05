@@ -87,6 +87,29 @@ export const TFI = ({ children, s = 20, color, style }) => {
 export const Btn = ({ v = "primary", s = "md", fw, onClick, children, style, ...r }) => (
   <button className={`btn btn-${v} btn-${s}${fw?" btn-xl":""}`} onClick={onClick} style={style} {...r}>{children}</button>
 );
+/**
+ * 뒤로 가기. **모든 화면이 이걸 쓴다.**
+ *
+ * 예전에는 화면마다 제각각이었다 — "← 목록", "← 그래프", "← 이전으로" 가
+ * 텍스트 버튼이거나 고스트 버튼이었고, 위치도 크기도 달랐다. 뒤로 가기는
+ * 화면을 옮겨 다니며 **같은 자리에 같은 모양으로** 있어야 눈이 찾지 않는다.
+ *
+ * 모양은 갈매기(`<`) 하나. 배경에는 히어로와 같은 파랑→인디고를 아주 옅게
+ * 깐다(오로라 계열). 어디로 가는지는 옆의 짧은 말이 알려준다 — 없으면
+ * 아이콘만으로 선다.
+ */
+export const Back = ({ onClick, label, title }) => (
+  <button
+    type="button"
+    className={`back-btn${label ? "" : " is-bare"}`}
+    onClick={onClick}
+    title={title || (label ? `${label}(으)로 돌아가기` : "뒤로 가기")}
+    aria-label={title || (label ? `${label}(으)로 돌아가기` : "뒤로 가기")}
+  >
+    <span className="back-btn-ic"><NavIcon name="chevronLeft" size={16} color={TDS.primary} /></span>
+    {label && <span className="back-btn-t">{label}</span>}
+  </button>
+);
 export const Badge = ({ t = "grey", pill, children }) => (
   <span className={`badge badge-${t}${pill?" badge-pill":""}`}>{children}</span>
 );

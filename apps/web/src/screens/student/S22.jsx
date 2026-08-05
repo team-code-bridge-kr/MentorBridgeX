@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Btn } from "../../components/ui.jsx";
+import { Back, Btn } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S22({ onNav }) {
@@ -46,7 +46,7 @@ export function S22({ onNav }) {
   return (
     <div className="content" style={{ maxWidth: 760, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => onNav("S21")}>← 목록</button>
+        <Back onClick={() => onNav("S21")} label="목록" />
         <div style={{ flex: 1, fontSize: 20, fontWeight: 700 }}>{doc?.title || "양식"}</div>
         <Btn v="ghost" s="sm" onClick={() => (editing ? save() : setEditing(true))}>{editing ? "저장" : "편집"}</Btn>
       </div>

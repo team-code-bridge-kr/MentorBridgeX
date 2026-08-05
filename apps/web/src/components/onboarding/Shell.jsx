@@ -8,6 +8,8 @@
  * 서류 양식처럼 보이지 않는 편이 낫다(설계안 '화면 공통 규격').
  */
 
+import { Back } from "../ui.jsx";
+
 export function Progress({ total, current }) {
   return (
     <div
@@ -65,9 +67,7 @@ export function Shell({
         {(onBack || footer) && (
           <div className="ob-foot">
             {onBack ? (
-              <button type="button" className="ob-back" onClick={onBack}>
-                ← 이전으로
-              </button>
+              <Back label="이전으로" onClick={onBack} />
             ) : (
               <span />
             )}

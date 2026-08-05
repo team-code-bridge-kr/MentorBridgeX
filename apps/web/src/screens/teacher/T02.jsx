@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function T02({ onNav }) {
@@ -21,7 +21,7 @@ export function T02({ onNav }) {
   return (
     <div className="content" style={{maxWidth:560,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("T01")}>← 신청</button>
+        <Back onClick={()=>onNav("T01")} label="신청" />
         <div style={{fontSize:20,fontWeight:700}}>자격 검증 상태</div>
       </div>
       {status==="미신청" ? (

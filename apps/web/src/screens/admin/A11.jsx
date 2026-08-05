@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function A11({ onNav }) {
@@ -9,7 +9,7 @@ export function A11({ onNav }) {
   return (
     <div className="content" style={{maxWidth:540,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A10")}>← 목록</button>
+        <Back onClick={()=>onNav("A10")} label="목록" />
         <div style={{fontSize:20,fontWeight:700}}>코멘트 강제 삭제 확인</div>
       </div>
       {done

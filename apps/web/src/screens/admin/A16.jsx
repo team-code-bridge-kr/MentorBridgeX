@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function A16({ onNav }) {
@@ -10,7 +10,7 @@ export function A16({ onNav }) {
   return (
     <div className="content" style={{maxWidth:640,margin:"0 auto"}}>
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button className="btn btn-ghost btn-sm" onClick={()=>onNav("A15")}>← 목록</button>
+        <Back onClick={()=>onNav("A15")} label="목록" />
         <div style={{fontSize:20,fontWeight:700}}>임베딩 모델 교체</div>
       </div>
       <Notice type="warning" style={{marginBottom:20}}>모델 교체 후 전체 노드 재임베딩이 수행됩니다. 처리 시간: 약 2~4시간 (노드 10만개 기준)</Notice>
