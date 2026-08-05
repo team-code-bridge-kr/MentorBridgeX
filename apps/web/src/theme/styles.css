@@ -2502,3 +2502,24 @@ tr:hover td { background:var(--surface-container-low); }
   .feed-bar .feed-search.is-inline { flex:1 0 100%; max-width:none; order:3; }
   .feed-bar .kw-manage { margin-left:0; }
 }
+
+/* 관심 키워드 줄 — 이름표는 칩 첫 줄에 나란히 선다 */
+.kw-line { display:flex; align-items:flex-start; gap:12px; margin-bottom:18px; }
+.kw-line .kw-sec-title { flex-shrink:0; padding-top:8px; }
+.kw-line .kw-sec { flex:1; min-width:0; margin-bottom:0; }
+
+/* 추천 이유의 키워드 — 문맥 카드(.ctx-kw)와 같은 알약 */
+.reco-kw {
+  display:inline-block; margin:0 3px; padding:1px 8px; border-radius:9999px;
+  background:var(--blue-50); color:var(--primary);
+  font-size:11px; font-weight:700; letter-spacing:-.01em; vertical-align:baseline;
+}
+
+/* Bridge AI 에게 넘기는 단추 — 어느 AI 인지 로고로 먼저 말한다 */
+.ask-ai { display:inline-flex; align-items:center; gap:6px; }
+.ask-ai-logo { width:15px; height:15px; object-fit:contain; flex-shrink:0; }
+
+/* 목록 줄의 작은 그림 — 있을 때만 자리를 만든다 */
+.feed-row-thumb { flex-shrink:0; width:132px; display:block; border-radius:12px; overflow:hidden; }
+.feed-visual-sm { aspect-ratio:4/3; }
+@media (max-width:640px) { .feed-row-thumb { width:96px; } }

@@ -8,8 +8,9 @@
  * 달력은 기본으로 보여주지 않는다. 대부분은 "최근 1개월"이면 끝나고, 달력을
  * 늘 펼쳐 두면 팝오버가 커져서 빠른 선택이 묻힌다. "직접 선택"을 눌러야 나온다.
  *
- * 적용 전에는 목록을 건드리지 않는다 — 날짜를 고르는 도중에 결과가 계속
- * 바뀌면 무엇을 고르는 중인지 알 수 없다.
+ * **고르면 곧바로 걸린다.** 적용 단추를 따로 두면 고른 뒤에도 한 번 더 눌러야
+ * 하고, 안 누르고 닫으면 고른 것이 사라진다. 다만 직접 선택(달력)은 시작일만
+ * 고른 상태로 걸면 결과가 엉뚱해지므로 **종료일까지 고른 순간** 걸린다.
  */
 
 import { useMemo, useRef, useState } from "react";
@@ -83,23 +84,25 @@ export function DateRangeFilter({ days, from, to, onApply }) {
     setOpen(true);
   };
 
+  /** 빠른 선택 — 누르는 즉시 걸리고 닫힌다. */
+  const quick = (d) => {
+    setCustom(false);
+    setDraft({ days: d, from: "", to: "" });
+    onApply({ days: d, from: "", to: "" });
+    setOpen(false);
+  };
+
+  /** 달력 — 시작일만 고른 상태에서는 아직 걸지 않는다. */
   const pick = (v) => {
     setWarn("");
     setDraft((d) => {
       // 시작만 있거나 범위가 완성된 상태면 새로 시작한다
       if (!d.from || (d.from && d.to)) return { days: 0, from: v, to: "" };
-      if (v < d.from) return { days: 0, from: v, to: d.from };
-      return { ...d, to: v };
+      const next = v < d.from ? { days: 0, from: v, to: d.from } : { ...d, to: v };
+      onApply({ days: 0, from: next.from, to: next.to });
+      setOpen(false);
+      return next;
     });
-  };
-
-  const apply = () => {
-    if (draft.from && draft.to && draft.from > draft.to) {
-      setWarn("시작일이 종료일보다 늦습니다.");
-      return;
-    }
-    onApply(custom ? { days: 0, from: draft.from, to: draft.to } : { days: draft.days, from: "", to: "" });
-    setOpen(false);
   };
 
   return (
@@ -124,7 +127,7 @@ export function DateRangeFilter({ days, from, to, onApply }) {
               key={q.days}
               type="button"
               className={`pop-item${!custom && draft.days === q.days ? " is-on" : ""}`}
-              onClick={() => { setCustom(false); setDraft({ days: q.days, from: "", to: "" }); }}
+              onClick={() => quick(q.days)}
               aria-pressed={!custom && draft.days === q.days}
             >
               {q.label}
@@ -158,14 +161,6 @@ export function DateRangeFilter({ days, from, to, onApply }) {
         )}
 
         {warn && <p className="pop-warn" role="alert">{warn}</p>}
-
-        <div className="pop-foot">
-          <button type="button" className="rs-save"
-            onClick={() => { setDraft({ days: 0, from: "", to: "" }); setCustom(false); setWarn(""); }}>
-            초기화
-          </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={apply}>적용</button>
-        </div>
       </Popover>
     </span>
   );

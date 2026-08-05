@@ -23,7 +23,7 @@
  * (기사↔노드 연관 API 가 없다). 있는 척하면 고른 대로 걸렸다고 착각하게 된다.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api/index.js";
 import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
 import { DateRangeFilter } from "../../components/research/DateRangeFilter.jsx";
@@ -31,6 +31,7 @@ import { InterestKeywordSection } from "../../components/research/InterestKeywor
 import { SortFilter } from "../../components/research/SortFilter.jsx";
 import { KeywordManagementDrawer } from "../../components/research/KeywordManagementDrawer.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
+import mbxLogo from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
 import { useExplorationFeed } from "../../hooks/useExplorationFeed.js";
 import { defaultFeedTab } from "../../lib/onboardingData.js";
 import { useInterestKeywords } from "../../hooks/useInterestKeywords.js";
@@ -64,7 +65,11 @@ function Reason({ item }) {
   return (
     <p className="reco-why" title={`내 관심 키워드와 겹치는 말: ${hits.join(", ")}`}>
       <span className="reco-why-label">추천 이유</span>
-      내 키워드 {hits.slice(0, 3).map((k) => `‘${k}’`).join(" · ")}와 관련
+      내 키워드
+      {/* 따옴표 대신 알약 — 어느 낱말이 걸렸는지가 문장 속에서 먼저 읽혀야 한다.
+          문맥 카드의 키워드(.ctx-kw)와 같은 모양이라 뜻도 같게 읽힌다. */}
+      {hits.slice(0, 3).map((k) => <span key={k} className="reco-kw">{k}</span>)}
+      와 관련
     </p>
   );
 }
@@ -78,7 +83,8 @@ function SaveButton({ item, onToggle }) {
       aria-pressed={!!item.saved}
       aria-label={item.saved ? `${item.title} 저장 해제` : `${item.title} 저장`}
     >
-      <span aria-hidden="true">{item.saved ? "✔" : "🔖"}</span>
+      <NavIcon name={item.saved ? "bookmarkOn" : "bookmark"} size={14}
+        color={item.saved ? "var(--primary)" : "var(--ts)"} />
       {item.saved ? "저장됨" : "저장"}
     </button>
   );
@@ -167,10 +173,25 @@ export function S41({ onNav }) {
     !!filters.query &&
     interests.keywords.some((k) => k.keyword.toLowerCase() === filters.query.toLowerCase());
 
-  const featured = feed.items.length >= FEATURED ? feed.items.slice(0, FEATURED) : [];
+  // 위쪽 큰 자리(히어로 1 + 카드 3)는 **그림이 있는 글부터** 채운다. 큰 판에
+  // 그림이 없으면 색 판만 남아 목록이 밋밋해진다. 모자라면 나머지로 채운다.
+  // 첫 페이지가 들어온 시점에 한 번만 정한다 — 스크롤로 더 불러올 때마다 맨
+  // 위가 바뀌면 읽던 자리를 잃는다.
+  const firstId = feed.items[0]?.id || null;
+  const featured = useMemo(() => {
+    if (feed.items.length < FEATURED) return [];
+    const picked = feed.items.filter((i) => i.image_url).slice(0, FEATURED);
+    for (const it of feed.items) {
+      if (picked.length >= FEATURED) break;
+      if (!picked.includes(it)) picked.push(it);
+    }
+    return picked;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstId]);
+  const featuredIds = new Set(featured.map((i) => i.id));
   const hero = featured[0] || null;
   const cards = featured.slice(1);
-  const rest = feed.items.slice(featured.length);
+  const rest = feed.items.filter((i) => !featuredIds.has(i.id));
 
   if (!checkedProfile) {
     return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
@@ -197,7 +218,6 @@ export function S41({ onNav }) {
           예전에는 검색·키워드·기간·정렬이 세 줄로 흩어져 있어서, 기사가 화면
           아래로 밀리고 무엇이 조건인지도 흩어져 보였다. */}
       <div className="feed-bar">
-        <h2 className="kw-sec-title">내 관심 키워드</h2>
         <form className="feed-search is-inline" onSubmit={submitSearch} role="search">
           <NavIcon name="search" size={17} color="var(--tt)" />
           <input
@@ -228,13 +248,16 @@ export function S41({ onNav }) {
         </button>
       </div>
 
-      <InterestKeywordSection
-        groups={interests.groups}
-        selected={filters.keywords}
-        onToggle={toggleKeyword}
-        onRegister={() => setDrawer(true)}
-        loading={interests.loading}
-      />
+      <div className="kw-line">
+        <h2 className="kw-sec-title">내 관심 키워드</h2>
+        <InterestKeywordSection
+          groups={interests.groups}
+          selected={filters.keywords}
+          onToggle={toggleKeyword}
+          onRegister={() => setDrawer(true)}
+          loading={interests.loading}
+        />
+      </div>
 
       {feed.active.length > 0 && (
         <section className="applied">
@@ -296,8 +319,9 @@ export function S41({ onNav }) {
             <div className="feed-hero-actions">
               <a className="btn btn-primary btn-sm" href={hero.url} target="_blank" rel="noopener noreferrer"
                 onClick={() => openArticle(hero)}>원문 보기</a>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => askMbx(hero)}>
-                MBX에게 질문
+              <button type="button" className="btn btn-secondary btn-sm ask-ai" onClick={() => askMbx(hero)}>
+                <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
+                Bridge AI에게 질문
               </button>
               <SaveButton item={hero} onToggle={toggleSave} />
             </div>
@@ -334,6 +358,15 @@ export function S41({ onNav }) {
           <div className="feed-rows">
             {rest.map((item) => (
               <article key={item.id} className={`feed-row${item.read ? " read" : ""}`}>
+                {/* 그림이 있으면 줄에도 작게 붙인다. 훑어볼 때 글자만 늘어선 목록보다
+                    무엇에 관한 글인지 훨씬 빨리 읽힌다. 없으면 자리도 만들지 않는다 —
+                    빈 회색 상자가 줄마다 늘어서면 그게 더 시끄럽다. */}
+                {item.image_url && (
+                  <a className="feed-row-thumb" href={item.url} target="_blank" rel="noopener noreferrer"
+                    onClick={() => openArticle(item)} aria-label={item.title}>
+                    <ArticleVisual item={item} size="sm" />
+                  </a>
+                )}
                 <div className="feed-row-main">
                   <div className="feed-meta">
                     <span className={`badge badge-${item.kind === "paper" ? "blue" : "grey"}`}>
@@ -347,7 +380,10 @@ export function S41({ onNav }) {
                   <Reason item={item} />
                 </div>
                 <div className="feed-row-acts">
-                  <button type="button" className="rs-save" onClick={() => askMbx(item)}>MBX에게 질문</button>
+                  <button type="button" className="rs-save ask-ai" onClick={() => askMbx(item)}>
+                    <img className="ask-ai-logo" src={mbxLogo} alt="" aria-hidden="true" />
+                    Bridge AI에게 질문
+                  </button>
                   <SaveButton item={item} onToggle={toggleSave} />
                 </div>
               </article>
