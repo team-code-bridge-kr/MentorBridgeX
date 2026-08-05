@@ -2509,10 +2509,17 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .feed-card-meta { margin-top:10px; }
 .feed-card-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; }
-/* "더 읽을거리" — 그림 없이 한 줄씩. 담기는 것과 순서는 카드와 같다. */
-.feed-list { display:flex; flex-direction:column; }
+/* "더 읽을거리" — 그림 없이 글만, **두 칸**으로 세운다. 한 칸으로 늘어놓으면
+   글 한 줄이 화면 폭을 다 쓰지 못해 오른쪽이 크게 빈다.
+   담기는 것과 순서는 위 카드와 같다. */
+.feed-list {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:clamp(24px,3.5vw,56px);
+}
 .feed-item { padding:20px 0; border-bottom:1px solid var(--surface-container); }
-.feed-item:first-child { padding-top:14px; }
+/* 두 칸이므로 첫 줄은 위 두 개다 */
+.feed-item:nth-child(-n+2) { padding-top:14px; }
+@media (max-width:900px) { .feed-list { grid-template-columns:1fr; } }
 .feed-item .feed-topics { margin-top:0; }
 .feed-item .feed-card-title { -webkit-line-clamp:2; font-size:17px; }
 .feed-item .feed-card-sum { -webkit-line-clamp:2; max-width:74ch; }
