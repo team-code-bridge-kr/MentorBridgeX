@@ -89,9 +89,6 @@ function Topics({ item, query }) {
 function TasteButtons({ item, onFeedback }) {
   const liked = item.feedback === "like";
   return (
-    /* 두 단추를 **하나의 조작부**로 묶는다. 서로 반대되는 답이라 따로 떨어져
-       있으면 각각 다른 일을 하는 단추처럼 보인다. 가운데 선 하나로 "둘 중
-       하나"임을 알린다. */
     <div className="taste-group" role="group" aria-label="이 글에 대한 반응">
       <button
         type="button"
@@ -153,12 +150,10 @@ function FeedCard({ item, query, onOpen, onSave, onAsk, onFeedback, row }) {
       <a className="feed-card-title" href={item.url} target="_blank" rel="noopener noreferrer"
         onClick={() => onOpen(item)}>{item.title}</a>
       {item.summary && <p className="feed-card-sum">{item.summary}</p>}
+      {/* 취향 표시는 출처·날짜 **바로 옆**이다. 글을 어디까지 읽고 판단했는지
+          그 줄에서 끝나므로, 아래 실행 단추(질문·저장)와 섞지 않는다. */}
       <div className="feed-meta feed-card-meta">
-        {item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}
-      </div>
-      {/* 두 줄로 나눈다. 넷을 한 줄에 두면 좁은 칸에서 마지막 하나만 다음 줄로
-          떨어져 짝이 어긋나 보인다. 위는 취향(내 반응), 아래는 실행이다. */}
-      <div className="feed-card-acts">
+        <span>{item.outlet}{` / ${fmtDate(item.published_at) || "발행일 미상"}`}{item.read && " / 읽음"}</span>
         <TasteButtons item={item} onFeedback={onFeedback} />
       </div>
       <div className="feed-card-acts">
@@ -431,9 +426,7 @@ export function S41({ onNav }) {
               onClick={() => openArticle(hero)}>{hero.title}</a>
             {hero.summary && <p className="feed-hero-sum">{hero.summary}</p>}
             <div className="feed-meta">
-              {hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}
-            </div>
-            <div className="feed-hero-actions">
+              <span>{hero.outlet}{` / ${fmtDate(hero.published_at) || "발행일 미상"}`}{hero.read && " / 읽음"}</span>
               <TasteButtons item={hero} onFeedback={setFeedback} />
             </div>
             <div className="feed-hero-actions">
