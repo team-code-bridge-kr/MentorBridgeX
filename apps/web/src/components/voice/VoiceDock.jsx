@@ -18,6 +18,7 @@ import { NavIcon } from "../NavIcon.jsx";
 import api from "../../api/index.js";
 import { RenameField } from "../dashboard/RenameField.jsx";
 import mbxLogo from "../../assets/brand/mbx_logo.png";
+import { ChatDock } from "../assistant/ChatDock.jsx";
 import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 
 /** 다른 화면에서 도크를 열 때 쓴다. */
@@ -41,6 +42,7 @@ export function VoiceDock({ onNav }) {
   // 오른쪽 아래 단추에서 펼치는 차림표. AI 를 쓰려고 대시보드까지 찾아가야 하면
   // "언제 어디서든" 이 아니다. 녹음과 Bridge AI 를 같은 자리에서 부른다.
   const [menu, setMenu] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   // idle | recording | saving | done
   const [phase, setPhase] = useState("idle");
   const [sec, setSec] = useState(0);
@@ -225,6 +227,7 @@ export function VoiceDock({ onNav }) {
 
   return (
     <>
+      <ChatDock open={chatOpen} onClose={() => setChatOpen(false)} onNav={onNav} />
       {open && (
         <div className="vdock" role="dialog" aria-label="음성 기록">
           <div className="vdock-head">
@@ -374,11 +377,11 @@ export function VoiceDock({ onNav }) {
       {/* 접힌 단추. 녹음 중에는 빨갛게 남아 어느 화면에서든 눈에 띈다. */}
       <button
         type="button"
-        className={`vdock-fab${recording ? " is-rec" : ""}${open || menu ? " is-open" : ""}`}
+        className={`vdock-fab${recording ? " is-rec" : ""}${open || menu || chatOpen ? " is-open" : ""}`}
         onClick={() => {
           // 녹음 중에는 차림표를 거치지 않는다. 그때 급한 일은 "멈추기" 하나다.
           if (recording) { setOpen((v) => !v); return; }
-          if (open) { setOpen(false); return; }
+          if (open || chatOpen) { setOpen(false); setChatOpen(false); return; }
           setMenu((v) => !v);
         }}
         title={recording ? `녹음 중 ${fmt(sec)}` : menu ? "닫기" : "무엇을 할까요"}
@@ -387,7 +390,7 @@ export function VoiceDock({ onNav }) {
       >
         {recording
           ? <><span className="vdock-dot" /><span className="vdock-fab-time">{fmt(sec)}</span></>
-          : menu || open
+          : menu || open || chatOpen
             ? <NavIcon name="close" size={21} color="#fff" />
             : <img src={mbxLogo} alt="" className="fab-logo" />}
       </button>
@@ -401,13 +404,7 @@ export function VoiceDock({ onNav }) {
             className="fab-item fab-ai"
             role="menuitem"
             style={{ "--i": 0 }}
-            onClick={() => {
-              setMenu(false);
-              onNav?.("S05");
-              // 대시보드가 이미 떠 있으면 새 대화로 비운다. 갓 연 화면에 남의
-              // 대화가 이어져 있으면 "새로 묻기" 가 아니다.
-              window.dispatchEvent(new CustomEvent("mbx:new-chat"));
-            }}
+            onClick={() => { setMenu(false); setOpen(false); setChatOpen(true); }}
           >
             <span className="fab-label">Bridge AI 에게 묻기</span>
             <span className="fab-dot"><NavIcon name="sparkle" size={19} color="#fff" /></span>
@@ -417,7 +414,7 @@ export function VoiceDock({ onNav }) {
             className="fab-item fab-voice"
             role="menuitem"
             style={{ "--i": 1 }}
-            onClick={() => { setMenu(false); setOpen(true); }}
+            onClick={() => { setMenu(false); setChatOpen(false); setOpen(true); }}
           >
             <span className="fab-label">음성 기록</span>
             <span className="fab-dot"><NavIcon name="voice" size={19} color="#fff" /></span>
