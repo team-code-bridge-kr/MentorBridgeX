@@ -37,7 +37,7 @@ const RECENT_LIMIT = 3;
 const fmt = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-export function VoiceDock({ onNav }) {
+export function VoiceDock({ onNav, screen }) {
   const [open, setOpen] = useState(false);
   // 오른쪽 아래 단추에서 펼치는 차림표. AI 를 쓰려고 대시보드까지 찾아가야 하면
   // "언제 어디서든" 이 아니다. 녹음과 Bridge AI 를 같은 자리에서 부른다.
@@ -227,7 +227,7 @@ export function VoiceDock({ onNav }) {
 
   return (
     <>
-      <ChatDock open={chatOpen} onClose={() => setChatOpen(false)} onNav={onNav} />
+      <ChatDock open={chatOpen} onClose={() => setChatOpen(false)} onNav={onNav} screen={screen} />
       {open && (
         <div className="vdock" role="dialog" aria-label="음성 기록">
           <div className="vdock-head">

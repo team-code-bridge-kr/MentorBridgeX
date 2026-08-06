@@ -30,7 +30,10 @@ const when = (iso) => {
     : d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
 
-export function ChatDock({ open, onClose, onNav }) {
+// 대시보드 화면. 여기 있는 동안에는 "전체 화면으로" 가 갈 데가 없다.
+const FULL_SCREEN = "S05";
+
+export function ChatDock({ open, onClose, onNav, screen }) {
   const chat = useAIChat();
   const [draft, setDraft] = useState("");
   const [recent, setRecent] = useState([]);
@@ -138,22 +141,35 @@ export function ChatDock({ open, onClose, onNav }) {
         )}
       </div>
 
+      {/* 이미 대시보드에 있으면 이 단추는 갈 곳이 없다. 이어갈 대화가 있을 때만
+          "여기로 옮기기" 로 남기고, 그것도 없으면 아예 감춘다 — 눌러도 아무 일이
+          없는 단추는 고장 난 것으로 읽힌다. */}
+      {(screen !== FULL_SCREEN || chat.conversationId) && (
       <button
         type="button"
         className="cdock-full"
         onClick={() => {
-          // 대시보드가 이 대화를 그대로 이어받는다. 옮겨 갔는데 처음부터 다시
-          // 물어야 하면 옮긴 뜻이 없다.
-          //
-          // 이벤트만 쏘면 놓친다 — 아직 그려지지 않은 화면에 소리치는 셈이다.
-          // 값을 놔두고 대시보드가 뜰 때 가져가게 한다(lib/handoff 의 이유와 같다).
-          if (chat.conversationId) queueRestore({ conversationId: chat.conversationId });
+          const here = screen === FULL_SCREEN;
+          if (chat.conversationId) {
+            if (here) {
+              // 대시보드가 이미 떠서 듣고 있다. 놔두고 가면 아무도 가져가지
+              // 않아서, 다음에 대시보드에 들어올 때 뒤늦게 되살아난다.
+              window.dispatchEvent(
+                new CustomEvent("mbx:resume-chat", { detail: { id: chat.conversationId } }),
+              );
+            } else {
+              // 아직 그려지지 않은 화면에 소리쳐 봐야 놓친다. 값을 놔두고
+              // 대시보드가 뜰 때 가져가게 한다(lib/handoff 와 같은 이유).
+              queueRestore({ conversationId: chat.conversationId });
+            }
+          }
           onClose?.();
-          onNav?.("S05");
+          if (!here) onNav?.(FULL_SCREEN);
         }}
       >
-        전체 화면으로 →
+        {screen === FULL_SCREEN ? "이 대화를 큰 화면에서 이어가기 →" : "전체 화면으로 →"}
       </button>
+      )}
     </div>
   );
 }

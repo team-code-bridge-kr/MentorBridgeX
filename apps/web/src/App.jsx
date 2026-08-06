@@ -206,7 +206,7 @@ function AppShell() {
       </div>
       {/* 녹음 도크는 화면 밖(껍데기)에 있다. 그래야 화면을 옮겨도 다시 그려지지
           않아 녹음이 이어진다 — 화면 안에 두면 이동하는 순간 끊긴다. */}
-      {session && <VoiceDock onNav={nav} />}
+      {session && <VoiceDock onNav={nav} screen={screen} />}
       {devPicker}
     </>
   );
