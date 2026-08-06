@@ -46,8 +46,8 @@ const norm = (s) => (s || "").replace(/\s+/g, "");
  * pdf.js 는 조각(item) 단위로 주는데, 자간이 벌어진 제목은 한 글자씩 쪼개져
  * 나온다. y 가 비슷한 조각을 한 줄로 묶어야 "세부능력및특기사항" 이 만들어진다.
  */
-export function toLines(textContent, viewport, pdfjs) {
-  const items = textContent.items
+export function toItems(textContent, viewport, pdfjs) {
+  return textContent.items
     .filter((it) => (it.str || "").trim())
     .map((it) => {
       const tx = pdfjs.Util.transform(viewport.transform, it.transform);
@@ -60,10 +60,13 @@ export function toLines(textContent, viewport, pdfjs) {
         w: it.width * (viewport.scale || 1),
         h,
       };
-    });
+    })
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
 
+export function toLines(textContent, viewport, pdfjs) {
   const lines = [];
-  for (const it of items.sort((a, b) => a.y - b.y || a.x - b.x)) {
+  for (const it of toItems(textContent, viewport, pdfjs)) {
     const last = lines[lines.length - 1];
     // 같은 줄 판정은 글자 높이의 절반 — 위첨자나 미세한 baseline 차이를 흡수한다
     if (last && Math.abs(it.y - last.y) <= last.h * 0.6) {
@@ -78,43 +81,92 @@ export function toLines(textContent, viewport, pdfjs) {
   return lines;
 }
 
-/**
- * 표의 가로 괘선 y 좌표.
+/* 구획의 진짜 경계는 괘선이다 — 이게 이 파일의 핵심이다.
  *
- * **구획의 진짜 경계는 괘선이다.** 영역 라벨("자율활동")은 셀 안에서 세로
- * 가운데에 놓이기 때문에, 라벨의 y 를 구획 시작으로 쓰면 실제보다 한참 아래에서
- * 시작한다 (표본 2쪽: 라벨 y=609, 실제 행 시작 y=487 — 122pt 차이).
- * 본문 줄 간격으로 행을 가르려 해도 안 된다. 앞 행 끝과 다음 행 첫 줄이
- * 4pt 간격으로 붙어 있어 텍스트만으로는 경계가 보이지 않는다.
+ * 영역 라벨("자율활동")은 셀 안에서 **세로 가운데**에 놓인다. 라벨의 y 를 구획
+ * 시작으로 쓰면 실제 행보다 한참 아래에서 시작한다(2쪽 실측: 라벨 y=609,
+ * 행 시작 y=487 — 122pt 차이). 본문 줄 간격으로 가르는 것도 안 된다. 자율활동
+ * 마지막 줄(729)과 동아리활동 첫 줄(743)의 간격이 행 안쪽 간격(4pt)과 같다.
  *
- * 좌표 변환은 viewport.transform 만 적용한다. 표를 그리기 전에 cm(좌표계 변경)이
- * 끼면 어긋날 수 있어서, 결과가 비어 있으면 호출부가 라벨 y 로 되돌아간다.
- */
-/* 구획 시작점의 한계 — 다음 사람이 같은 데를 두 번 파지 않도록 적어 둔다.
+ * 그래서 `findRules` 로 표의 가로 괘선을 뽑아 라벨을 그 위 괘선에 붙인다.
+ * pdf.js 의 constructPath 는 [그리기연산, [좌표들], 경계상자] 꼴이고 좌표는
+ * cm(좌표계 변경) 이 걸린 상태다. save/restore/transform 을 따라가며 CTM 을
+ * 추적한 뒤 viewport.transform 을 곱해야 캔버스 좌표가 나온다.
  *
- * 영역 라벨("자율활동")은 셀 안에서 **세로 가운데**에 놓인다. 그래서 라벨의 y 를
- * 구획 시작으로 쓰면 실제 행 시작보다 아래에서 시작한다.
- * 표본 2쪽 실측: 라벨 y=609 인데 그 행의 본문은 y=489 부터다 (120pt 차이).
- *
- * 시도해 보고 안 된 것:
- * - **본문 줄 간격으로 행 가르기**: 안 된다. 자율활동 마지막 줄(y=729)과
- *   동아리활동 첫 줄(y=743)의 간격이 행 안쪽 간격(4pt)과 같다. 텍스트만으로는
- *   두 행의 경계가 보이지 않는다.
- * - **가로 괘선으로 스냅**: 경계는 실제로 괘선에 있다(2쪽 y=487, 741 확인).
- *   다만 pdf.js 5 의 constructPath 인자는 [타입, [좌표], 경계상자]로 바뀌었고,
- *   경계상자는 그 경로가 그려질 때의 좌표계 기준이라 viewport.transform 만
- *   적용하면 어긋난다. 제대로 하려면 cm/q/Q 를 따라가며 CTM 을 추적해야 한다.
- *
- * 지금은 라벨 y 를 쓴다. 구획을 고르고 확대해 읽는 데는 지장이 없고, 시작점이
- * 행 중간이라는 점만 감안하면 된다. 정확히 맞추려면 위의 CTM 추적이 답이다.
+ * 표본 대조: pdf.js 로 뽑은 값이 PyMuPDF get_drawings() 와 소수점까지 같다
+ * (2쪽 82.9·111.2·…·486.8·740.8·769.0).
  */
 
-/** 한 페이지에서 앵커(구획 시작 줄)를 찾는다. */
+/**
+ * 제목이 없고 **표 머리로만** 알아볼 수 있는 구획.
+ *
+ * 봉사활동 실적 표에는 `<봉사활동실적>` 같은 제목이 없다(표본 6쪽 확인).
+ * 열 이름 "일자 또는 기간" 이 이 표에만 나오므로 그걸 표시로 쓴다.
+ */
+const HEADER_LABELS = [
+  { key: "volunteer", norm: "일자또는기간", label: "봉사활동 실적" },
+];
+
+/** 표 머리로 알아보는 구획의 시작. */
+export function findHeaderTables(items, pageWidth) {
+  const hits = [];
+  for (const it of items) {
+    if (it.x > pageWidth * LABEL_X_RATIO) continue;
+    const a = HEADER_LABELS.find((c) => c.norm === norm(it.str));
+    if (a && inLabelColumn(items, it)) hits.push({ ...a, y: it.y, x: it.x });
+  }
+  return hits.sort((a, b) => a.y - b.y);
+}
+
+/**
+ * 줄의 **첫 칸 또는 둘째 칸**에 놓인 조각만 남긴다.
+ *
+ * 조각의 x 만 보면 본문 한가운데에서 시작한 글자 뭉치가 셀 라벨로 오인된다
+ * (표본: 2학년 세특 쪽 한복판에 "자율활동" 구획이 생겼다). 표의 라벨 칸은
+ * 줄의 맨 앞이거나, 학년 숫자(한두 자) 바로 다음이다.
+ */
+function inLabelColumn(items, target) {
+  const row = items.filter((it) => Math.abs(it.y - target.y) <= Math.max(it.h, target.h) * 0.6);
+  const idx = row.indexOf(target);
+  if (idx === 0) return true;
+  if (idx !== 1) return false;
+  return /^\s*\d{1,2}\s*$/.test(row[0].str);
+}
+
+/**
+ * 창체 표 맨 왼쪽 학년 칸(`1`, `2`, `3`).
+ *
+ * 세특의 `[1학년]` 과 달리 창체 표에는 학년 표시가 **숫자 한 칸**뿐이다. 여러 행을
+ * 묶는 칸이라 세로 가운데에 놓이므로, 라벨은 y 가 가장 가까운 숫자에 붙인다
+ * (실측 3쪽: 숫자 1 y=352 → 동아리 169·진로 395 둘 다 이쪽이 가깝다).
+ *
+ * 학년이 없으면 같은 쪽에 `자율활동` 구획이 둘 생겨 이름이 겹치고, 그러면 화면이
+ * 둘을 같은 것으로 여겨 앞 쪽 구획이 다음 쪽에 남는다.
+ */
+export function findRowGrades(items, pageWidth) {
+  return items
+    .filter((it) => it.x <= pageWidth * 0.1 && /^\s*[1-3]\s*$/.test(it.str))
+    .map((it) => ({ grade: `${it.str.trim()}학년`, y: it.y }))
+    .sort((a, b) => a.y - b.y);
+}
+
+/** 표 안의 영역 라벨. 조각 하나가 라벨 하나라서 **정확히 같은지**로 본다. */
+export function findCellLabels(items, pageWidth) {
+  const hits = [];
+  for (const it of items) {
+    if (!isCellLabel(it.x, pageWidth) || it.x > pageWidth * LABEL_X_RATIO) continue;
+    const a = ANCHOR_LABELS.find((c) => c.norm === norm(it.str));
+    if (a && inLabelColumn(items, it)) hits.push({ ...a, y: it.y, x: it.x });
+  }
+  return hits.sort((a, b) => a.y - b.y);
+}
+
+/** 페이지 왼쪽의 대제목. 자간이 벌어져 인쇄되므로 줄로 묶어서 본다. */
 export function findAnchors(lines, pageWidth) {
-  const limit = pageWidth * LABEL_X_RATIO;
+  const limit = pageWidth * 0.08;
   const hits = [];
   for (const line of lines) {
-    if (line.x > limit) continue; // 본문에 섞인 같은 낱말을 여기서 거른다
+    if (line.x > limit) continue; // 본문·표 안에 섞인 같은 낱말을 여기서 거른다
     const text = norm(line.str);
     for (const a of ANCHOR_LABELS) {
       if (text.includes(a.norm) && text.length <= a.norm.length + LABEL_SLACK) {
@@ -222,4 +274,90 @@ export function findSubjectAnchors(lines, subjects, pageWidth) {
     }
   }
   return hits.sort((a, b) => a.y - b.y);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   표의 가로 괘선
+────────────────────────────────────────────────────────────── */
+
+// pdf.js 의 경로 명령(DrawOPS). 내보내지 않는 상수라 여기에 적어 둔다.
+const D_MOVE = 0, D_LINE = 1, D_CURVE = 2, D_QUAD = 3, D_CLOSE = 4;
+// 가로로 볼 기울기 — 인쇄 오차 정도만 봐준다
+const RULE_FLAT = 0.8;
+// 페이지 폭의 이만큼은 넘어야 표의 가로줄이다. 셀 안 밑줄이 섞이면 경계가 는다.
+const RULE_MIN_RATIO = 0.3;
+
+const matMul = (a, b) => [
+  a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1],
+  a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+  a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5],
+];
+
+/**
+ * 한 쪽의 가로 괘선 y 좌표(캔버스 기준, 오름차순).
+ *
+ * @param opList page.getOperatorList() 결과
+ */
+export function findRules(opList, viewport, pdfjs) {
+  const OPS = pdfjs.OPS;
+  const base = viewport.transform;
+  let ctm = [1, 0, 0, 1, 0, 0];
+  const stack = [];
+  const ys = new Set();
+
+  for (let i = 0; i < opList.fnArray.length; i += 1) {
+    const fn = opList.fnArray[i];
+    if (fn === OPS.save) { stack.push(ctm.slice()); continue; }
+    if (fn === OPS.restore) { ctm = stack.pop() || [1, 0, 0, 1, 0, 0]; continue; }
+    if (fn === OPS.transform) { ctm = matMul(ctm, opList.argsArray[i]); continue; }
+    if (fn !== OPS.constructPath) continue;
+
+    const m = matMul(base, ctm);
+    const at = (x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+    for (const buf of opList.argsArray[i][1]) {
+      const d = Array.from(buf);
+      let k = 0;
+      let cur = null;
+      while (k < d.length) {
+        const op = d[k]; k += 1;
+        if (op === D_MOVE || op === D_LINE) {
+          const pt = at(d[k], d[k + 1]); k += 2;
+          if (op === D_LINE && cur
+              && Math.abs(pt[1] - cur[1]) < RULE_FLAT
+              && Math.abs(pt[0] - cur[0]) > viewport.width * RULE_MIN_RATIO) {
+            ys.add(Math.round(pt[1] * 10) / 10);
+          }
+          cur = pt;
+        } else if (op === D_CURVE) { k += 6; cur = null; }
+        else if (op === D_QUAD) { k += 4; cur = null; }
+        else if (op === D_CLOSE) { cur = null; }
+        else break; // 모르는 명령이 나오면 이 경로는 포기한다
+      }
+    }
+  }
+  return [...ys].sort((a, b) => a - b);
+}
+
+/** 표 안의 라벨인가(대제목이 아니라). 실측: 대제목 x≈35, 셀 라벨 x≈90~95. */
+export function isCellLabel(x, pageWidth) { return x > pageWidth * 0.08; }
+
+/** 번호가 붙은 대제목(`4. 자격증 및 인증 취득상황`). 구획은 아니고 경계다. */
+export function findSectionBreaks(lines, pageWidth) {
+  const limit = pageWidth * 0.08;
+  return lines
+    // 번호는 한두 자리, 점 뒤에 **공백**, 그 뒤는 한글이나 `<`.
+    // 좁히지 않으면 `12021.08.17.수강자` 같은 표 안 날짜가 대제목이 된다.
+    .filter((l) => l.x <= limit && /^\s*\d{1,2}\.\s+[가-힣<]/.test(l.str) && norm(l.str).length <= 24)
+    .map((l) => ({ y: l.y }))
+    .sort((a, b) => a.y - b.y);
+}
+
+/** 라벨을 바로 위 괘선에 붙인다. 너무 멀면 붙이지 않는다(표 밖일 수 있다). */
+export function snapToRule(rules, y, maxUp = 400) {
+  let best = null;
+  for (const r of rules) {
+    if (r > y + 2) break;
+    if (y - r <= maxUp) best = r;
+  }
+  return best === null ? y - 4 : best;
 }

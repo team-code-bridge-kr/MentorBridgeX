@@ -21,7 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
-  footerMask, toLines, findAnchors, findSubjectAnchors, findGradeMarks,
+  footerMask, toItems, toLines, findAnchors, findCellLabels, findSubjectAnchors,
+  findGradeMarks, findRowGrades, findRules, findSectionBreaks, findHeaderTables, snapToRule,
 } from "../../lib/pdfRegions.js";
 import { linksFrom, linksForPage, factsForPage } from "../../lib/pdfLinks.js";
 import { API_BASE, getToken } from "../../api/client.js";
@@ -38,54 +39,136 @@ const TYPE_KIND = {
   award: "수상", autonomous: "자율활동", club: "동아리활동", volunteer: "봉사활동",
   career: "진로활동", reading: "독서활동", behavior: "행동특성", subject_specific: "세특",
 };
+// 학년마다 되풀이되는 영역. 창체 표는 학년별로 자율·동아리·진로 세 줄이 있다.
+// 수상경력·독서활동·행동특성·봉사활동 실적은 표 하나에 모든 학년이 들어 있어서
+// 학년을 붙이면 거짓말이 된다.
+const GRADED_KEYS = new Set(["autonomous", "club", "career"]);
 const KEY_TYPE = {
   award: "award", autonomous: "autonomous", club: "club", volunteer: "volunteer",
   career: "career", reading: "reading", behavior: "behavior",
 };
 
 /* ── 문서 훑기 ──────────────────────────────────────────────
-   한 번만 돈다. 쪽을 넘길 때마다 다시 읽으면 19쪽짜리에서 넘김이 굼떠진다. */
+   한 번만 돈다. 쪽을 넘길 때마다 다시 읽으면 19쪽짜리에서 넘김이 굼떠진다.
+
+   경계는 세 가지에서 온다.
+   ① 표 안 라벨(자율활동 …) — 셀 가운데에 놓이므로 **바로 위 괘선에 붙인다**
+   ② 번호 붙은 대제목(`4. 자격증 …`) — 구획은 아니지만 앞 구획을 여기서 끊는다
+   ③ 세특 과목(`국어:`) — 표가 아니라 한 셀 안의 글이라 괘선이 없다. 글 위치 그대로
+
+   그리고 **쪽을 넘어 이어지는 구획**을 만든다. 수상경력 표는 1쪽에서 시작해
+   2쪽 위까지 이어지는데, 2쪽에는 제목이 없어서 앵커만 보면 그 표가 통째로
+   빠진다(예전 화면이 그랬다). */
 async function scanDocument(doc, subjects) {
   const pages = [];
-  let grade = "";
+  let carry = null;   // 앞 쪽에서 이어져 오는 구획
+  let grade = "";     // 세특 학년 — `[1학년]` 표시에서
+  let rowGrade = "";  // 창체 학년 — 표 맨 왼쪽 숫자 칸에서
+
   for (let no = 1; no <= doc.numPages; no += 1) {
     const page = await doc.getPage(no);
     const vp = page.getViewport({ scale: 1 });
-    const lines = toLines(await page.getTextContent(), vp, pdfjs);
+    const text = await page.getTextContent();
+    const items = toItems(text, vp, pdfjs);
+    const lines = toLines(text, vp, pdfjs);
+    const rules = findRules(await page.getOperatorList(), vp, pdfjs);
     const marks = findGradeMarks(lines, vp.width);
-    const areas = findAnchors(lines, vp.width);
     const subs = findSubjectAnchors(lines, subjects, vp.width);
-
-    const anchors = [
-      // 세특 제목("과목 | 세부능력 및 특기사항")은 표 머리라 쪽마다 다시 찍힌다.
-      // 그 쪽에 과목이 잡혔으면 과목 쪽이 더 잘게 나누므로 제목은 버린다.
-      ...areas
-        .filter((a) => !(a.key === "subject" && subs.length))
-        .map((a) => ({ y: a.y, kind: "area", key: a.key, label: a.label })),
-      ...subs.map((a) => ({ y: a.y, kind: "subject", subject: a.subject })),
-    ].sort((a, b) => a.y - b.y);
-
     const bottom = vp.height * FOOTER_RATIO;
+
+    const gradeAt = (y) => [...marks].filter((m) => m.y <= y).pop()?.grade || grade;
+    // 창체 라벨은 가장 가까운 학년 칸을 따른다. 그 쪽에 숫자가 없으면(학년 묶음이
+    // 쪽을 넘어온 것) 앞에서 쓰던 학년을 이어 쓴다.
+    const rows = findRowGrades(items, vp.width);
+    const rowGradeAt = (y) => {
+      if (!rows.length) return rowGrade;
+      return rows.reduce((a, b) => (Math.abs(a.y - y) <= Math.abs(b.y - y) ? a : b)).grade;
+    };
+
+    const bounds = [
+      // 대제목 — 표 밖에 있으므로 글 위치가 곧 시작이다
+      ...findAnchors(lines, vp.width)
+        // 세특 표 머리("과목 | 세부능력 및 특기사항")는 구획이 아니다. 구획은
+        // 과목이다. 표 머리를 구획으로 삼으면 앞 쪽에서 이어지던 과목이 통째로
+        // 지워진다(표본 13·18쪽).
+        .filter((a) => a.key !== "subject")
+        .map((a) => ({ y: a.y - 4, kind: "area", key: a.key, label: a.label, at: a.y })),
+      // 표 안 라벨 — 셀 세로 가운데에 놓이므로 바로 위 괘선에 붙인다
+      ...[...findCellLabels(items, vp.width), ...findHeaderTables(items, vp.width)]
+        .map((a) => ({
+          y: snapToRule(rules, a.y), kind: "area", key: a.key, label: a.label, at: a.y,
+          rowGrade: rowGradeAt(a.y),
+        })),
+      ...subs.map((a) => ({ y: a.y - 4, kind: "subject", subject: a.subject, at: a.y })),
+      // `[2학년]` 표시 뒤에는 성적표가 온다. 앞 과목을 여기서 끊지 않으면
+      // 2학년 미술 구획이 3학년 성적표까지 덮는다.
+      ...[...findSectionBreaks(lines, vp.width), ...marks]
+        .map((b) => ({ y: b.y - 4, kind: "break", at: b.y })),
+    ].sort((a, b) => a.y - b.y || (a.kind === "break" ? 1 : -1));
+
+    // 같은 자리를 두 번 세지 않는다 — `3. 수상경력` 은 대제목이자 영역이다.
+    const merged = [];
+    for (const b of bounds) {
+      const prev = merged[merged.length - 1];
+      if (prev && Math.abs(prev.y - b.y) < 3) {
+        if (prev.kind === "break" && b.kind !== "break") merged[merged.length - 1] = b;
+        continue;
+      }
+      merged.push(b);
+    }
+
     const regions = [];
-    anchors.forEach((a, i) => {
-      const yStart = Math.max(0, a.y - 4);
-      const yEnd = Math.min(bottom, anchors[i + 1] ? anchors[i + 1].y - 4 : bottom);
+    const push = (meta, yStart, yEnd) => {
       if (yEnd - yStart < MIN_REGION_PT) return;
-      // 학년은 `[1학년]` 표시로 나뉜다. 이 앵커 앞의 마지막 표시가 이 구획의 학년.
-      const g = [...marks].filter((m) => m.y <= a.y).pop()?.grade || grade;
       regions.push({
-        id: `r${no}-${Math.round(a.y)}`,
+        ...meta,
+        id: `${meta.rid}@${no}#${regions.length}`,
         page: no,
-        kind: a.kind,
-        key: a.key || "",
-        subject: a.subject || "",
-        grade: g,
-        label: a.kind === "subject" ? `${g ? `${g} ` : ""}${a.subject} 세특` : a.label,
         rect: { x: 0.03, w: 0.94, y: yStart / vp.height, h: (yEnd - yStart) / vp.height },
       });
+    };
+
+    // 이어짐 — 쪽 맨 위(표 머리 아래 첫 괘선)부터 첫 경계까지
+    if (carry) {
+      const top = rules.find((r) => r < vp.height * 0.14) ?? 0;
+      push(carry, top, merged.length ? merged[0].y : bottom);
+    }
+
+    merged.forEach((b, i) => {
+      const yEnd = i + 1 < merged.length ? merged[i + 1].y : bottom;
+      if (b.kind === "break") { carry = null; return; }
+      const g = gradeAt(b.at);
+      const meta = b.kind === "subject"
+        ? { rid: `s:${g}:${b.subject}`, kind: "subject", key: "", subject: b.subject, grade: g,
+            label: `${g ? `${g} ` : ""}${b.subject} 세특` }
+        : (() => {
+          const withGrade = GRADED_KEYS.has(b.key) && (b.rowGrade || "");
+          if (withGrade) rowGrade = withGrade;
+          return {
+            rid: `a:${b.key}${withGrade ? `:${withGrade}` : ""}`,
+            kind: "area", key: b.key, subject: "", grade: withGrade || "",
+            label: withGrade ? `${withGrade} ${b.label}` : b.label,
+          };
+        })();
+      push(meta, b.y, yEnd);
+      carry = i === merged.length - 1 ? meta : carry;
     });
+    if (!merged.length && !carry) carry = null;
+
+    // 이어진 쪽에서는 제목이 다시 찍힌다. 그러면 같은 구획이 위아래 두 도막으로
+    // 나뉜다 — 맞닿아 있으면 하나로 만든다.
+    const joined = [];
+    for (const r of regions) {
+      const prev = joined[joined.length - 1];
+      if (prev && prev.rid === r.rid && Math.abs((prev.rect.y + prev.rect.h) - r.rect.y) < 0.01) {
+        prev.rect.h = r.rect.y + r.rect.h - prev.rect.y;
+        continue;
+      }
+      joined.push(r);
+    }
+
     if (marks.length) grade = marks[marks.length - 1].grade;
-    pages.push({ no, regions });
+    pages.push({ no, regions: joined });
   }
   return pages;
 }
@@ -118,7 +201,7 @@ function bindItems(pages, docs) {
       }
       region.itemId = doc?.id || "";
       const item = doc && byId.get(doc.id);
-      if (item && !item.page) { item.page = page.no; item.regionId = region.id; }
+      if (item && !item.page) { item.page = page.no; item.regionId = region.rid; }
     }
   }
   return items;
@@ -181,13 +264,13 @@ function ReaderPage({ doc, pageNo, width, mask, regions, show, selected, flash, 
             <button
               key={r.id}
               type="button"
-              id={`region-${r.id}`}
-              className={`rd-region${show ? " is-shown" : ""}${selected === r.id ? " is-on" : ""}${flash === r.id ? " is-flash" : ""}`}
+              data-rid={r.rid}
+              className={`rd-region${show ? " is-shown" : ""}${selected === r.rid ? " is-on" : ""}${flash === r.rid ? " is-flash" : ""}`}
               style={{
                 left: `${r.rect.x * 100}%`, top: `${r.rect.y * 100}%`,
                 width: `${r.rect.w * 100}%`, height: `${r.rect.h * 100}%`,
               }}
-              aria-pressed={selected === r.id}
+              aria-pressed={selected === r.rid}
               aria-label={r.label}
               onClick={() => onPick(r)}
             />
@@ -352,7 +435,8 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     setFlash("");
     setTimeout(() => {
       setFlash(item.regionId);
-      const el = document.getElementById(`region-${item.regionId}`);
+      // 한 구획이 쪽을 넘어 이어지면 조각이 여럿이다. 뛰어간 쪽의 조각을 찾는다.
+      const el = document.querySelector(`[data-rid="${item.regionId}"]`);
       el?.scrollIntoView({ block: "center", behavior: reduce.current ? "auto" : "smooth" });
       setTimeout(() => setFlash(""), FLASH_MS * 2 + 40);
     }, 60);
@@ -363,7 +447,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     return shownNos.flatMap((n) => pages[n - 1]?.regions || []);
   }, [pages, shownNos.join(",")]);
 
-  const selRegion = pageRegions.find((r) => r.id === sel) || null;
+  const selRegion = pageRegions.find((r) => r.rid === sel) || null;
   const sources = (selRegion ? [selRegion] : pageRegions)
     .map((r) => itemById.get(r.itemId))
     .filter(Boolean);
@@ -410,13 +494,13 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
             <ReaderPage
               doc={doc} pageNo={leftNo <= total ? leftNo : 0} width={pageW} mask={mask}
               regions={pages[leftNo - 1]?.regions || []}
-              show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.id ? null : r.id))}
+              show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.rid ? null : r.rid))}
             />
             {!single && (
               <ReaderPage
                 doc={doc} pageNo={rightNo <= total ? rightNo : 0} width={pageW} mask={mask}
                 regions={pages[rightNo - 1]?.regions || []}
-                show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.id ? null : r.id))}
+                show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.rid ? null : r.rid))}
               />
             )}
           </div>
