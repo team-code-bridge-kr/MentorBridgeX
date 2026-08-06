@@ -314,6 +314,8 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
   const [single, setSingle] = useState(false);
   const [show, setShow] = useState(true);
   const [sel, setSel] = useState(null);      // 고른 구획
+  // 옆 판을 열어 둘지. 구획을 고르면 열리고, 닫으면 책이 다시 가운데로 온다.
+  const [panelOpen, setPanelOpen] = useState(false);
   const [flash, setFlash] = useState("");
   const [fading, setFading] = useState(false);
   const [pageW, setPageW] = useState(420);
@@ -415,22 +417,55 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     });
   }, [maxSpread]);
 
+  // 스크롤로 쪽을 넘긴다. 책을 넘기는 것과 같은 손짓이라 화살표를 찾지 않아도 된다.
+  // 트랙패드는 한 번 밀 때 이벤트가 수십 개 오므로, 한 번 넘긴 뒤에는 잠깐 쉰다.
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return undefined;
+    let cooling = false;
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaY) < 4) return;
+      // 쪽이 화면보다 길면(모바일·확대) 세로 스크롤이 먼저다. 끝에 닿았을 때만 넘긴다.
+      const room = el.scrollHeight - el.clientHeight;
+      if (room > 8) {
+        const atTop = el.scrollTop <= 0;
+        const atEnd = el.scrollTop >= room - 1;
+        if (!(e.deltaY > 0 ? atEnd : atTop)) return;
+      }
+      e.preventDefault();
+      if (cooling) return;
+      cooling = true;
+      setTimeout(() => { cooling = false; }, 420);
+      turn(e.deltaY > 0 ? 1 : -1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+    // `pages` 를 함께 본다. 읽는 동안에는 다른 화면을 그리므로 이 효과가 처음
+    // 돌 때 stage 가 아직 없다 — 그때 한 번 붙이고 말면 스크롤이 죽는다.
+  }, [turn, pages]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.target?.tagName === "INPUT" || e.target?.tagName === "TEXTAREA") return;
       if (e.key === "ArrowRight") turn(1);
       else if (e.key === "ArrowLeft") turn(-1);
-      else if (e.key === "Escape") setSel(null);
+      else if (e.key === "Escape") { setSel(null); setPanelOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [turn]);
+
+  const pick = useCallback((r) => {
+    setSel((cur) => (cur === r.rid ? null : r.rid));
+    setPanelOpen(true);
+  }, []);
 
   const jump = useCallback((item) => {
     if (!item.page) return;
     const nextSpread = Math.floor((item.page - 1) / step);
     setSpread(nextSpread);
     setSel(item.regionId || null);
+    setPanelOpen(true);
     // 깜빡임 두 번. 이 왕복이 되는 순간 체감이 달라진다.
     setFlash("");
     setTimeout(() => {
@@ -459,7 +494,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
   if (err || !doc || !pages) {
     return (
       <div className="rd">
-        <div className="rd-bar">{toolbar}<span className="rd-file">{filename || "생기부"}</span></div>
+        {toolbar}
         <div className="rs-empty" style={err ? { color: "var(--danger)" } : undefined}>
           {err || "생기부를 읽는 중…"}
         </div>
@@ -469,47 +504,63 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
 
   return (
     <div className="rd">
-      <div className="rd-bar">
-        {toolbar}
-        <span className="rd-file">{filename || "생기부"}</span>
-        <button
-          type="button"
-          className={`rd-toggle${show ? " is-on" : ""}`}
-          aria-pressed={show}
-          onClick={() => setShow((v) => !v)}
-          title="구획 표시를 끄면 마우스를 올렸을 때만 보입니다"
-        >
-          <i aria-hidden="true" /> 구획 표시
-        </button>
-        <div className="rd-nav">
-          <button type="button" onClick={() => turn(-1)} disabled={spread <= 0} aria-label="이전 쪽">‹</button>
-          <span>{shownNos.join("–")} / {total}</span>
-          <button type="button" onClick={() => turn(1)} disabled={spread >= maxSpread} aria-label="다음 쪽">›</button>
-        </div>
-      </div>
+      {toolbar}
 
-      <div className="rd-body">
+      <div className={`rd-body${panelOpen ? " is-open" : ""}`}>
         <div className="rd-stage" ref={stage}>
+          {/* 아직 아무것도 안 골랐을 때만. 파란 띠가 눌리는 것인 줄 모르면
+              이 화면은 그냥 PDF 뷰어다. */}
+          {!panelOpen && (
+            <div className="rd-hint">
+              <i aria-hidden="true" /> 파란 구획을 누르면 이어지는 기록이 열립니다
+            </div>
+          )}
           <div className={`rd-spread${fading ? " is-fading" : ""}`}>
             <ReaderPage
               doc={doc} pageNo={leftNo <= total ? leftNo : 0} width={pageW} mask={mask}
               regions={pages[leftNo - 1]?.regions || []}
-              show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.rid ? null : r.rid))}
+              show={show} selected={sel} flash={flash} onPick={pick}
             />
             {!single && (
               <ReaderPage
                 doc={doc} pageNo={rightNo <= total ? rightNo : 0} width={pageW} mask={mask}
                 regions={pages[rightNo - 1]?.regions || []}
-                show={show} selected={sel} flash={flash} onPick={(r) => setSel((c) => (c === r.rid ? null : r.rid))}
+                show={show} selected={sel} flash={flash} onPick={pick}
               />
             )}
           </div>
+
+          {/* 조작은 문서 아래에 떠 있는 알약 하나로. 위에 띠를 두면 읽는 자리가
+              그만큼 줄고, 정작 자주 쓰는 것은 쪽 넘김 하나뿐이다. */}
+          <div className="rd-controls">
+            <button type="button" onClick={() => turn(-1)} disabled={spread <= 0} aria-label="이전 쪽">‹</button>
+            <span>{shownNos.join("–")} / {total}</span>
+            <button type="button" onClick={() => turn(1)} disabled={spread >= maxSpread} aria-label="다음 쪽">›</button>
+            <i className="rd-controls-sep" aria-hidden="true" />
+            <button
+              type="button"
+              className={`rd-controls-toggle${show ? " is-on" : ""}`}
+              aria-pressed={show}
+              onClick={() => setShow((v) => !v)}
+            >
+              구획 표시
+            </button>
+          </div>
         </div>
 
+        {panelOpen && (
         <aside className="rd-panel">
           <div className="rd-panel-head">
             <span className="rd-eyebrow">{selRegion ? "선택한 구획" : `${shownNos.join("–")}쪽`}</span>
             <h3>{selRegion ? selRegion.label : (pageRegions[0]?.label || "이 쪽")}</h3>
+            <button
+              type="button"
+              className="rd-panel-x"
+              onClick={() => { setSel(null); setPanelOpen(false); }}
+              aria-label="닫기"
+            >
+              ×
+            </button>
             {selRegion && (
               <button type="button" className="rd-back" onClick={() => setSel(null)}>← 쪽 전체 보기</button>
             )}
@@ -544,6 +595,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
             )}
           </div>
         </aside>
+        )}
       </div>
     </div>
   );

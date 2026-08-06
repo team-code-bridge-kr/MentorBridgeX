@@ -199,12 +199,21 @@ export function S11({ onNav }) {
 
   const bType = { 완료: "green", 미작성: "grey", 입력중: "orange" };
 
+  // 탐구 피드와 같은 밑줄 탭. 두 화면이 서로 다른 옷을 입고 있으면 같은 앱으로
+  // 안 읽힌다.
   const viewSwitch = (
-    <div className="tab-pill-wrap">
+    <div className="rs-tabs" role="tablist" aria-label="생기부 보기 방식">
       {[["book", "책으로 보기"], ["list", "목록"]].map(([id, label]) => (
-        <div key={id} className={`tab-pill${view === id ? " active" : ""}`} onClick={() => setView(id)}>
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={view === id}
+          className={`rs-tab${view === id ? " on" : ""}`}
+          onClick={() => setView(id)}
+        >
           {label}
-        </div>
+        </button>
       ))}
     </div>
   );

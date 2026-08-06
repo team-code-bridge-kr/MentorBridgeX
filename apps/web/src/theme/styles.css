@@ -2953,3 +2953,57 @@ tr:hover td { background:var(--surface-container-low); }
 .form-drop.is-busy { cursor:default; opacity:.7; }
 .form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
 .form-drop-sub { font-size:12px; line-height:1.7; color:var(--tt); word-break:keep-all; }
+
+/* ── 리더 2차 — 위 띠를 걷고, 판은 고를 때만 ────────────────
+   조작은 문서 아래 떠 있는 알약 하나뿐이다. 늘 보이는 띠를 두면 읽는 자리가
+   그만큼 줄고, 정작 자주 쓰는 것은 쪽 넘김 하나다. */
+.rd > .rs-tabs { margin:0 24px; flex:0 0 auto; }
+.rd-stage { position:relative; transition:padding .28s cubic-bezier(.22,.8,.28,1); }
+/* 판이 열리면 책이 가운데에서 옆으로 비켜난다. 자리를 바꾸는 것이 아니라
+   비켜나는 것이라, 어디에 있던 쪽인지 놓치지 않는다. */
+.rd-body.is-open .rd-stage { padding-right:8px; }
+.rd-panel {
+  animation:rdPanelIn .28s cubic-bezier(.22,.8,.28,1);
+  position:relative;
+}
+@keyframes rdPanelIn { from { opacity:0; transform:translateX(24px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) {
+  .rd-panel { animation:none; }
+  .rd-stage { transition:none; }
+}
+.rd-panel-x {
+  position:absolute; top:-2px; right:0; width:26px; height:26px;
+  border:none; border-radius:9999px; background:transparent;
+  color:var(--tt); font-size:18px; line-height:1; cursor:pointer;
+}
+.rd-panel-x:hover { background:var(--bg2); color:var(--tp); }
+
+/* 눌러 보라는 말 — 파란 띠가 눌리는 것인 줄 모르면 그냥 PDF 뷰어다 */
+.rd-hint {
+  position:sticky; top:0; z-index:3; width:max-content; margin:0 auto 14px;
+  display:flex; align-items:center; gap:8px;
+  padding:7px 15px; border-radius:9999px;
+  background:rgba(27,95,217,.08); border:1px solid rgba(27,95,217,.22);
+  font-size:12.5px; font-weight:600; color:#1B5FD9;
+}
+.rd-hint i { width:7px; height:7px; border-radius:9999px; background:#1B5FD9; opacity:.6; }
+
+.rd-controls {
+  position:sticky; bottom:0; z-index:3; width:max-content; margin:18px auto 0;
+  display:flex; align-items:center; flex-wrap:nowrap; gap:8px; white-space:nowrap;
+  padding:6px 10px; border-radius:9999px;
+  background:var(--bg1); box-shadow:var(--surface-2);
+}
+.rd-controls > span { flex:0 0 auto; font-size:12.5px; color:var(--ts); font-variant-numeric:tabular-nums; min-width:70px; text-align:center; }
+.rd-controls > button {
+  flex:0 0 auto; width:26px; height:26px; border:none; border-radius:9999px;
+  background:transparent; color:var(--ts); font-size:16px; line-height:1; cursor:pointer;
+}
+.rd-controls > button:disabled { opacity:.3; cursor:default; }
+.rd-controls > button:hover:not(:disabled) { background:var(--bg2); color:var(--primary); }
+.rd-controls-sep { width:1px; height:16px; background:var(--brd); }
+.rd-controls-toggle {
+  flex:0 0 auto; white-space:nowrap; padding:4px 11px; border:none; border-radius:9999px; background:transparent;
+  font-size:12px; font-weight:600; color:var(--tt); cursor:pointer;
+}
+.rd-controls-toggle.is-on { background:rgba(27,95,217,.1); color:#1B5FD9; }
