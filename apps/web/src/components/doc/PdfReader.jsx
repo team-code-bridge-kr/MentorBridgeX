@@ -25,6 +25,7 @@ import {
   findGradeMarks, findRowGrades, findRules, findSectionBreaks, findHeaderTables, snapToRule,
 } from "../../lib/pdfRegions.js";
 import { linksFrom, linksForPage, factsForPage } from "../../lib/pdfLinks.js";
+import { NavIcon } from "../NavIcon.jsx";
 import { API_BASE, getToken } from "../../api/client.js";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -204,7 +205,29 @@ function bindItems(pages, docs) {
       if (item && !item.page) { item.page = page.no; item.regionId = region.rid; }
     }
   }
-  return items;
+
+  // 같은 글이 두 벌 저장돼 있으면 카드도 두 장 나온다(실제로 자율활동 1,852자가
+  // 두 번, 수상 822자가 두 번 떴다). 사람이 보기에 같은 것은 하나로 친다.
+  // 남기는 쪽은 **쪽 번호를 아는 것** — 그래야 눌러서 뛸 수 있다.
+  const canon = new Map();  // 열쇠 → 남길 항목
+  for (const it of items) {
+    const key = `${it.kind}|${it.subject}|${it.text.replace(/\s+/g, "").slice(0, 120)}`;
+    const kept = canon.get(key);
+    if (!kept || (!kept.page && it.page)) canon.set(key, it);
+  }
+  const keep = new Set([...canon.values()].map((i) => i.id));
+  const alias = new Map();  // 지워질 id → 남길 id
+  for (const it of items) {
+    const key = `${it.kind}|${it.subject}|${it.text.replace(/\s+/g, "").slice(0, 120)}`;
+    const kept = canon.get(key);
+    if (kept && kept.id !== it.id) alias.set(it.id, kept.id);
+  }
+  for (const page of pages) {
+    for (const region of page.regions) {
+      if (alias.has(region.itemId)) region.itemId = alias.get(region.itemId);
+    }
+  }
+  return items.filter((i) => keep.has(i.id));
 }
 
 /* ── 한 쪽 ──────────────────────────────────────────────── */
@@ -562,7 +585,9 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
               ×
             </button>
             {selRegion && (
-              <button type="button" className="rd-back" onClick={() => setSel(null)}>← 쪽 전체 보기</button>
+              <button type="button" className="rd-back" onClick={() => setSel(null)}>
+                <NavIcon name="chevronLeft" size={14} /> 쪽 전체 보기
+              </button>
             )}
           </div>
 
