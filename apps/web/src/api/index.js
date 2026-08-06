@@ -571,6 +571,15 @@ const api = {
       return Array.isArray(data) ? data : [];
     },
 
+    /**
+     * ✅ LIVE — GET /v1/students/me/graph/gaps
+     *
+     * 그래프의 빈 곳 — 없는 과목 / 이어지지 않은 개념 / 요즘 안 보이는 주제.
+     */
+    async gaps() {
+      return request("/v1/students/me/graph/gaps");
+    },
+
     /** ✅ LIVE — DELETE /v1/students/me/graph/edges/{id} — 연결 끊기 */
     async removeEdge(id) {
       await request(`/v1/students/me/graph/edges/${id}`, { method: "DELETE" });

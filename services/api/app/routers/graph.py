@@ -10,7 +10,11 @@ from app.schemas.graph import (
     EdgeCreateRequest,
     GraphEdge,
     GraphNode,
+    GraphGaps,
     GraphSnapshot,
+    GapEmptySubject,
+    GapFadedTopic,
+    GapLonelyNode,
     LinkSuggestion,
     NodeCreateRequest,
     NodeEvidence,
@@ -18,7 +22,7 @@ from app.schemas.graph import (
     RelationType,
     SeedRequest,
 )
-from app.services import node_evidence, node_links
+from app.services import node_evidence, node_gaps, node_links
 from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/v1/students/me/graph", tags=["ontology-graph"])
@@ -135,6 +139,39 @@ async def suggest_links(
         )
         for s in found
     ]
+
+
+@router.get("/gaps", response_model=GraphGaps, summary="그래프의 빈 곳")
+async def get_gaps(
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> GraphGaps:
+    """있는 것 말고 **없는 것**을 말한다.
+
+    있는 것은 학생이 이미 안다 — 자기가 쓴 생기부다. 정작 모르는 건 없는
+    것이다. 판단은 하지 않고 사실만 셋 말한다(까닭은 `services/node_gaps.py`).
+    """
+    snapshot = await _store().get_snapshot(user.id)
+    sections = await DocumentService().list_sections(session, user.id)
+    return GraphGaps(
+        empty_subjects=[
+            GapEmptySubject(
+                section_id=x.section_id,
+                section_type=x.section_type,
+                where=x.where,
+                chars=x.chars,
+            )
+            for x in node_gaps.empty_subjects(snapshot.nodes, sections)
+        ],
+        lonely_nodes=[
+            GapLonelyNode(node_id=x.node_id, label=x.label, section=x.section)
+            for x in node_gaps.lonely_nodes(snapshot.nodes, snapshot.edges)
+        ],
+        faded_topics=[
+            GapFadedTopic(node_id=x.node_id, label=x.label, last_seen=x.last_seen, grades=x.grades)
+            for x in node_gaps.faded_topics(snapshot.nodes, sections)
+        ],
+    )
 
 
 @router.delete("/nodes/{node_id}", status_code=status.HTTP_204_NO_CONTENT)

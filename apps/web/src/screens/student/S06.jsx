@@ -10,6 +10,7 @@ import api from "../../api/index.js";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { LinkSuggestions } from "../../components/graph/LinkSuggestions.jsx";
+import { GraphGaps } from "../../components/graph/GraphGaps.jsx";
 
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
@@ -81,6 +82,8 @@ export function S06({ onNav }) {
   // 이어 볼 만한 짝 — { loading, error, items }
   const [links, setLinks] = useState(null);
   const [linkBusy, setLinkBusy] = useState(null);
+  // 빈 곳 — { loading, error, empty_subjects, lonely_nodes, faded_topics }
+  const [gaps, setGaps] = useState(null);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -260,7 +263,7 @@ export function S06({ onNav }) {
     if (!d) return;
     if (!d.moved) {
       const n = nodes.find(n=>n.id===d.id);
-      if (n) { setLinks(null); setSel(s => s?.id===n.id ? null : n); }
+      if (n) { setLinks(null); setGaps(null); setSel(s => s?.id===n.id ? null : n); }
     }
   }, [nodes]);
 
@@ -362,10 +365,24 @@ export function S06({ onNav }) {
     setGrabbing(true);
   }, []);
 
+  /** 빈 곳 — 없는 과목 / 이어지지 않은 개념 / 요즘 안 보이는 주제. */
+  const findGaps = useCallback(async () => {
+    setSel(null);
+    setCreating(false);
+    setLinks(null);
+    setGaps({ loading: true });
+    try {
+      setGaps({ loading: false, ...(await api.graph.gaps()) });
+    } catch (e) {
+      setGaps({ loading: false, error: e.message || "찾지 못했습니다." });
+    }
+  }, []);
+
   /** 생기부 같은 문장에 함께 나온 짝 찾기. */
   const findLinks = useCallback(async () => {
     setSel(null);
     setCreating(false);
+    setGaps(null);
     setLinks({ loading: true });
     try {
       setLinks({ loading: false, items: await api.graph.suggestedLinks(30) });
@@ -517,6 +534,7 @@ export function S06({ onNav }) {
         <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
         <Btn v="secondary" s="sm" onClick={findLinks}><NavIcon name="link" size={15} color={TDS.textSecondary}/> 관계 찾기</Btn>
+        <Btn v="secondary" s="sm" onClick={findGaps}><NavIcon name="search" size={15} color={TDS.textSecondary}/> 빈 곳 보기</Btn>
         <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
         <div style={{flex:1}} />
@@ -758,6 +776,30 @@ export function S06({ onNav }) {
               busy={busy}
               onSubmit={handleCreate}
               onCancel={()=>setCreating(false)}
+            />
+          </div>
+        )}
+
+        {/* 빈 곳 — 상세·만들기·관계와 같은 자리 */}
+        {gaps && (
+          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
+            <div className="row-between mb16" style={{marginBottom:16}}>
+              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>빈 곳</span>
+              <button onClick={()=>setGaps(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
+            </div>
+            <GraphGaps
+              state={gaps}
+              onRetry={findGaps}
+              onOpenDoc={(s)=>{
+                sessionStorage.setItem("mbx_doc_id", s.section_id);
+                sessionStorage.setItem("mbx_doc_type", s.section_type || "");
+                sessionStorage.setItem("mbx_doc_subject", "");
+                onNav("S12");
+              }}
+              onPickNode={(id)=>{
+                const n = nodes.find((x)=>x.id===id);
+                if (n) { setGaps(null); setSel(n); }
+              }}
             />
           </div>
         )}

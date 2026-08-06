@@ -120,6 +120,38 @@ class LinkSuggestion(BaseModel):
     sentence: str
 
 
+class GapEmptySubject(BaseModel):
+    section_id: str
+    section_type: str = ""
+    where: str
+    chars: int
+
+
+class GapLonelyNode(BaseModel):
+    node_id: str
+    label: str
+    section: str = ""
+
+
+class GapFadedTopic(BaseModel):
+    node_id: str
+    label: str
+    last_seen: str
+    grades: list[str] = Field(default_factory=list)
+
+
+class GraphGaps(BaseModel):
+    """그래프의 빈 곳.
+
+    셋 다 계산으로 확인되는 사실만 담는다. 판단하지 않는다 — 1학년 주제가
+    3학년에 없는 건 자연스러운 일이라, "끊겼다"가 아니라 "요즘 안 보인다"다.
+    """
+
+    empty_subjects: list[GapEmptySubject] = Field(default_factory=list)
+    lonely_nodes: list[GapLonelyNode] = Field(default_factory=list)
+    faded_topics: list[GapFadedTopic] = Field(default_factory=list)
+
+
 class EdgeCreateRequest(BaseModel):
     source_id: str
     target_id: str
