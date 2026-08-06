@@ -17,6 +17,21 @@ const AREA_META = [
   { type: "award", id: "수상", t: "수상경력", d: "수상 경력 기록" },
 ];
 
+function RefreshIcon({ spinning = false }) {
+  return (
+    <svg
+      className={spinning ? "spin" : undefined}
+      width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ marginRight: 5, verticalAlign: -2 }}
+      aria-hidden="true"
+    >
+      <path d="M20 11a8 8 0 1 0-.6 4" />
+      <polyline points="20 4 20 11 13 11" />
+    </svg>
+  );
+}
+
 export function S11({ onNav }) {
   const [docs, setDocs] = useState([]);
   const [view, setView] = useState("book"); // book | list
@@ -87,17 +102,53 @@ export function S11({ onNav }) {
     onNav("S12");
   };
 
+  // 무엇이 바뀌었는지는 세어서 말한다. "정리했습니다" 만 뜨면 눌러도 되는지,
+  // 눌렀는데 뭐가 달라졌는지를 알 수 없다.
+  //
+  // 세는 단위는 행 id 가 아니라 **영역 이름**(영역·학년·과목)이다. 다시 읽기는
+  // 행을 통째로 새로 만들기 때문에, id 로 세면 두 과목만 되살아나도 "42개
+  // 새로 만듦, 40개 없앰" 이 된다. 사실이지만 아무것도 알려주지 못한다.
+  const describe = (before, after) => {
+    const key = (d) => `${d.section_type}|${d.period_id || ""}|${d.subject_id || ""}`;
+    const bag = (list) => {
+      const m = new Map();
+      for (const d of list) m.set(key(d), [...(m.get(key(d)) || []), d.content]);
+      return m;
+    };
+    const was = bag(before);
+    const now = bag(after);
+    let added = 0, removed = 0, changed = 0, deduped = 0;
+    for (const [k, texts] of now) {
+      const old = was.get(k);
+      if (!old) { added += 1; continue; }
+      if (old.length > texts.length) deduped += old.length - texts.length;
+      if (old.join("\n") !== texts.join("\n")) changed += 1;
+    }
+    for (const k of was.keys()) if (!now.has(k)) removed += 1;
+
+    const parts = [];
+    if (added) parts.push(`${added}개 되살림`);
+    if (changed) parts.push(`${changed}개 다시 읽음`);
+    if (deduped) parts.push(`겹친 것 ${deduped}개 걷어냄`);
+    if (removed) parts.push(`원본에 없는 ${removed}개 없앰`);
+    // 손으로 고친 글은 맞추지 않는다. 원본에서 온 것인지 학생이 쓴 것인지
+    // 구별할 방법이 없어서, 못 알아보면 남기는 쪽을 고른다. 그렇다고 말해야
+    // "왜 이건 안 고쳐졌지?" 를 오류로 읽지 않는다.
+    const note = " 손으로 고친 글은 그대로 뒀습니다.";
+    return parts.length
+      ? `원본과 맞췄습니다 — ${parts.join(", ")}.${note}`
+      : `이미 원본과 같습니다.${note}`;
+  };
+
   const splitSubjects = async () => {
     setSplitting(true);
     setErr("");
     try {
-      const made = await api.documents.splitSubjects();
-      await load();
-      // 원본이 있으면 세특 말고 다른 영역(행동특성·자율활동 …)도 함께 다시 읽는다.
-      setSplitMsg(
-        `세부능력 및 특기사항을 학년·과목 ${made.length}개로 정리했습니다.` +
-        (fileMeta?.exists ? " 다른 영역도 원본에서 다시 읽었습니다." : ""),
-      );
+      const before = docs;
+      await api.documents.splitSubjects();
+      const after = await api.documents.list();
+      setDocs(after);
+      setSplitMsg(describe(before, after));
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -172,6 +223,13 @@ export function S11({ onNav }) {
               </div>
             ))}
           </div>
+          {/* 원본이 있으면 언제든 원본과 맞출 수 있다. 잘못 갈린 과목을 하나씩
+              찾아 지우는 것보다 한 번에 다시 읽는 편이 빠르다. */}
+          {fileMeta?.exists && (
+            <Btn v="secondary" s="sm" disabled={splitting} onClick={splitSubjects} title="원본 PDF 를 다시 읽어 8개 영역을 맞춥니다. 손으로 고친 글은 그대로 둡니다.">
+              <RefreshIcon spinning={splitting} /> {splitting ? "맞추는 중…" : "원본과 맞추기"}
+            </Btn>
+          )}
           <Btn v="primary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
           <Btn v="secondary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>
         </div>
@@ -190,7 +248,7 @@ export function S11({ onNav }) {
                 : <>같은 과목이 <strong>{dupCount}개</strong> 겹쳐 있습니다. 생기부를 두 번 올린 것으로 보입니다.</>}
             </span>
             <Btn v="primary" s="sm" disabled={splitting} onClick={splitSubjects}>
-              {splitting ? "정리하는 중…" : lump ? `과목 ${lumpCount}개로 나누기` : "세특 정리하기"}
+              {splitting ? "정리하는 중…" : lump ? `과목 ${lumpCount}개로 나누기` : "겹친 것 걷어내기"}
             </Btn>
           </div>
         </Notice>
