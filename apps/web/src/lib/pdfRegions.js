@@ -171,3 +171,55 @@ export function footerMask(viewport) {
   const top = viewport.height * FOOTER_RATIO;
   return { x: 0, y: top, w: viewport.width, h: viewport.height - top };
 }
+
+/* ──────────────────────────────────────────────────────────────
+   세특 안쪽 — 과목·학년 앵커
+
+   실측(19쪽 표본): 세특 본문은 한 과목이 `국어: 음운 변동…` 꼴로 시작하고,
+   전부 같은 x(33.5)에서 시작한다. 들여쓰기로는 과목 시작을 알 수 없다.
+   그래서 **과목명 사전**으로 찾는다 — 학생의 저장된 세특에서 과목 이름을
+   이미 알고 있으니 추측할 필요가 없다.
+
+   학기 표시가 앞에 붙는 과목이 있다: `(1학기)통합과학:`. 이건 벗겨서 본다.
+   학년은 `[1학년]` 한 줄로 나뉜다(7·10·15쪽). 과목 앵커의 학년은 그 앞의
+   마지막 학년 표시다.
+────────────────────────────────────────────────────────────── */
+
+const SUBJECT_X_RATIO = 0.12; // 본문 시작 x(33.5/595≒5.6%)보다 넉넉히
+const GRADE_LINE = /^\s*\[\s*(\d)\s*학년\s*\]/;
+
+/** `[1학년]` 처럼 학년만 적힌 줄. */
+export function findGradeMarks(lines, pageWidth) {
+  const limit = pageWidth * SUBJECT_X_RATIO;
+  return lines
+    .filter((l) => l.x <= limit && GRADE_LINE.test(l.str))
+    .map((l) => ({ grade: `${GRADE_LINE.exec(l.str)[1]}학년`, y: l.y }))
+    .sort((a, b) => a.y - b.y);
+}
+
+/**
+ * 과목이 시작하는 줄.
+ *
+ * @param subjects 이 학생의 과목 이름 목록(document_sections.subject_id)
+ */
+export function findSubjectAnchors(lines, subjects, pageWidth) {
+  const limit = pageWidth * SUBJECT_X_RATIO;
+  // 긴 이름부터 본다. "과학"이 "과학탐구실험"을 가로채면 안 된다.
+  const names = [...new Set(subjects.filter(Boolean))].sort((a, b) => b.length - a.length);
+  const hits = [];
+  for (const line of lines) {
+    if (line.x > limit) continue;
+    // 앞에 붙는 학기 표시를 벗긴다: `(1학기)통합과학:` → `통합과학:`
+    const head = norm(line.str).replace(/^\(\d학기\)/, "");
+    for (const name of names) {
+      const key = norm(name);
+      if (!head.startsWith(key)) continue;
+      // 과목명 바로 뒤는 콜론이어야 한다. 본문 첫 낱말이 우연히 과목명으로
+      // 시작하는 일을 여기서 막는다("국어가 계속해서 변화하고…").
+      if (head[key.length] !== ":") break;
+      hits.push({ subject: name, y: line.y, x: line.x });
+      break;
+    }
+  }
+  return hits.sort((a, b) => a.y - b.y);
+}

@@ -14,6 +14,7 @@
 | F1-05 | 노드/엣지 CRUD | `/v1/students/me/graph/nodes`, `edges` |
 | F1-05b | 노드 출처 문장 | `GET /v1/students/me/graph/nodes/{id}/evidence` |
 | F1-02e | 영역 지우기 | `DELETE /v1/students/me/documents/{id}` |
+| F1-02f | 생기부 리더(구획·연결) | 화면 전용 — `components/doc/PdfReader.jsx` |
 | F1-06 | 그래프↔텍스트 동기화 | **partial** — PATCH documents only |
 | F1-08~10 | 양식 변환 | **not in MVP** |
 | F1-12 | 임베딩 | Mock adapter; pgvector tables later |
@@ -168,3 +169,26 @@
 - Voice STT WebSocket (`voice-planned`)
 - Teacher / Admin consoles
 - Production Google OAuth (use dev-login for demo)
+
+## 생기부 리더 (F1-02f)
+
+생기부는 수상경력·창의적체험활동·세특이 **서로 다른 쪽**에 흩어져 있다. 한 항목을
+보면서 관련 기록을 확인하려면 계속 앞뒤로 넘겨야 한다. 리더는 그 왕복을 한 자리
+에서 되게 만든다(`components/doc/PdfReader.jsx`, `lib/pdfLinks.js`).
+
+- **구획**은 PDF 에서 그때그때 찾는다. 영역 제목(`findAnchors`)과 세특 안쪽 과목
+  (`findSubjectAnchors`)을 함께 쓴다. 과목은 **저장된 세특의 과목명 사전**으로
+  찾는다 — 실측에서 과목은 `국어:` 꼴로 본문과 같은 x 에서 시작해, 들여쓰기로는
+  시작을 알 수 없다. 학년은 `[1학년]` 표시로 나뉜다.
+- 좌표는 **0~1 비율**로만 다룬다. px 로 잡으면 창 크기·줌·모바일에서 다 틀어진다.
+  CSS % 로 그리므로 창을 줄여도 다시 계산할 것이 없다.
+- **하이라이트는 옅게**(기본 .065 / 호버 .15 / 선택 .2). 생기부는 이미 표선 +
+  빽빽한 명조체라, 채도 있는 면을 얹으면 글자가 안 읽히고 구획이 열 개 넘는 쪽은
+  파란 얼룩이 된다. 끄면 마우스를 올렸을 때만 나온다 — 읽기와 탐색이 공존해야 한다.
+- **패널은 문서를 덮지 않는다.** 오버레이로 띄우면 펼침 보기에서 오른쪽 쪽면을
+  가린다. 좁은 화면에서만 아래로 내려간다.
+- **연결은 규칙만 쓴다**(`lib/pdfLinks.js`, 전부 브라우저에서). ① 같은 과목 다른
+  학년 ② 수상·창체 기록에 교과 이름이 그대로 적혀 있는 경우 ③ 학생 그래프의 낱말이
+  두 기록에 함께 나오는 경우. **근거 한 줄을 못 쓰는 연결은 만들지 않는다** — 근거
+  없는 카드는 추천이 아니라 잡음이고, 한 번 잡음으로 읽히면 맞는 카드도 안 본다.
+- 클릭할 때마다 서버를 부르지 않는다. 문서 훑기는 열 때 한 번이다.

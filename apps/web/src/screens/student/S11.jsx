@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Divider, Notice } from "../../components/ui.jsx";
 import { BookViewer } from "../../components/doc/BookViewer.jsx";
-import { PdfBookViewer } from "../../components/doc/PdfBookViewer.jsx";
+import { PdfReader } from "../../components/doc/PdfReader.jsx";
 import api from "../../api/index.js";
 import { hasSubjectBlocks, subjectMarkers } from "../../lib/subjectBlocks.js";
 
@@ -45,6 +45,7 @@ export function S11({ onNav }) {
   // 사라지면 원본 PDF 가 없는 학생은 되돌릴 길이 없다.
   const [delId, setDelId] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [keywords, setKeywords] = useState([]);
 
   const load = async () => {
     try {
@@ -57,6 +58,10 @@ export function S11({ onNav }) {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     api.documentFile.meta().then(setFileMeta).catch(() => setFileMeta({ exists: false }));
+    // 리더에서 기록끼리 이을 때 쓰는 낱말. 없어도 나머지 규칙은 돈다.
+    api.graph.fetch()
+      .then((g) => setKeywords((g.nodes || []).map((n) => n.label).filter(Boolean)))
+      .catch(() => setKeywords([]));
   }, []);
 
   const byType = Object.fromEntries(
@@ -194,6 +199,16 @@ export function S11({ onNav }) {
 
   const bType = { 완료: "green", 미작성: "grey", 입력중: "orange" };
 
+  const viewSwitch = (
+    <div className="tab-pill-wrap">
+      {[["book", "책으로 보기"], ["list", "목록"]].map(([id, label]) => (
+        <div key={id} className={`tab-pill${view === id ? " active" : ""}`} onClick={() => setView(id)}>
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+
   // 책 뷰에 넘길 영역 — 내용이 있는 것만 (빈 쪽을 넘기게 만들 이유가 없다)
   // 세특이 과목별로 갈라져 있으면 과목마다 한 쪽이다. 한 쪽에 46과목을 밀어
   // 넣으면 책이 아니라 두루마리가 된다.
@@ -211,18 +226,24 @@ export function S11({ onNav }) {
     return [{ type: m.type, title: m.t, desc: m.d, content }];
   }).filter((a) => a.content);
 
+  if (view === "book" && fileMeta?.exists) {
+    return (
+      <PdfReader
+        toolbar={viewSwitch}
+        filename={fileMeta.filename}
+        pageCount={fileMeta.page_count}
+        docs={docs}
+        keywords={keywords}
+        onMissing={() => setFileMeta({ exists: false })}
+      />
+    );
+  }
+
   return (
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div className="sec-sub" style={{ marginBottom: 0 }}>8가지 생기부 영역을 관리하세요</div>
+        {viewSwitch}
         <div className="row g-8" style={{ gap: 8 }}>
-          <div className="tab-pill-wrap" style={{ marginRight: 4 }}>
-            {[["book", "책으로 보기"], ["list", "목록"]].map(([id, label]) => (
-              <div key={id} className={`tab-pill${view === id ? " active" : ""}`} onClick={() => setView(id)}>
-                {label}
-              </div>
-            ))}
-          </div>
           {/* 원본이 있으면 언제든 원본과 맞출 수 있다. 잘못 갈린 과목을 하나씩
               찾아 지우는 것보다 한 번에 다시 읽는 편이 빠르다. */}
           {fileMeta?.exists && (
@@ -254,29 +275,22 @@ export function S11({ onNav }) {
         </Notice>
       )}
       {splitMsg && <div style={{ color: TDS.success, marginBottom: 12, fontSize: 13 }}>{splitMsg}</div>}
-      {view === "book" && fileMeta?.exists && (
-        <>
-          <div className="doc-src">
-            <span>원본 <strong>{fileMeta.filename}</strong> · {fileMeta.page_count}쪽</span>
-            <button
-              type="button"
-              className="rs-save"
-              onClick={async () => {
-                if (!window.confirm("보관된 생기부 원본을 지울까요? 추출된 텍스트는 남습니다.")) return;
-                await api.documentFile.remove();
-                setFileMeta({ exists: false });
-              }}
-            >
-              원본 삭제
-            </button>
-          </div>
-          <PdfBookViewer
-            pageCount={fileMeta.page_count}
-            onMissing={() => setFileMeta({ exists: false })}
-          />
-        </>
+      {fileMeta?.exists && (
+        <div className="doc-src">
+          <span>원본 <strong>{fileMeta.filename}</strong> · {fileMeta.page_count}쪽</span>
+          <button
+            type="button"
+            className="rs-save"
+            onClick={async () => {
+              if (!window.confirm("보관된 생기부 원본을 지울까요? 추출된 텍스트는 남습니다.")) return;
+              await api.documentFile.remove();
+              setFileMeta({ exists: false });
+            }}
+          >
+            원본 삭제
+          </button>
+        </div>
       )}
-
       {view === "book" && !fileMeta?.exists && (
         bookAreas.length
           ? <BookViewer areas={bookAreas} />
