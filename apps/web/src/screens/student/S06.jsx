@@ -71,11 +71,12 @@ export function S06({ onNav }) {
   // 뼈대 다시 세우기 — { busy, msg }
   const [restruct, setRestruct] = useState({ busy: false, msg: "" });
 
-  // 노드의 층. 뼈대(structure)는 학년이면 1, 구획이면 2. 나머지 개념은 3.
+  // 노드의 층. 교과군 1, 생기부 구획 2, 개념 3.
   const levelOf = useCallback((n) => {
     if (n.kind === "root") return 0;
-    if (n.kind !== "topic") return 3;
-    return n.type === "Period" ? 1 : 2;
+    if (n.familyKey) return 1;
+    if (n.sectionId) return 2;
+    return 3;
   }, []);
 
   // 깊이를 줄이면 그 아래는 감춘다. 지우는 게 아니라 접는 것이다 — 개수는
@@ -590,7 +591,7 @@ export function S06({ onNav }) {
               setRestruct({
                 busy: false,
                 msg: r.changed
-                  ? `층을 다시 세웠습니다 — 구획 ${r.sections}개, 학년 ${r.periods}개, 선 ${r.edges_added}개 새로 이음.`
+                  ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
                   : "이미 생기부와 같은 모양입니다.",
               });
             } catch (e) {
@@ -603,7 +604,7 @@ export function S06({ onNav }) {
         {/* 얼마나 깊이 볼지. 개념까지 다 펼치면 200개가 한 화면에 깔린다 —
             지도를 읽는 첫걸음은 "덜 보는 것"이다. */}
         <div className="depth-pick" role="group" aria-label="보이는 깊이">
-          {[[1, "학년"], [2, "과목"], [3, "개념"]].map(([lv, label]) => (
+          {[[1, "교과"], [2, "과목"], [3, "개념"]].map(([lv, label]) => (
             <button
               key={lv}
               type="button"
@@ -775,7 +776,9 @@ export function S06({ onNav }) {
 
             {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목 */}
             {!!nodes.length && (
-              <div data-graph-panel style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto"}}>
+              // 읽기만 하는 판이라 손을 막으면 안 된다. 그대로 두면 아래 노드를
+              // 누를 수 없어 좌상단 구획이 통째로 죽는다(실제로 그랬다).
+              <div data-graph-panel style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto",pointerEvents:"none"}}>
                 <div style={{fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,marginBottom:10,letterSpacing:".02em"}}>
                   색 = 노드 유형
                 </div>

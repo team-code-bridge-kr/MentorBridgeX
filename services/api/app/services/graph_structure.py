@@ -8,13 +8,17 @@
 
 여기서는 그 층을 **진짜 노드와 진짜 선**으로 만든다.
 
-    [내 생기부]                     Document
+    [내 생기부]                          Document
         ↑ BELONGS_TO
-    [1학년] [2학년] [3학년]          Period
-        ↑ OCCURRED_IN
-    [1학년 국어] [자율활동] …        Subject / Activity — 생기부 구획 하나가 노드 하나
+    [수학] [과학] [창의적 체험활동] …     교과군 — 묶는 축은 학년이 아니라 교과다
+        ↑ BELONGS_TO
+    [2학년 수학Ⅰ] [3학년 미적분] …       생기부 구획 하나가 노드 하나
         ↑ MENTIONED_IN
-    [음운 변동 현상] …               개념
+    [경사 하강법] …                      개념
+
+학년으로 묶으면 `수학Ⅰ`(2학년)과 `미적분`(3학년)이 서로 다른 가지에 놓여, 정작
+보고 싶은 **한 교과가 3년 동안 어떻게 깊어졌나**가 사라진다. 학년은 층이 아니라
+구획 이름에 붙이고("2학년 수학Ⅰ"), 가지 안에서 학년 순으로 세운다.
 
 개념이 어느 구획에 붙는지는 **그 구획 본문에 그 낱말이 실제로 있는지**로 정한다
 (`node_evidence` 의 찾기를 그대로 쓴다). 지어내지 않는다 — 못 찾으면 문서에
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import logging
 
+from app.parsers.subject_family import CREATIVE, family_of
 from app.schemas.documents import DocumentSection, SectionType
 from app.schemas.graph import GraphNode, NodeType, RelationType
 from app.services.node_evidence import SECTION_LABELS, hinted_type, patterns_of
@@ -51,6 +56,24 @@ _ACTIVITY_TYPES = {
     SectionType.CAREER, SectionType.AWARD, SectionType.READING,
     SectionType.BEHAVIOR,
 }
+
+# 창의적 체험활동으로 묶이는 영역. 나머지(수상·독서·행동특성)는 하나뿐이라
+# 묶음을 만들지 않는다 — 자식이 하나인 가지는 층을 하나 늘리기만 한다.
+_CREATIVE_TYPES = {
+    SectionType.AUTONOMOUS, SectionType.CLUB, SectionType.VOLUNTEER, SectionType.CAREER,
+}
+
+# 교과군 노드를 만들 최소 구획 수.
+MIN_FAMILY = 2
+
+
+def family_key(section: DocumentSection) -> str:
+    """이 구획이 속하는 묶음. 교과군이거나 창의적 체험활동, 아니면 없음(빈 문자열)."""
+    if section.section_type in _CREATIVE_TYPES:
+        return CREATIVE
+    if section.section_type == SectionType.SUBJECT_SPECIFIC and section.subject_id:
+        return family_of(section.subject_id)
+    return ""
 
 
 def section_label(section: DocumentSection) -> str:
@@ -123,7 +146,7 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
     # 통째로 떠 버린다 — 고치려다 더 나쁘게 만드는 경우다.
     if not usable:
         logger.info("붙일 구획이 없어 뼈대를 건드리지 않음 user=%s", user_id)
-        return {**plan.as_dict(), "sections": 0, "periods": 0, "concepts": 0}
+        return {**plan.as_dict(), "sections": 0, "families": 0, "concepts": 0}
 
     # ── 1. 있어야 할 구획 노드 ────────────────────────────────────────────
     want_sections = {s.id: s for s in usable}
@@ -152,34 +175,48 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
             plan.nodes_added += 1
         section_nodes[sid] = node
 
-    # ── 2. 학년 노드 ──────────────────────────────────────────────────────
-    want_periods = sorted({s.period_id for s in usable if s.period_id})
-    have_periods: dict[str, GraphNode] = {
-        _refs(n)["period_key"]: n
+    # ── 2. 교과군 노드 ──────────────────────────────────────────────────
+    #
+    # 구획이 하나뿐인 묶음은 만들지 않는다. 자식이 하나인 가지는 층을 하나
+    # 늘리기만 하고 아무것도 알려주지 않는다(수상경력·독서활동·행동특성).
+    counts: dict[str, int] = {}
+    for section in usable:
+        key = family_key(section)
+        if key:
+            counts[key] = counts.get(key, 0) + 1
+    want_families = sorted(k for k, n in counts.items() if n >= MIN_FAMILY)
+
+    have_families: dict[str, GraphNode] = {
+        _refs(n)["family_key"]: n
         for n in nodes
-        if is_structure(n) and _refs(n).get("period_key")
+        if is_structure(n) and _refs(n).get("family_key")
     }
-    period_nodes: dict[str, GraphNode] = {}
-    for period in want_periods:
-        node = have_periods.get(period)
+    family_nodes: dict[str, GraphNode] = {}
+    for family in want_families:
+        node = have_families.get(family)
         if node is None:
             node = await graph.create_node(
                 user_id,
-                node_type=NodeType.PERIOD,
-                label=period,
-                description=f"{sum(1 for s in usable if s.period_id == period)}과목",
-                external_refs={"source": STRUCTURE_SOURCE, "period_key": period},
+                node_type=NodeType.ACTIVITY if family == CREATIVE else NodeType.SUBJECT,
+                label=family,
+                description=f"{counts[family]}과목",
+                external_refs={"source": STRUCTURE_SOURCE, "family_key": family, "section": family},
             )
             plan.nodes_added += 1
-        period_nodes[period] = node
+        family_nodes[family] = node
 
     # ── 3. 쓸모없어진 뼈대 노드는 걷는다 ──────────────────────────────────
     for sid, node in have_sections.items():
         if sid not in want_sections:
             await graph.delete_node(user_id, node.id)
             plan.nodes_removed += 1
-    for period, node in have_periods.items():
-        if period not in period_nodes:
+    for family, node in have_families.items():
+        if family not in family_nodes:
+            await graph.delete_node(user_id, node.id)
+            plan.nodes_removed += 1
+    # 예전 구조에서 만든 학년 노드는 이제 층이 아니다. 걷어낸다.
+    for node in nodes:
+        if is_structure(node) and _refs(node).get("period_key"):
             await graph.delete_node(user_id, node.id)
             plan.nodes_removed += 1
 
@@ -188,7 +225,7 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
     # 어디에 붙일지는 **그 구획 본문에 그 낱말이 실제로 있는지**로 정한다.
     # 노드에 적혀 있는 과목 이름(external_refs.section)은 참고만 한다 — 예전
     # 추출기가 붙인 값이라 지금 구획과 이름이 다를 수 있다.
-    structure_ids = {n.id for n in section_nodes.values()} | {n.id for n in period_nodes.values()}
+    structure_ids = {n.id for n in section_nodes.values()} | {n.id for n in family_nodes.values()}
     concepts = [
         n for n in nodes
         if n.type != NodeType.DOCUMENT and not is_structure(n) and n.id not in structure_ids
@@ -238,16 +275,16 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
             # 떠다니는 노드가 되어 예전보다 나빠진다. 문서에 그대로 매단다.
             want_edges.add((concept.id, doc.id, RelationType.MENTIONED_IN))
 
-    # 구획 → 학년 → 문서
+    # 구획 → 교과군 → 문서. 묶음이 없는 구획은 문서에 바로 붙는다.
     for sid, section in want_sections.items():
         node = section_nodes[sid]
-        parent = period_nodes.get(section.period_id or "")
+        parent = family_nodes.get(family_key(section))
         if parent is not None:
-            want_edges.add((node.id, parent.id, RelationType.OCCURRED_IN))
+            want_edges.add((node.id, parent.id, RelationType.BELONGS_TO))
         elif doc is not None:
             want_edges.add((node.id, doc.id, RelationType.BELONGS_TO))
     if doc is not None:
-        for node in period_nodes.values():
+        for node in family_nodes.values():
             want_edges.add((node.id, doc.id, RelationType.BELONGS_TO))
 
     # ── 5. 선 맞추기 ──────────────────────────────────────────────────────
@@ -284,7 +321,7 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
     return {
         **plan.as_dict(),
         "sections": len(want_sections),
-        "periods": len(period_nodes),
+        "families": len(family_nodes),
         "concepts": len(concepts),
     }
 

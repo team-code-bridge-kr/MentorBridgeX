@@ -305,6 +305,8 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     // 생기부 구획으로 세운 뼈대 노드면 그 구획의 id. 눌렀을 때 원문으로
     // 데려가려면 이게 있어야 한다 — 없으면 "1학년 국어" 노드가 막다른 길이다.
     sectionId: typeof refs.section_id === "string" ? refs.section_id : "",
+    // 교과군 노드(수학·과학·창의적 체험활동 …). 깊이를 고를 때 이 층이 기준이다.
+    familyKey: typeof refs.family_key === "string" ? refs.family_key : "",
     type: n.type ?? null,
     x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
