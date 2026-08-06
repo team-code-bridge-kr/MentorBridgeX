@@ -3,6 +3,17 @@ import TDS from "../../theme/tokens.js";
 import { Back, Btn } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
+// 만든 경로를 사람 말로. `upload`, `setuk` 같은 내부 이름을 그대로 보이면
+// 무엇으로 만든 문서인지 알 수 없다.
+const TEMPLATE_LABEL = {
+  upload: "올린 양식을 채움",
+  setuk: "세특 요약 보고서",
+  club: "동아리 활동 보고서",
+  career: "진로 포트폴리오",
+  reading: "독서 감상문",
+  service: "봉사활동 에세이",
+};
+
 export function S22({ onNav }) {
   const [editing, setEditing] = useState(false);
   const [doc, setDoc] = useState(null);
@@ -69,8 +80,8 @@ export function S22({ onNav }) {
             {!usedNodes.length && <div style={{ fontSize: 12, color: TDS.textTertiary }}>그래프 노드가 없습니다</div>}
           </div>
           <div className="card card-p">
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>템플릿 정보</div>
-            <div style={{ fontSize: 13, color: TDS.textTertiary }}>{doc?.template_id}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>어떻게 만들었나</div>
+            <div style={{ fontSize: 13, color: TDS.textTertiary }}>{TEMPLATE_LABEL[doc?.template_id] || doc?.template_id}</div>
             <div style={{ fontSize: 12, color: TDS.textDisabled, marginTop: 4 }}>생성: {(doc?.created_at || "").slice(0, 10)}</div>
           </div>
         </div>

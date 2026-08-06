@@ -349,6 +349,22 @@ class AnthropicMLAdapter:
         )
         return [(kw.label, kw.node_type) for kw in extracted]
 
+    # ── 글쓰기 (양식·보고서) ──────────────────────────────────────────────
+
+    async def write_prose(self, prompt: str, *, max_tokens: int = 2000) -> str:
+        """근거를 주고 산문을 받는다. JSON 이 아니라 사람이 읽을 글이다."""
+        resp = await self._client.messages.create(
+            model=self._model,
+            max_tokens=max_tokens,
+            system=(
+                "당신은 고등학생의 생활기록부 기록을 바탕으로 문서를 정리하는 조력자입니다. "
+                "기록에 없는 사실을 지어내지 않는 것이 가장 중요한 원칙입니다. "
+                "근거가 부족하면 부족하다고 적으세요."
+            ),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return "".join(b.text for b in resp.content if getattr(b, "text", "")).strip()
+
     # ── Document keyword extraction ───────────────────────────────────────────
 
     async def extract_document_keywords(

@@ -877,6 +877,28 @@ const api = {
     async get(id) {
       return request(`/v1/students/me/forms/${id}`);
     },
+    /**
+     * ✅ LIVE — POST /v1/students/me/forms/fill (multipart)
+     *
+     * 학교에서 받은 양식을 올리면 항목을 찾아 채운다. 파일은 보관하지 않는다 —
+     * 글자만 뽑아 쓰고 바이트는 버린다.
+     */
+    async fillFromFile(file) {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API_BASE}/v1/students/me/forms/fill`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: form,
+      });
+      const raw = await res.text();
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { msg = JSON.parse(raw)?.error?.message || msg; } catch { /* 상태코드로 */ }
+        throw new Error(msg);
+      }
+      return JSON.parse(raw);
+    },
     async patch(id, patch) {
       return request(`/v1/students/me/forms/${id}`, { method: "PATCH", body: patch });
     },

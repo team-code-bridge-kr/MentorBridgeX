@@ -2941,3 +2941,15 @@ tr:hover td { background:var(--surface-container-low); }
   font-size:12px; font-weight:600; color:var(--primary); cursor:pointer;
 }
 .cdock-full:hover { background:var(--bg2); }
+
+/* 양식 올리는 자리 — 학교가 준 양식을 그대로 채운다 */
+.form-drop {
+  display:flex; align-items:center; gap:14px;
+  padding:18px 20px; border-radius:18px; cursor:pointer;
+  border:1.5px dashed rgba(9,105,218,.35); background:rgba(9,105,218,.035);
+  transition:border-color .14s, background .14s;
+}
+.form-drop:hover, .form-drop.is-over { border-color:var(--primary); background:rgba(9,105,218,.07); }
+.form-drop.is-busy { cursor:default; opacity:.7; }
+.form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
+.form-drop-sub { font-size:12px; line-height:1.7; color:var(--tt); word-break:keep-all; }

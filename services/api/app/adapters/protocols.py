@@ -30,6 +30,10 @@ class MLAdapter(Protocol):
     ) -> list[tuple[str, NodeType]]:
         ...
 
+    async def write_prose(self, prompt: str, *, max_tokens: int = 2000) -> str:
+        """근거를 주고 산문을 받는다(양식·보고서 작성)."""
+        ...
+
     # ── 가지치기 추천 ─────────────────────────────────────────────────────────
 
     @property

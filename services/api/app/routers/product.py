@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.factory import get_graph_analyze_adapter
 from app.config import get_settings
 from app.db.factory import get_graph_store, is_offline_demo
 from app.db.memory import MemoryUser, get_memory_db
@@ -28,6 +29,9 @@ from app.db.postgres import (
 )
 from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
+from app.parsers.pdf_extractor import extract_text_from_pdf_bytes
+from app.services import form_writer
+from app.services.document_service import DocumentService
 from app.schemas.product import (
     CommentCreate,
     CommentOut,
@@ -46,14 +50,10 @@ from app.schemas.product import (
 
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5MB — keep RAM/disk pressure low
 
+# 자기소개서는 없다. 2024학년도 대입부터 폐지됐고, 남아 있더라도 남이 써 준
+# 자기소개서를 내는 일을 거들 이유가 없다. 여기 있는 것은 전부 **자기 기록을
+# 정리하는 보고서**다.
 FORM_TEMPLATES: list[FormTemplateOut] = [
-    FormTemplateOut(
-        id="saseo",
-        title="대학 자기소개서",
-        category="입시",
-        description="학업 역량, 전공 선택 이유, 발전 가능성을 중심으로 작성",
-        uses=1204,
-    ),
     FormTemplateOut(
         id="setuk",
         title="세특 요약 보고서",
@@ -230,28 +230,83 @@ def _extract_keywords(text: str, limit: int = 8) -> list[str]:
     return seen
 
 
-def _generate_form_content(template_id: str, name: str, nodes: list[str]) -> str:
-    labels = nodes[:8] or ["학습 주제"]
-    joined = ", ".join(labels)
-    primary = labels[0]
-    if template_id == "setuk":
-        return (
-            f"{name} 학생은 {primary}을(를) 중심으로 {joined}에 대해 탐구하였습니다. "
-            f"수업과 연계한 자료를 검토하고, 핵심 개념을 그래프 노드로 정리하며 "
-            f"탐구 과정을 심화하였습니다."
-        )
-    if template_id == "club":
-        return (
-            f"동아리 활동에서 {name} 학생은 {primary} 관련 논의를 주도하고 "
-            f"{joined} 주제를 팀과 함께 정리하였습니다."
-        )
-    # default 자소서형
-    return (
-        f"저는 {primary}에 깊은 관심을 가지고 있으며, {joined} 영역을 중심으로 "
-        f"학습을 심화해 왔습니다.\n\n"
-        f"그래프 기반 기록으로 개념 간 연결을 정리하며, 향후 관련 전공 탐구를 "
-        f"이어가고자 합니다."
+async def _save_form(
+    session: AsyncSession | None,
+    user: UserRow | MemoryUser,
+    *,
+    template_id: str,
+    title: str,
+    content: str,
+    nodes: list[str],
+) -> FormDocOut:
+    """만든 양식을 저장한다. 템플릿 생성과 올린 양식 채우기가 함께 쓴다."""
+    now = _now()
+    fid = str(uuid4())
+
+    if is_offline_demo():
+        db = get_memory_db()
+        if not hasattr(db, "forms"):
+            db.forms = {}  # type: ignore[attr-defined]
+        row = {
+            "id": fid,
+            "user_id": user.id,
+            "template_id": template_id,
+            "title": title,
+            "content": content,
+            "used_nodes": nodes,
+            "status": "완료",
+            "created_at": now,
+            "updated_at": now,
+        }
+        db.forms[fid] = row
+        return _form_out(row)
+
+    assert session is not None
+    row = FormDocRow(
+        id=fid,
+        user_id=user.id,
+        template_id=template_id,
+        title=title,
+        content=content,
+        used_nodes=json.dumps(nodes, ensure_ascii=False),
+        status="완료",
+        created_at=now,
+        updated_at=now,
     )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _form_out(row)
+
+
+async def _write_form(
+    template_id: str,
+    title: str,
+    description: str,
+    name: str,
+    sections: list,
+) -> tuple[str, str]:
+    """양식 본문을 쓴다. 돌려주는 값은 (본문, 무엇으로 썼는지).
+
+    예전에는 그래프 노드 이름을 문장 틀에 끼워 넣었다. "○○ 학생은 빅데이터를
+    중심으로 A, B, C에 대해 탐구하였습니다" — 누구에게나 들어맞는 문장이라
+    그대로 낼 수 없고, 결국 학생이 처음부터 다시 썼다. 이제 저장된 생기부 글을
+    근거로 쓴다.
+    """
+    evidence = form_writer.evidence_of(
+        sections, form_writer.SECTION_FOR_TEMPLATE.get(template_id)
+    )
+    adapter = get_graph_analyze_adapter()
+    if adapter is not None and evidence:
+        try:
+            text = await adapter.write_prose(
+                form_writer.report_prompt(title, description, name, evidence)
+            )
+            if text:
+                return text, f"claude:{adapter.model}"
+        except Exception as exc:  # noqa: BLE001 — 못 썼다고 화면이 죽으면 안 된다
+            logger.warning("양식 작성 실패, 근거만 모아 넘김: %s", exc)
+    return form_writer.fallback_report(title, name, evidence), "evidence_only"
 
 
 # ── Comments ──────────────────────────────────────────────────
@@ -472,6 +527,84 @@ async def list_templates(
     return FORM_TEMPLATES
 
 
+# 올릴 수 있는 양식 파일. 학교가 주는 것은 대개 PDF 아니면 글 파일이다.
+_FORM_MAX_BYTES = 5 * 1024 * 1024
+_FORM_TEXT_TYPES = {"text/plain", "text/markdown", "text/csv", ""}
+
+
+@forms_router.post("/fill", response_model=FormDocOut, status_code=status.HTTP_201_CREATED)
+async def fill_form(
+    file: UploadFile = File(...),
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> FormDocOut:
+    """학교에서 받은 양식을 올리면 항목을 찾아 채운다.
+
+    파일 자체는 **보관하지 않는다.** 글자만 뽑아 쓰고 바이트는 버린다 —
+    남의 양식을 우리가 쥐고 있을 이유가 없다.
+    """
+    data = await file.read()
+    if not data:
+        raise AppError("FORM_FILE_EMPTY", "빈 파일입니다.", 400)
+    if len(data) > _FORM_MAX_BYTES:
+        raise AppError("FORM_FILE_TOO_LARGE", "5MB 이하 파일만 올릴 수 있습니다.", 413)
+
+    name = (file.filename or "양식").rsplit("/", 1)[-1]
+    ctype = (file.content_type or "").split(";")[0].strip()
+    if ctype == "application/pdf" or name.lower().endswith(".pdf"):
+        try:
+            text = extract_text_from_pdf_bytes(data)
+        except Exception as exc:  # noqa: BLE001
+            raise AppError("FORM_FILE_UNREADABLE", "PDF 를 읽지 못했습니다.", 400) from exc
+    elif ctype in _FORM_TEXT_TYPES or name.lower().endswith((".txt", ".md")):
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            text = data.decode("cp949", errors="replace")
+    else:
+        raise AppError(
+            "FORM_FILE_TYPE",
+            "PDF 또는 글 파일(.txt, .md)만 읽을 수 있습니다. 한글(.hwp)·워드(.docx)는 PDF 로 저장해 올려 주세요.",
+            400,
+        )
+
+    prompts = form_writer.find_prompts(text)
+    if not prompts:
+        raise AppError(
+            "FORM_NO_PROMPTS",
+            "채울 항목을 찾지 못했습니다. 물음이 줄 단위로 적힌 양식인지 확인해 주세요.",
+            422,
+        )
+
+    sections = await DocumentService().list_sections(session, user.id)
+    evidence = form_writer.evidence_of(sections)
+    adapter = get_graph_analyze_adapter()
+    writer = "evidence_only"
+    content = ""
+    if adapter is not None and evidence:
+        try:
+            content = await adapter.write_prose(
+                form_writer.fill_prompt(prompts, user.display_name, evidence),
+                max_tokens=4000,
+            )
+            writer = f"claude:{adapter.model}"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("양식 채우기 실패, 항목만 넘김: %s", exc)
+    if not content:
+        # 못 채웠어도 찾아낸 항목은 돌려준다. 빈손으로 보내면 다시 올려야 한다.
+        listed = "\n\n".join(f"## {p}\n\n" for p in prompts)
+        content = f"# {name}\n\n항목은 찾았지만 지금은 채우지 못했습니다.\n\n{listed}"
+
+    snap = await get_graph_store().get_snapshot(user.id)
+    nodes = [n.label for n in snap.nodes][:12]
+    logger.info(
+        "양식 채움 user=%s file=%s 항목=%d writer=%s", user.id, name, len(prompts), writer
+    )
+    return await _save_form(
+        session, user, template_id="upload", title=name, content=content, nodes=nodes
+    )
+
+
 @forms_router.get("", response_model=list[FormDocOut])
 async def list_forms(
     user: UserRow | MemoryUser = Depends(get_current_user),
@@ -505,45 +638,19 @@ async def generate_form(
 
     snap = await get_graph_store().get_snapshot(user.id)
     nodes = [n.label for n in snap.nodes][:12]
-    content = _generate_form_content(tmpl.id, user.display_name, nodes)
-    now = _now()
-    fid = str(uuid4())
-    title = body.title or f"{tmpl.title} — {user.display_name}"
-
-    if is_offline_demo():
-        db = get_memory_db()
-        if not hasattr(db, "forms"):
-            db.forms = {}  # type: ignore[attr-defined]
-        row = {
-            "id": fid,
-            "user_id": user.id,
-            "template_id": tmpl.id,
-            "title": title,
-            "content": content,
-            "used_nodes": nodes,
-            "status": "완료",
-            "created_at": now,
-            "updated_at": now,
-        }
-        db.forms[fid] = row
-        return _form_out(row)
-
-    assert session is not None
-    row = FormDocRow(
-        id=fid,
-        user_id=user.id,
-        template_id=tmpl.id,
-        title=title,
-        content=content,
-        used_nodes=json.dumps(nodes, ensure_ascii=False),
-        status="완료",
-        created_at=now,
-        updated_at=now,
+    sections = await DocumentService().list_sections(session, user.id)
+    content, writer = await _write_form(
+        tmpl.id, tmpl.title, tmpl.description, user.display_name, sections
     )
-    session.add(row)
-    await session.commit()
-    await session.refresh(row)
-    return _form_out(row)
+    logger.info("양식 생성 user=%s template=%s writer=%s", user.id, tmpl.id, writer)
+    return await _save_form(
+        session,
+        user,
+        template_id=tmpl.id,
+        title=body.title or f"{tmpl.title} — {user.display_name}",
+        content=content,
+        nodes=nodes,
+    )
 
 
 @forms_router.get("/{form_id}", response_model=FormDocOut)
