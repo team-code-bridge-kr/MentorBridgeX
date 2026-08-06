@@ -17,6 +17,7 @@ import TDS from "../../theme/tokens.js";
 import { NavIcon } from "../NavIcon.jsx";
 import api from "../../api/index.js";
 import { RenameField } from "../dashboard/RenameField.jsx";
+import mbxLogo from "../../assets/brand/mbx_logo.png";
 import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 
 /** 다른 화면에서 도크를 열 때 쓴다. */
@@ -37,6 +38,9 @@ const fmt = (s) =>
 
 export function VoiceDock({ onNav }) {
   const [open, setOpen] = useState(false);
+  // 오른쪽 아래 단추에서 펼치는 차림표. AI 를 쓰려고 대시보드까지 찾아가야 하면
+  // "언제 어디서든" 이 아니다. 녹음과 Bridge AI 를 같은 자리에서 부른다.
+  const [menu, setMenu] = useState(false);
   // idle | recording | saving | done
   const [phase, setPhase] = useState("idle");
   const [sec, setSec] = useState(0);
@@ -53,9 +57,25 @@ export function VoiceDock({ onNav }) {
   const sessionRef = useRef(null);
   const recording = phase === "recording";
 
+  // 차림표는 바깥을 누르거나 Esc 로 닫는다. 열어 둔 채 화면을 옮기면
+  // 다음 화면에서 정체 모를 단추 두 개가 떠 있다.
+  useEffect(() => {
+    if (!menu) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setMenu(false); };
+    const onDown = (e) => {
+      if (!e.target.closest?.(".fab-menu, .vdock-fab")) setMenu(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown);
+    };
+  }, [menu]);
+
   // 다른 화면에서 "녹음 시작"을 누르면 여기가 열린다.
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = () => { setOpen(true); setMenu(false); };
     window.addEventListener(VOICE_OPEN, onOpen);
     return () => window.removeEventListener(VOICE_OPEN, onOpen);
   }, []);
@@ -354,15 +374,56 @@ export function VoiceDock({ onNav }) {
       {/* 접힌 단추. 녹음 중에는 빨갛게 남아 어느 화면에서든 눈에 띈다. */}
       <button
         type="button"
-        className={`vdock-fab${recording ? " is-rec" : ""}${open ? " is-open" : ""}`}
-        onClick={() => setOpen((v) => !v)}
-        title={recording ? `녹음 중 ${fmt(sec)}` : "음성 기록"}
-        aria-label={recording ? `녹음 중 ${fmt(sec)}` : "음성 기록"}
+        className={`vdock-fab${recording ? " is-rec" : ""}${open || menu ? " is-open" : ""}`}
+        onClick={() => {
+          // 녹음 중에는 차림표를 거치지 않는다. 그때 급한 일은 "멈추기" 하나다.
+          if (recording) { setOpen((v) => !v); return; }
+          if (open) { setOpen(false); return; }
+          setMenu((v) => !v);
+        }}
+        title={recording ? `녹음 중 ${fmt(sec)}` : menu ? "닫기" : "무엇을 할까요"}
+        aria-label={recording ? `녹음 중 ${fmt(sec)}` : menu ? "닫기" : "빠른 실행"}
+        aria-expanded={menu}
       >
         {recording
           ? <><span className="vdock-dot" /><span className="vdock-fab-time">{fmt(sec)}</span></>
-          : <NavIcon name={open ? "close" : "voice"} size={21} color="#fff" />}
+          : menu || open
+            ? <NavIcon name="close" size={21} color="#fff" />
+            : <img src={mbxLogo} alt="" className="fab-logo" />}
       </button>
+
+      {/* 펼침 차림표 — 위로 하나씩 솟는다. 이름표를 왼쪽에 함께 둔다.
+          아이콘만 두면 무엇인지 눌러 봐야 안다. */}
+      {menu && !recording && (
+        <div className="fab-menu" role="menu">
+          <button
+            type="button"
+            className="fab-item fab-ai"
+            role="menuitem"
+            style={{ "--i": 0 }}
+            onClick={() => {
+              setMenu(false);
+              onNav?.("S05");
+              // 대시보드가 이미 떠 있으면 새 대화로 비운다. 갓 연 화면에 남의
+              // 대화가 이어져 있으면 "새로 묻기" 가 아니다.
+              window.dispatchEvent(new CustomEvent("mbx:new-chat"));
+            }}
+          >
+            <span className="fab-label">Bridge AI 에게 묻기</span>
+            <span className="fab-dot"><NavIcon name="sparkle" size={19} color="#fff" /></span>
+          </button>
+          <button
+            type="button"
+            className="fab-item fab-voice"
+            role="menuitem"
+            style={{ "--i": 1 }}
+            onClick={() => { setMenu(false); setOpen(true); }}
+          >
+            <span className="fab-label">음성 기록</span>
+            <span className="fab-dot"><NavIcon name="voice" size={19} color="#fff" /></span>
+          </button>
+        </div>
+      )}
     </>
   );
 }
