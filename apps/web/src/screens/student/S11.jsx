@@ -235,23 +235,31 @@ export function S11({ onNav }) {
     return [{ type: m.type, title: m.t, desc: m.d, content }];
   }).filter((a) => a.content);
 
+  // 탭은 두 화면이 함께 쓴다. 각자 그리면 한쪽은 `.content` 의 폭 제한을 받아
+  // 밑줄 길이부터 달라진다(실제로 그랬다).
+  const shell = (inner) => (
+    <div className="doc-screen">
+      {viewSwitch}
+      {inner}
+    </div>
+  );
+
   if (view === "book" && fileMeta?.exists) {
-    return (
+    return shell(
       <PdfReader
-        toolbar={viewSwitch}
         filename={fileMeta.filename}
         pageCount={fileMeta.page_count}
         docs={docs}
         keywords={keywords}
         onMissing={() => setFileMeta({ exists: false })}
-      />
+      />,
     );
   }
 
-  return (
+  return shell(
     <div className="content">
       <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        {viewSwitch}
+        <span />
         <div className="row g-8" style={{ gap: 8 }}>
           {/* 원본이 있으면 언제든 원본과 맞출 수 있다. 잘못 갈린 과목을 하나씩
               찾아 지우는 것보다 한 번에 다시 읽는 편이 빠르다. */}
@@ -398,7 +406,7 @@ export function S11({ onNav }) {
           );
         })}
       </div>
-    </div>
+    </div>,
   );
 }
 

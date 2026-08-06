@@ -35,6 +35,7 @@ const MIN_REGION_PT = 10;    // 이보다 얇은 구획은 누를 수가 없다
 const TURN_MS = 150;         // 문서 크로스페이드
 const RETURN_MS = 260;       // 연타 판정 — 이보다 빠르면 페이드를 건너뛴다
 const FLASH_MS = 620;        // 깜빡임 한 번
+const COACH_SEEN = "mbx_reader_coach";
 
 const TYPE_KIND = {
   award: "수상", autonomous: "자율활동", club: "동아리활동", volunteer: "봉사활동",
@@ -329,7 +330,7 @@ function LinkCard({ item, why, target, onJump }) {
 }
 
 /* ── 리더 ───────────────────────────────────────────────── */
-export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = null, mask = true, onMissing }) {
+export function PdfReader({ docs = [], keywords = [], filename = "", mask = true, onMissing }) {
   const [doc, setDoc] = useState(null);
   const [err, setErr] = useState("");
   const [pages, setPages] = useState(null);
@@ -339,9 +340,15 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
   const [sel, setSel] = useState(null);      // 고른 구획
   // 옆 판을 열어 둘지. 구획을 고르면 열리고, 닫으면 책이 다시 가운데로 온다.
   const [panelOpen, setPanelOpen] = useState(false);
+  // 처음 온 사람에게만 한 번. 봤다는 사실은 이 브라우저에 남긴다.
+  const [coach, setCoach] = useState(() => {
+    try { return localStorage.getItem(COACH_SEEN) !== "1"; } catch { return true; }
+  });
   const [flash, setFlash] = useState("");
   const [fading, setFading] = useState(false);
   const [pageW, setPageW] = useState(420);
+  // 쪽의 세로/가로 비. 쪽을 화면 높이에 맞추려면 이게 필요하다.
+  const [aspect, setAspect] = useState(842 / 595);
   const stage = useRef(null);
   const lastTurn = useRef(0);
   const reduce = useRef(false);
@@ -378,7 +385,11 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     let cancelled = false;
     (async () => {
       const scanned = await scanDocument(doc, subjects);
-      if (!cancelled) setPages(scanned);
+      const vp = (await doc.getPage(1)).getViewport({ scale: 1 });
+      if (!cancelled) {
+        setAspect(vp.height / vp.width);
+        setPages(scanned);
+      }
     })();
     return () => { cancelled = true; };
   }, [doc, subjects]);
@@ -408,14 +419,17 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     if (!el) return undefined;
     const measure = () => {
       const per = single ? 1 : 2;
-      const usable = el.clientWidth - 96 - (per - 1) * 8;
-      setPageW(Math.max(280, Math.min(520, Math.floor(usable / per))));
+      const byWidth = (el.clientWidth - 96 - (per - 1) * 8) / per;
+      // 세로도 맞춘다. 쪽이 화면보다 길면 세로 스크롤이 먼저 걸려서, 스크롤로
+      // 쪽을 넘기려 해도 한 번 넘긴 뒤부터 먹히지 않는다(실제로 그랬다).
+      const byHeight = (el.clientHeight - 120) / aspect;
+      setPageW(Math.max(240, Math.min(560, Math.floor(Math.min(byWidth, byHeight)))));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [single, pages]);
+  }, [single, pages, aspect]);
 
   const total = doc?.numPages || 0;
   const step = single ? 1 : 2;
@@ -478,10 +492,16 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
     return () => window.removeEventListener("keydown", onKey);
   }, [turn]);
 
+  const dismissCoach = useCallback(() => {
+    setCoach(false);
+    try { localStorage.setItem(COACH_SEEN, "1"); } catch { /* 사생활 보호 모드 */ }
+  }, []);
+
   const pick = useCallback((r) => {
+    dismissCoach();
     setSel((cur) => (cur === r.rid ? null : r.rid));
     setPanelOpen(true);
-  }, []);
+  }, [dismissCoach]);
 
   const jump = useCallback((item) => {
     if (!item.page) return;
@@ -517,7 +537,6 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
   if (err || !doc || !pages) {
     return (
       <div className="rd">
-        {toolbar}
         <div className="rs-empty" style={err ? { color: "var(--danger)" } : undefined}>
           {err || "생기부를 읽는 중…"}
         </div>
@@ -527,15 +546,19 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
 
   return (
     <div className="rd">
-      {toolbar}
-
       <div className={`rd-body${panelOpen ? " is-open" : ""}`}>
         <div className="rd-stage" ref={stage}>
-          {/* 아직 아무것도 안 골랐을 때만. 파란 띠가 눌리는 것인 줄 모르면
-              이 화면은 그냥 PDF 뷰어다. */}
-          {!panelOpen && (
-            <div className="rd-hint">
-              <i aria-hidden="true" /> 파란 구획을 누르면 이어지는 기록이 열립니다
+          {/* 처음 한 번만. 파란 띠가 눌리는 것인 줄 모르면 이 화면은 그냥 PDF
+              뷰어다. 그렇다고 늘 띄워 두면 두 번째부터는 잔소리다 — 한 번 보고
+              나면 다시 나오지 않는다. */}
+          {coach && !panelOpen && (
+            <div className="rd-coach" role="status">
+              <span className="rd-coach-dot" aria-hidden="true" />
+              <div>
+                <strong>파란 구획을 눌러 보세요</strong>
+                <span>그 구획과 이어지는 다른 기록이 옆에 열립니다.</span>
+              </div>
+              <button type="button" onClick={dismissCoach}>알겠어요</button>
             </div>
           )}
           <div className={`rd-spread${fading ? " is-fading" : ""}`}>
@@ -555,6 +578,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
 
           {/* 조작은 문서 아래에 떠 있는 알약 하나로. 위에 띠를 두면 읽는 자리가
               그만큼 줄고, 정작 자주 쓰는 것은 쪽 넘김 하나뿐이다. */}
+          <div className="rd-controls-wrap">
           <div className="rd-controls">
             <button type="button" onClick={() => turn(-1)} disabled={spread <= 0} aria-label="이전 쪽">‹</button>
             <span>{shownNos.join("–")} / {total}</span>
@@ -568,6 +592,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
             >
               구획 표시
             </button>
+          </div>
           </div>
         </div>
 
@@ -586,7 +611,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", toolbar = n
             </button>
             {selRegion && (
               <button type="button" className="rd-back" onClick={() => setSel(null)}>
-                <NavIcon name="chevronLeft" size={14} /> 쪽 전체 보기
+                <NavIcon name="chevronLeft" size={14} /> 이 쪽 기록 모두 보기
               </button>
             )}
           </div>

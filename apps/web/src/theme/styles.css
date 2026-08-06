@@ -2969,11 +2969,15 @@ tr:hover td { background:var(--surface-container-low); }
    그만큼 줄고, 정작 자주 쓰는 것은 쪽 넘김 하나다. */
 /* 탭 여백은 탐구 피드와 같은 값을 쓴다(.rs-wrap 의 패딩). 같은 자리에서
    시작해야 두 화면이 한 앱으로 읽힌다. */
-.rd > .rs-tabs {
+/* 두 화면(책·목록)이 같은 탭을 함께 쓴다. 각자 그리면 한쪽은 `.content` 의
+   폭 제한을 받아 밑줄 길이부터 달라진다. */
+.doc-screen { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--bg1); }
+.doc-screen > .rs-tabs {
   flex:0 0 auto; margin:0;
   padding:clamp(14px,2vw,24px) clamp(16px,2vw,24px) 0;
   gap:6px;
 }
+.doc-screen > .content { padding-top:20px; }
 .rd-stage { position:relative; transition:padding .28s cubic-bezier(.22,.8,.28,1); }
 /* 판이 열리면 책이 가운데에서 옆으로 비켜난다. 자리를 바꾸는 것이 아니라
    비켜나는 것이라, 어디에 있던 쪽인지 놓치지 않는다. */
@@ -2997,18 +3001,51 @@ tr:hover td { background:var(--surface-container-low); }
 .rd-panel-x:hover { background:var(--bg2); color:var(--tp); }
 
 /* 눌러 보라는 말 — 파란 띠가 눌리는 것인 줄 모르면 그냥 PDF 뷰어다 */
-.rd-hint {
-  position:sticky; top:0; z-index:3; width:max-content; margin:0 auto 14px;
-  display:flex; align-items:center; gap:8px;
-  padding:7px 15px; border-radius:9999px;
-  background:rgba(27,95,217,.08); border:1px solid rgba(27,95,217,.22);
-  font-size:12.5px; font-weight:600; color:#1B5FD9;
+/* 코치 말풍선 — 처음 한 번만. 늘 떠 있는 안내 띠는 두 번째부터 잔소리다. */
+.rd-coach {
+  /* 흐름에 자리를 차지하면 쪽이 아래로 밀려 화면보다 길어지고, 그러면 스크롤이
+     쪽 넘김 대신 세로 스크롤이 된다(실제로 그랬다). 겹쳐 띄운다. */
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  z-index:4; width:max-content; max-width:calc(100% - 32px);
+  display:flex; align-items:flex-start; gap:11px;
+  padding:13px 14px 13px 15px; border-radius:16px;
+  background:var(--bg1); box-shadow:var(--surface-2);
+  border:1px solid rgba(27,95,217,.16);
+  animation:rdCoachIn .3s cubic-bezier(.22,.8,.28,1);
 }
-.rd-hint i { width:7px; height:7px; border-radius:9999px; background:#1B5FD9; opacity:.6; }
+@keyframes rdCoachIn {
+  from { opacity:0; transform:translate(-50%, -6px); }
+  to   { opacity:1; transform:translateX(-50%); }
+}
+.rd-coach-dot {
+  flex:0 0 auto; width:9px; height:9px; margin-top:5px; border-radius:9999px; background:#1B5FD9;
+  box-shadow:0 0 0 0 rgba(27,95,217,.5); animation:rdCoachPulse 1.9s ease-out infinite;
+}
+@keyframes rdCoachPulse { 70% { box-shadow:0 0 0 8px rgba(27,95,217,0); } 100% { box-shadow:0 0 0 0 rgba(27,95,217,0); } }
+.rd-coach div { display:flex; flex-direction:column; gap:3px; }
+.rd-coach strong { font-size:13px; font-weight:700; color:var(--tp); }
+.rd-coach span { font-size:12px; line-height:1.5; color:var(--ts); word-break:keep-all; }
+.rd-coach button {
+  flex:0 0 auto; align-self:center; margin-left:4px;
+  padding:6px 13px; border:none; border-radius:9999px;
+  background:rgba(27,95,217,.1); color:#1B5FD9;
+  font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;
+}
+.rd-coach button:hover { background:rgba(27,95,217,.18); }
+@media (prefers-reduced-motion:reduce) {
+  .rd-coach { animation:none; }
+  .rd-coach-dot { animation:none; }
+}
 
+/* 가운데 정렬은 바깥 판이 맡는다. 알약에 width:max-content + margin:auto 를
+   함께 주면 스크롤되는 판 안에서 폭이 내용보다 좁게 잡혀, 켜진 토글이 흰 바탕
+   밖으로 삐져나온다(실제로 그랬다). */
+.rd-controls-wrap {
+  position:sticky; bottom:6px; z-index:3; margin-top:20px;
+  display:flex; justify-content:center;
+}
 .rd-controls {
-  position:sticky; bottom:6px; z-index:3; width:max-content; margin:20px auto 0;
-  display:flex; align-items:center; flex-wrap:nowrap; gap:6px; white-space:nowrap;
+  display:inline-flex; align-items:center; flex-wrap:nowrap; gap:6px; white-space:nowrap;
   /* 안쪽 단추가 제 배경을 가지므로 여백을 넉넉히 준다. 좁게 두면 켜진 토글의
      파란 바탕이 알약 테두리에 물려 깨져 보인다. */
   padding:6px 8px; border-radius:9999px;
