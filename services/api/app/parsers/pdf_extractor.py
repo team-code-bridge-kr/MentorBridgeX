@@ -108,7 +108,14 @@ _MIN_SECTION_CHARS = 20
 #   2. 왼쪽 조각이 한 글자인가 — 한 글자짜리 낱말이 줄 끝에 오는 일은 드물다.
 #      단, 홀로 쓰이는 한 글자 말은 빼 둔다("및", "잘", "수 있다"의 "수" …).
 _STANDALONE_ONE = {"및", "잘", "더", "못", "안", "수", "것", "될", "등", "후", "때", "뿐", "중", "시"}
-_WRAP_BREAK = re.compile(r"(?<=[가-힣])\n(?=[가-힣])")
+
+# 낱말을 **시작할 수 없는** 글자들 — 어미·활용형에만 나온다.
+# 오른쪽 조각이 이걸로 시작하면 앞 낱말의 꼬리다: "넘어가|려는", "하|였고".
+# 왼쪽이 몇 글자든 붙인다(사전에 없는 활용형까지 잡으려면 이 규칙이 필요하다).
+_ENDING_ONLY = {"려", "며", "았", "었", "였", "웠", "겠", "셨", "랐", "렀", "롭", "럽", "렵", "던"}
+# 줄바꿈이 하나가 아닐 수도 있다 — 쪽이 넘어가며 제목이 끼었던 자리는 빈 줄이
+# 남는다. 사이의 공백까지 함께 본다(붙일지 말지는 아래 세 규칙이 정한다).
+_WRAP_BREAK = re.compile(r"(?<=[가-힣])[ \t]*\n\s*(?=[가-힣])")
 
 
 def _doc_words(text: str) -> set[str]:
@@ -132,6 +139,8 @@ def _join_wrapped(chunk: str, words: set[str]) -> str:
         # 붙어 버린다 — 이미 완성된 낱말은 붙일 이유가 없다.
         lo = len(left_word) + 1
         if any(merged[:k] in words for k in range(lo, min(lo + 3, len(merged)) + 1)):
+            return ""
+        if head.group(0)[0] in _ENDING_ONLY:
             return ""
         if len(left_word) == 1 and left_word not in _STANDALONE_ONE:
             return ""
@@ -266,8 +275,8 @@ def _find_marker_positions(text: str) -> list[tuple[int, int, str, SectionType]]
     return deduped
 
 
-def _slice_section_text(text: str, start: int, end: int, words: set[str]) -> str:
-    return _join_wrapped(text[start:end], words)
+# 문장으로 끝났는가 — 쪽이 넘어가며 잘린 것인지 판단하는 데 쓴다.
+_ENDS_SENTENCE = re.compile(r"[.!?]\s*$")
 
 
 def _split_major_sections(text: str) -> list[ParsedSection]:
@@ -277,11 +286,28 @@ def _split_major_sections(text: str) -> list[ParsedSection]:
         return []
 
     words = _doc_words(text)
-    sections: list[ParsedSection] = []
+
+    # 쪽이 넘어가면 같은 제목이 다시 찍힌다("행동특성 및 종합의견" 이 두 쪽에
+    # 걸치면 제목도 두 번 나온다). 그대로 두면 한 문단이 두 조각으로 갈리고,
+    # 하필 그 자리가 낱말 한가운데면 "넘어가" / "려는" 으로 쪼개진다.
+    # 앞 조각이 문장으로 끝나지 않았으면 쪽이 넘어간 것으로 보고 도로 잇는다.
+    raw_blocks: list[list] = []  # [section_type, marker, raw]
     for i, (_start, header_end, marker, section_type) in enumerate(markers):
         end = markers[i + 1][0] if i + 1 < len(markers) else len(text)
+        raw = text[header_end:end]
+        if (
+            raw_blocks
+            and raw_blocks[-1][0] is section_type
+            and not _ENDS_SENTENCE.search(raw_blocks[-1][2])
+        ):
+            raw_blocks[-1][2] += "\n" + raw
+            continue
+        raw_blocks.append([section_type, marker, raw])
+
+    sections: list[ParsedSection] = []
+    for section_type, marker, raw in raw_blocks:
         # 제목 자체는 빼고 그 뒤 본문만 담는다.
-        body = _slice_section_text(text, header_end, end, words)
+        body = _join_wrapped(raw, words)
         if len(body) < _MIN_SECTION_CHARS:
             continue
         sections.append(

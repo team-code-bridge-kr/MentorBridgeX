@@ -89,7 +89,11 @@ export function S11({ onNav }) {
     try {
       const made = await api.documents.splitSubjects();
       await load();
-      setSplitMsg(`세부능력 및 특기사항을 학년·과목 ${made.length}개로 정리했습니다.`);
+      // 원본이 있으면 세특 말고 다른 영역(행동특성·자율활동 …)도 함께 다시 읽는다.
+      setSplitMsg(
+        `세부능력 및 특기사항을 학년·과목 ${made.length}개로 정리했습니다.` +
+        (fileMeta?.exists ? " 다른 영역도 원본에서 다시 읽었습니다." : ""),
+      );
     } catch (e) {
       setErr(e.message);
     } finally {

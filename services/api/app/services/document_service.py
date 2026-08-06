@@ -227,6 +227,69 @@ class DocumentService:
         await session.refresh(row)
         return self._to_schema_from_row(row)
 
+    async def _pdf_blocks(self, session: AsyncSession, user_id: str) -> list[tuple]:
+        """보관된 원본 PDF 를 다시 읽어 `(영역, 과목, 학년, 본문)` 전부를 돌려준다."""
+        row = (
+            await session.execute(
+                select(DocumentFileRow).where(DocumentFileRow.user_id == user_id)
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            return []
+        try:
+            parsed = parse_pdf_bytes(row.content)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("정리용 PDF 재파싱 실패 user=%s: %s", user_id, exc)
+            return []
+        return _merge_sections_by_type(parsed.sections)
+
+    async def _refresh_other_sections(
+        self, session: AsyncSession, user_id: str, blocks: list[tuple], now
+    ) -> int:
+        """세특이 아닌 영역을 새 전처리로 다시 읽어 넣는다.
+
+        **행은 그대로 두고 글자만 바꾼다.** id 가 바뀌면 열어 둔 화면이 없는
+        문서를 가리키게 된다. 원본에서 온 것이 확실한 행만 손댄다 — 손으로 쓴
+        글은 건드리지 않는다.
+        """
+        wanted = {
+            t.value: body
+            for t, subject, _grade, body in blocks
+            if t is not SectionType.SUBJECT_SPECIFIC and not subject
+        }
+        if not wanted:
+            return 0
+        rows = (
+            (
+                await session.execute(
+                    select(DocumentSectionRow).where(
+                        DocumentSectionRow.user_id == user_id,
+                        DocumentSectionRow.section_type != SectionType.SUBJECT_SPECIFIC.value,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        changed = 0
+        for row in rows:
+            target = wanted.get(row.section_type)
+            if not target or row.content == target:
+                continue
+            # 같은 글인지 — 전처리가 달라져 글자는 어긋나므로 표본으로 견준다.
+            packed_target = _packed(target)
+            packed_row = _packed(row.content)
+            same = any(p in packed_target for p in _probes(row.content)) or any(
+                p in packed_row for p in _probes(target)
+            )
+            if not same:
+                continue
+            row.content = target
+            row.version += 1
+            row.updated_at = now
+            changed += 1
+        return changed
+
     async def _pdf_subject_blocks(
         self, session: AsyncSession, user_id: str
     ) -> list[tuple[str | None, str | None, str]]:
@@ -424,6 +487,14 @@ class DocumentService:
                 made.append(self._to_schema_from_row(extra))
             if first:  # 내용이 전부 다른 행과 겹쳤다
                 await session.delete(row)
+
+        # 세특 말고 다른 영역(행동특성·자율활동·독서 …)도 같은 원본에서 다시
+        # 읽어 넣는다. 전처리가 좋아졌는데 세특만 새로워지면 반쪽이다.
+        all_blocks = await self._pdf_blocks(session, user_id)
+        if all_blocks:
+            touched = await self._refresh_other_sections(session, user_id, all_blocks, now)
+            if touched:
+                logger.info("다른 영역 %d개를 새 전처리로 다시 읽음 user=%s", touched, user_id)
 
         await session.commit()
         return made
