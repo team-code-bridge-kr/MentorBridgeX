@@ -214,10 +214,16 @@ function layoutTree(rawNodes, rawEdges) {
   };
   place(rootIdx, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2);
 
-  // 문서에서 닿지 못한 노드(선이 없는 것)는 바깥 고리에 늘어놓는다.
+  // 문서에서 닿지 못한 노드 — 선이 하나도 없는 것들이다. 숨기지 않는다.
+  // 있는데 안 보이면 학생은 노드가 사라진 줄 안다. 다만 나무와 섞이지 않게
+  // 바깥에 여러 겹으로 모아 둔다(한 겹에 70개를 놓으면 화면 밖으로 밀린다).
   const stray = rawNodes.map((_, i) => i).filter((i) => positions[i] === null);
+  const STRAY_R = [40, 44, 48];
   stray.forEach((idx, i) => {
-    positions[idx] = polar((i / Math.max(stray.length, 8)) * Math.PI * 2, 48);
+    const ring = i % STRAY_R.length;
+    const inRing = Math.floor(i / STRAY_R.length);
+    const perRing = Math.ceil(stray.length / STRAY_R.length);
+    positions[idx] = polar((inRing / Math.max(perRing, 8)) * Math.PI * 2, STRAY_R[ring]);
   });
 
   return { positions, parents };

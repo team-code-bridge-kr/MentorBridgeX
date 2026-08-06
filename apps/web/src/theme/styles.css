@@ -2801,3 +2801,5 @@ tr:hover td { background:var(--surface-container-low); }
   padding:7px 15px; border-radius:9999px; background:var(--bg1);
   box-shadow:var(--surface-2); font-size:12.5px; color:var(--ts);
 }
+.graph-note strong { color:var(--tp); }
+.graph-note em { font-style:normal; font-weight:700; color:var(--primary); }

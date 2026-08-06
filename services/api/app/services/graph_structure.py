@@ -118,6 +118,13 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
     doc = next((n for n in nodes if n.type == NodeType.DOCUMENT), None)
     usable = _usable(sections)
 
+    # 붙일 구획이 하나도 없으면 아무것도 하지 않는다. 그냥 두면 아래에서 옛 선
+    # (개념 → 문서)을 "우리 것"이라며 지우는데, 대신 이을 곳이 없어서 노드가
+    # 통째로 떠 버린다 — 고치려다 더 나쁘게 만드는 경우다.
+    if not usable:
+        logger.info("붙일 구획이 없어 뼈대를 건드리지 않음 user=%s", user_id)
+        return {**plan.as_dict(), "sections": 0, "periods": 0, "concepts": 0}
+
     # ── 1. 있어야 할 구획 노드 ────────────────────────────────────────────
     want_sections = {s.id: s for s in usable}
     have_sections: dict[str, GraphNode] = {

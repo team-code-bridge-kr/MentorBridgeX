@@ -149,6 +149,15 @@ export function S06({ onNav }) {
     });
   }, [allNodes]);
 
+  // 선이 하나도 없는 노드. 예전 화면은 가지를 지어내 이어진 것처럼 보였는데,
+  // 이제 진짜 선만 그리니 드러난다. 감추지 말고 세어서 알려 준다 — 한 번
+  // 누르면 대부분 제자리를 찾는다.
+  const strayCount = useMemo(() => {
+    const linked = new Set();
+    for (const e of allEdges) { linked.add(e.from); linked.add(e.to); }
+    return allNodes.filter((n) => !linked.has(n.id)).length;
+  }, [allNodes, allEdges]);
+
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
 
@@ -553,7 +562,13 @@ export function S06({ onNav }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      {restruct.msg && <div className="graph-note">{restruct.msg}</div>}
+      {restruct.msg
+        ? <div className="graph-note">{restruct.msg}</div>
+        : strayCount > 0 && (
+          <div className="graph-note">
+            이어지지 않은 노드 <strong>{strayCount}개</strong> — 생기부 구획에 붙이려면 <em>층 다시 세우기</em>를 누르세요.
+          </div>
+        )}
       <div className="toolbar">
         <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
