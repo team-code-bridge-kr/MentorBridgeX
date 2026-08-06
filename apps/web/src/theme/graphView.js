@@ -9,17 +9,16 @@
 /**
  * 화면에 그릴 선.
  *
- * 백엔드 엣지는 거의 전부 "노드 → 생기부 문서"(MENTIONED_IN)라, 그대로 그리면
- * 수십 개 선이 중앙으로 쏟아져 아무것도 안 보인다. 대신 배치가 만든 가지
- * (문서 → 과목 → 그 과목의 노드)를 그리고, 문서를 거치지 않는 실제 엣지
- * (EVOLVED_FROM 등)는 그 위에 겹쳐 보여준다.
+ * 예전에는 여기서 가지를 **지어냈다.** 백엔드 선이 전부 "개념 → 생기부 문서"
+ * 하나뿐이라 그대로 그리면 수십 개 선이 중앙으로 쏟아졌기 때문이다. 이제
+ * 백엔드가 생기부 구획을 노드로 세우므로(`graph_structure.py`) 지어낼 것이 없다 —
+ * 있는 선을 그대로 그린다.
+ *
+ * 다만 배치가 고른 부모로 가는 선은 **가지**로 표시한다. 굵기가 달라야 뼈대와
+ * 곁가지가 구별된다.
  */
 export function visualEdgesOf(nodes, edges) {
-  const rootId = nodes.find((n) => n.kind === "root")?.id ?? null;
-  const branches = nodes
-    .filter((n) => n.parentId)
-    .map((n) => ({ id: `branch_${n.id}`, from: n.parentId, to: n.id, branch: true }));
-  if (!branches.length) return edges;
-  const cross = edges.filter((e) => e.from !== rootId && e.to !== rootId);
-  return [...branches, ...cross];
+  const parentOf = new Map(nodes.filter((n) => n.parentId).map((n) => [n.id, n.parentId]));
+  if (!parentOf.size) return edges;
+  return edges.map((e) => (parentOf.get(e.from) === e.to ? { ...e, branch: true } : e));
 }

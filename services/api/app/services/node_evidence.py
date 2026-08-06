@@ -73,6 +73,21 @@ _ORIGINS = {
 }
 
 
+def hinted_type(hint: str) -> SectionType | None:
+    """노드에 적힌 과목·영역 이름(external_refs.section)을 항목 종류로 되돌린다.
+
+    추출기가 "이 구획을 읽다가 뽑았다"고 적어 둔 값이다. 이름이 지금 구획과
+    똑같지는 않아서("창의적체험활동상황" → 자율활동) 이 표로 옮긴다.
+    """
+    packed = (hint or "").replace(" ", "")
+    if not packed:
+        return None
+    for needle, section_type in _SECTION_HINTS:
+        if needle in packed or packed in needle:
+            return section_type
+    return None
+
+
 def origin_of(node: GraphNode) -> str:
     """`student`(직접 만듦) · `branch`(가지치기) · `document`(생기부) 중 하나."""
     refs = node.external_refs or {}

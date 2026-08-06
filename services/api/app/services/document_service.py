@@ -20,13 +20,22 @@ from app.schemas.documents import (
 )
 from app.schemas.extraction import ExtractedKeyword
 from app.schemas.graph import NodeType, RelationType
+from app.services.graph_structure import rebuild as rebuild_structure
 from app.services.keyword_extraction import extract_keywords
 
 logger = logging.getLogger(__name__)
 
-# Cap on graph nodes created per PDF import. The full token list still lands in the
-# job result; this only bounds what becomes a node, so one PDF can't produce thousands.
-_MAX_KEYWORD_NODES = 60
+# 한 번 가져올 때 만드는 개념 노드 수.
+#
+# 예전에는 60 으로 못 박아 뒀다. 어댑터가 구획을 돌아가며 뽑으니 공평하기는 한데,
+# 구획이 48개면 하나에 1.2개씩 돌아가서 뒤쪽 구획은 대표 노드가 아예 없었다.
+# 구획 수에 맞춰 늘린다 — 구획마다 셋씩, 다만 그래프가 읽히는 선(200)에서 멈춘다.
+_NODES_PER_SECTION = 3
+_MAX_KEYWORD_NODES = 200
+
+
+def _node_budget(section_count: int) -> int:
+    return max(_NODES_PER_SECTION, min(_MAX_KEYWORD_NODES, section_count * _NODES_PER_SECTION))
 
 
 def _normalize(text: str) -> str:
@@ -690,10 +699,11 @@ class DocumentService:
 
     async def _extract_keywords(self, parsed: ParsedPdf) -> tuple[list[ExtractedKeyword], str]:
         """Pick keywords for graph nodes, tagging the extractor with the PDF pipeline."""
+        sections = _sections_for_extraction(parsed.sections)
         keywords, extractor = await extract_keywords(
-            sections=_sections_for_extraction(parsed.sections),
+            sections=sections,
             token_freqs=parsed.token_frequencies,
-            limit=_MAX_KEYWORD_NODES,
+            limit=_node_budget(len(sections)),
             rule_source="pdf_tokens",
         )
         return keywords, f"pymupdf+{extractor}"
@@ -763,8 +773,15 @@ class DocumentService:
                 relation=RelationType.MENTIONED_IN,
             )
 
+        # 층을 세운다. 개념 → 구획 → 학년 → 문서.
+        # 여기서 하지 않으면 가져온 직후의 그래프만 별 모양으로 남는다.
+        structure = await rebuild_structure(
+            self.graph, user_id, await self.list_sections(session, user_id)
+        )
+
         result_payload = {
             "document_section_ids": section_ids,
+            "structure": structure,
             "page_count": parsed.page_count,
             "sections_parsed": len(parsed.sections),
             "section_titles": [s.title for s in parsed.sections],

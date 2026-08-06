@@ -64,7 +64,31 @@ const BRANCH_META = {
 
 export function S06({ onNav }) {
   const { state, actions } = useStore();
-  const { nodes, edges, loading } = state.graph;
+  const { nodes: allNodes, edges: allEdges, loading } = state.graph;
+  // 얼마나 깊이 볼지. 197개를 한꺼번에 펼치면 지도가 아니라 얼룩이 된다.
+  // 1 = 학년·영역까지, 2 = 과목까지, 3 = 개념까지.
+  const [depth, setDepth] = useState(3);
+  // 뼈대 다시 세우기 — { busy, msg }
+  const [restruct, setRestruct] = useState({ busy: false, msg: "" });
+
+  // 노드의 층. 뼈대(structure)는 학년이면 1, 구획이면 2. 나머지 개념은 3.
+  const levelOf = useCallback((n) => {
+    if (n.kind === "root") return 0;
+    if (n.kind !== "topic") return 3;
+    return n.type === "Period" ? 1 : 2;
+  }, []);
+
+  // 깊이를 줄이면 그 아래는 감춘다. 지우는 게 아니라 접는 것이다 — 개수는
+  // 그대로 세어 보여 줘야 "없어진 줄" 알지 않는다.
+  const nodes = useMemo(
+    () => allNodes.filter((n) => levelOf(n) <= depth),
+    [allNodes, depth, levelOf],
+  );
+  const edges = useMemo(() => {
+    const alive = new Set(nodes.map((n) => n.id));
+    return allEdges.filter((e) => alive.has(e.from) && alive.has(e.to));
+  }, [allEdges, nodes]);
+
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
   const [q, setQ] = useState("");
@@ -106,7 +130,7 @@ export function S06({ onNav }) {
   const positionsRef = useRef(positions);
 
   // 최초 진입 시 그래프가 비어있으면 로드
-  useEffect(()=>{ if(!nodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
+  useEffect(()=>{ if(!allNodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
   // 선택 노드가 삭제되면 패널 닫기
   useEffect(()=>{ if(sel && !nodes.find(n=>n.id===sel.id)) setSel(null); }, [nodes, sel]);
   // 다른 노드를 고르면 이전 노드의 추천은 버린다 (엉뚱한 노드의 카드가 남지 않도록)
@@ -119,11 +143,11 @@ export function S06({ onNav }) {
   useEffect(()=>{
     setPositions(prev=>{
       const next = {...prev};
-      nodes.forEach(n=>{ if(!next[n.id]) next[n.id]={x:n.x,y:n.y}; });
-      Object.keys(next).forEach(id=>{ if(!nodes.find(n=>n.id===id)) delete next[id]; });
+      allNodes.forEach(n=>{ if(!next[n.id]) next[n.id]={x:n.x,y:n.y}; });
+      Object.keys(next).forEach(id=>{ if(!allNodes.find(n=>n.id===id)) delete next[id]; });
       return next;
     });
-  }, [nodes]);
+  }, [allNodes]);
 
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
@@ -529,12 +553,53 @@ export function S06({ onNav }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {restruct.msg && <div className="graph-note">{restruct.msg}</div>}
       <div className="toolbar">
         <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
         <Btn v="secondary" s="sm" onClick={findLinks}><NavIcon name="link" size={15} color={TDS.textSecondary}/> 관계 찾기</Btn>
         <Btn v="secondary" s="sm" onClick={findGaps}><NavIcon name="search" size={15} color={TDS.textSecondary}/> 빈 곳 보기</Btn>
+        {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
+            이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다. */}
+        <Btn
+          v="secondary"
+          s="sm"
+          disabled={restruct.busy}
+          title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다."
+          onClick={async () => {
+            setRestruct({ busy: true, msg: "" });
+            try {
+              const r = await api.graph.rebuild();
+              await actions.loadGraph(state.session?.user?.id);
+              setRestruct({
+                busy: false,
+                msg: r.changed
+                  ? `층을 다시 세웠습니다 — 구획 ${r.sections}개, 학년 ${r.periods}개, 선 ${r.edges_added}개 새로 이음.`
+                  : "이미 생기부와 같은 모양입니다.",
+              });
+            } catch (e) {
+              setRestruct({ busy: false, msg: e.message });
+            }
+          }}
+        >
+          <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
+        </Btn>
+        {/* 얼마나 깊이 볼지. 개념까지 다 펼치면 200개가 한 화면에 깔린다 —
+            지도를 읽는 첫걸음은 "덜 보는 것"이다. */}
+        <div className="depth-pick" role="group" aria-label="보이는 깊이">
+          {[[1, "학년"], [2, "과목"], [3, "개념"]].map(([lv, label]) => (
+            <button
+              key={lv}
+              type="button"
+              className={`depth-btn${depth === lv ? " is-on" : ""}`}
+              aria-pressed={depth === lv}
+              onClick={() => setDepth(lv)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
         <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
         <div style={{flex:1}} />
@@ -889,7 +954,24 @@ export function S06({ onNav }) {
                 순간에는 판단할 근거가 필요하므로 연결·추천보다 위에 둔다. */}
             {!editing && !confirmDelete && (
               <>
-                <NodeEvidence nodeId={sel.id} label={sel.label} />
+                {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
+                    문장을 뒤지는 대신 그 글로 데려간다. */}
+                {sel.sectionId ? (
+                  <button
+                    type="button"
+                    className="node-open"
+                    onClick={() => {
+                      sessionStorage.setItem("mbx_doc_id", sel.sectionId);
+                      sessionStorage.setItem("mbx_doc_type", "");
+                      sessionStorage.setItem("mbx_doc_subject", "");
+                      onNav("S12");
+                    }}
+                  >
+                    생기부에서 이 글 열기 →
+                  </button>
+                ) : (
+                  <NodeEvidence nodeId={sel.id} label={sel.label} />
+                )}
                 <Divider my={16} />
               </>
             )}

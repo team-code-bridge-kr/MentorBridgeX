@@ -98,6 +98,9 @@ const DOC_TYPE = "document";
 function nodeKind(n, hasDocument = false) {
   const t = String(n.type || "").toLowerCase();
   if (t === DOC_TYPE) return "root";
+  // 생기부 구획으로 세운 뼈대(학년·과목·영역)는 가지다. 개념과 크기가 같으면
+  // 무엇이 묶음이고 무엇이 내용인지 알 수 없다.
+  if ((n.external_refs || {}).source === "structure") return "topic";
   if (hasDocument) return t === "subject" ? "topic" : "leaf";
   if (t === "subject") return "root";
   if (t === "inquiry" || t === "keyword") return "topic";
@@ -111,17 +114,16 @@ function sectionOf(n) {
   return section || "기타";
 }
 
-// 중심(생기부 문서) / 과목 가지 / 말단의 반지름(%).
-const R_HUB = 18;
-// 말단은 네 겹으로 번갈아 놓는다. 겹이 적으면 큰 과목에서 원주가 모자라 붙어버린다.
-// 123개 실측 기준 3겹이면 겹침 8개, 4겹이면 0개다. 바깥 45%까지만 써서 잘림을 피한다.
-const R_LEAF = [26, 33, 39, 45];
+// 깊이별 반지름(%). 문서 0, 학년 16, 과목·영역 30, 개념 44.
+// 마지막 겹은 46%까지만 쓴다 — 그 밖은 캔버스에서 잘린다.
+const R_DEPTH = [0, 16, 30, 44];
+// 같은 부모 아래 개념이 많으면 한 겹에 다 못 놓는다. 번갈아 안팎으로 벌린다.
+const R_JITTER = [0, 5, -4, 9];
 // 묶음이 아무리 작아도 이만큼의 각도 몫은 준다. 없으면 2~3개짜리 과목이
 // 실오라기 같은 부채꼴을 받아 옆 가지와 겹친다.
 const MIN_GROUP_WEIGHT = 2.5;
-// 부채꼴 양 끝 여백. 비율로만 두면 작은 과목은 여백도 같이 줄어 경계에서 맞붙는다.
-// 절대 최소값을 두되, 부채꼴을 다 잡아먹지 않게 위쪽도 막는다.
-const MIN_PAD_RAD = 0.10;
+// 부채꼴 양 끝 여백. 비율로만 두면 작은 묶음은 여백도 같이 줄어 경계에서 맞붙는다.
+const MIN_PAD_RAD = 0.06;
 const CENTER_X = 50;
 const CENTER_Y = 50;
 
@@ -132,84 +134,90 @@ function polar(angle, r) {
 }
 
 /**
- * 생기부 문서를 중심에 두는 방사형 트리 배치.
+ * 그래프의 **진짜 선**을 따라가며 놓는 방사형 트리.
  *
- *   생기부 문서(중앙) → 과목/영역(안쪽 고리) → 그 과목에서 나온 노드(바깥 고리)
+ *   내 생기부(가운데) → 학년 → 과목·영역 → 개념
  *
- * 그래프 엣지는 전부 "노드 → 문서"(MENTIONED_IN)로 붙어 있어서 그대로 그리면
- * 60개 선이 중앙으로 쏟아진다. 대신 external_refs.section 으로 과목별 묶음을
- * 만들고, 묶음마다 각도 구간을 노드 수에 비례해 나눠 준다. 비례 배분이라
- * 큰 과목도 좁은 과목도 밀도가 비슷해진다.
+ * 예전에는 이 층이 그림이었다. 백엔드 선이 전부 "개념 → 문서" 하나뿐이라,
+ * 화면이 `external_refs.section` 으로 과목 묶음을 **지어내서** 트리처럼
+ * 그렸다. 눌러도 아무 데도 가지 않고 고칠 수도 없는 가짜 가지였다.
+ * 이제 백엔드가 구획을 노드로 세우므로(`graph_structure.py`) 선을 그대로 따라간다.
  *
- * 문서 노드가 없으면 null 을 돌려주고 호출부가 기존 해바라기 배치로 넘어간다.
+ * 한 개념이 두 구획에 걸릴 수 있다. 배치는 **처음 닿은 부모**를 쓰고, 나머지
+ * 선은 가지가 아니라 그냥 선으로 그린다 — 트리는 자리를 정하는 규칙일 뿐이고
+ * 그래프가 트리라는 뜻은 아니다.
  */
-function layoutRadialTree(rawNodes) {
-  const docIdx = rawNodes.findIndex(
+function layoutTree(rawNodes, rawEdges) {
+  const rootIdx = rawNodes.findIndex(
     (n) => String(n.type || "").toLowerCase() === DOC_TYPE,
   );
-  if (docIdx < 0) return null;
+  if (rootIdx < 0) return null;
 
-  const docId = rawNodes[docIdx].id;
-  const positions = new Array(rawNodes.length).fill(null);
-  const parents = new Array(rawNodes.length).fill(null);
-  positions[docIdx] = { x: `${CENTER_X}%`, y: `${CENTER_Y}%` };
-
-  // 1. 과목/영역별로 묶는다
-  const groups = new Map();
-  rawNodes.forEach((n, i) => {
-    if (i === docIdx) return;
-    const key = sectionOf(n);
-    if (!groups.has(key)) groups.set(key, { key, members: [] });
-    groups.get(key).members.push(i);
-  });
-
-  // 2. 묶음마다 가지의 뿌리를 정한다: 이름이 같은 Subject > 아무 Subject >
-  //    (3개 이상이면) 첫 노드. 없는 노드를 만들어 넣지는 않는다.
-  for (const g of groups.values()) {
-    const subjects = g.members.filter(
-      (i) => String(rawNodes[i].type || "").toLowerCase() === "subject",
-    );
-    const exact = subjects.find((i) => rawNodes[i].label === g.key);
-    g.hub = exact ?? subjects[0] ?? (g.members.length >= 3 ? g.members[0] : -1);
-    g.leaves = g.members.filter((i) => i !== g.hub);
+  const indexOf = new Map(rawNodes.map((n, i) => [n.id, i]));
+  const kids = new Map();
+  for (const e of rawEdges) {
+    const from = indexOf.get(e.source_id);
+    const to = indexOf.get(e.target_id);
+    if (from == null || to == null || from === to) continue;
+    if (!kids.has(to)) kids.set(to, []);
+    kids.get(to).push(from);
   }
 
-  // 3. 큰 묶음부터 배치 (같은 크기면 이름순 — 새로고침해도 자리가 그대로다)
-  const list = [...groups.values()].sort(
-    (a, b) => b.members.length - a.members.length || (a.key < b.key ? -1 : 1),
-  );
-  const weightOf = (g) => g.members.length + MIN_GROUP_WEIGHT;
-  const totalWeight = list.reduce((sum, g) => sum + weightOf(g), 0) || 1;
-
-  let angle = -Math.PI / 2; // 12시 방향부터
-  list.forEach((g, gi) => {
-    const wedge = (weightOf(g) / totalWeight) * Math.PI * 2;
-    const pad = Math.min(wedge * 0.35, Math.max(wedge * 0.12, MIN_PAD_RAD));
-    const a0 = angle + pad;
-    const a1 = angle + wedge - pad;
-    // 말단은 고리를 번갈아 쓴다. 같은 고리에 연달아 놓이지 않으므로
-    // 부채꼴이 좁아도 이웃과 반지름이 달라 떨어져 보인다.
-    const spread = (items, radiusAt) => {
-      items.forEach((idx, i) => {
-        const t = items.length === 1 ? 0.5 : i / (items.length - 1);
-        positions[idx] = polar(a0 + (a1 - a0) * t, radiusAt(i));
-      });
-    };
-
-    if (g.hub >= 0) {
-      positions[g.hub] = polar(angle + wedge / 2, R_HUB);
-      parents[g.hub] = docId;
-      const hubId = rawNodes[g.hub].id;
-      g.leaves.forEach((idx) => { parents[idx] = hubId; });
-    } else {
-      // 뿌리로 삼을 노드가 없는 묶음은 문서에 바로 매단다
-      g.leaves.forEach((idx) => { parents[idx] = docId; });
+  // 너비 우선 — 문서에서 가까운 쪽이 부모가 된다.
+  const parents = new Array(rawNodes.length).fill(null);
+  const depth = new Array(rawNodes.length).fill(-1);
+  const order = new Map(); // 부모 → 자식(중복 없이)
+  depth[rootIdx] = 0;
+  const queue = [rootIdx];
+  for (let head = 0; head < queue.length; head += 1) {
+    const cur = queue[head];
+    for (const child of kids.get(cur) || []) {
+      if (depth[child] >= 0) continue;
+      depth[child] = depth[cur] + 1;
+      parents[child] = rawNodes[cur].id;
+      if (!order.has(cur)) order.set(cur, []);
+      order.get(cur).push(child);
+      queue.push(child);
     }
-    // 고리 순서를 묶음마다 한 칸씩 밀어, 이웃 부채꼴의 경계에서 만나는 두 노드가
-    // 같은 고리에 놓이지 않게 한다 (남는 겹침은 대부분 여기서 생겼다).
-    spread(g.leaves, (i) => R_LEAF[(i + gi) % R_LEAF.length]);
+  }
 
-    angle += wedge;
+  // 자리를 각도로 나눈다. 몫은 **자기 아래 말단 수**에 비례한다 — 그래야
+  // 과목 40개짜리 학년과 과목 3개짜리 학년이 같은 몫을 받지 않는다.
+  const weight = new Array(rawNodes.length).fill(0);
+  for (let i = queue.length - 1; i >= 0; i -= 1) {
+    const idx = queue[i];
+    const children = order.get(idx) || [];
+    weight[idx] = children.length
+      ? children.reduce((sum, c) => sum + weight[c], 0)
+      : 1;
+  }
+
+  const positions = new Array(rawNodes.length).fill(null);
+  positions[rootIdx] = { x: `${CENTER_X}%`, y: `${CENTER_Y}%` };
+
+  const place = (idx, a0, a1) => {
+    const children = order.get(idx) || [];
+    if (!children.length) return;
+    const total = children.reduce((sum, c) => sum + weight[c] + MIN_GROUP_WEIGHT, 0) || 1;
+    let a = a0;
+    children.forEach((child, ci) => {
+      const wedge = ((weight[child] + MIN_GROUP_WEIGHT) / total) * (a1 - a0);
+      const pad = Math.min(wedge * 0.3, Math.max(wedge * 0.1, MIN_PAD_RAD));
+      const d = Math.min(depth[child], R_DEPTH.length - 1);
+      // 말단이 여럿이면 반지름을 번갈아 줘서 원주가 모자랄 때도 붙지 않게 한다.
+      const isLeaf = !(order.get(child) || []).length;
+      const r = R_DEPTH[d] + (isLeaf ? R_JITTER[ci % R_JITTER.length] : 0);
+      positions[child] = polar(a + wedge / 2, r);
+      place(child, a + pad, a + wedge - pad);
+      a += wedge;
+    });
+  };
+  place(rootIdx, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2);
+
+  // 문서에서 닿지 못한 노드(선이 없는 것)는 바깥 고리에 늘어놓는다.
+  const stray = rawNodes.map((_, i) => i).filter((i) => positions[i] === null);
+  stray.forEach((idx, i) => {
+    positions[idx] = polar((i / Math.max(stray.length, 8)) * Math.PI * 2, 48);
   });
 
   return { positions, parents };
@@ -255,8 +263,8 @@ function layoutPositions(rawNodes) {
 /**
  * 배치 계산 진입점. 생기부 문서가 있으면 방사형 트리, 없으면 해바라기 배치.
  */
-function computeLayout(rawNodes) {
-  const tree = layoutRadialTree(rawNodes);
+function computeLayout(rawNodes, rawEdges = []) {
+  const tree = layoutTree(rawNodes, rawEdges);
   if (tree) return { ...tree, hasDocument: true };
   return {
     positions: layoutPositions(rawNodes),
@@ -288,6 +296,9 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     aliases: Array.isArray(refs.aliases) ? refs.aliases.filter(Boolean) : [],
     // 아이콘 결정에 쓴다: section = 과목·영역, type = 온톨로지 노드 유형
     section: sectionOf(n),
+    // 생기부 구획으로 세운 뼈대 노드면 그 구획의 id. 눌렀을 때 원문으로
+    // 데려가려면 이게 있어야 한다 — 없으면 "1학년 국어" 노드가 막다른 길이다.
+    sectionId: typeof refs.section_id === "string" ? refs.section_id : "",
     type: n.type ?? null,
     x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
@@ -466,13 +477,24 @@ const api = {
     async fetch(userId) {
       const data = await request("/v1/students/me/graph");
       const raw = data.nodes ?? [];
-      const { positions, parents, hasDocument } = computeLayout(raw);
+      const rawEdges = data.edges ?? [];
+      const { positions, parents, hasDocument } = computeLayout(raw, rawEdges);
       return {
         nodes: raw.map((n, i) =>
           mapNode(n, i, raw.length, positions[i], { parentId: parents[i], hasDocument }),
         ),
-        edges: (data.edges ?? []).map(mapEdge),
+        edges: rawEdges.map(mapEdge),
       };
+    },
+
+    /**
+     * ✅ LIVE — POST /v1/students/me/graph/rebuild
+     *
+     * 생기부 구획으로 그래프의 층(개념 → 구획 → 학년 → 문서)을 다시 세운다.
+     * 저장된 글에서 만들기 때문에 원본 PDF 가 없어도 되고, 여러 번 눌러도 안전하다.
+     */
+    async rebuild() {
+      return request("/v1/students/me/graph/rebuild", { method: "POST" });
     },
 
     /**

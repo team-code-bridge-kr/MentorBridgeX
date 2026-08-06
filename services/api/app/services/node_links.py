@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from app.schemas.documents import DocumentSection
 from app.schemas.graph import GraphNode
 
+from .graph_structure import is_structure
 from .node_evidence import _label, _sentences, patterns_of, terms_of
 
 # 한 문장에 낱말이 너무 많이 걸리면 그건 문장이 아니라 나열이다(생기부에는
@@ -80,7 +81,9 @@ def suggest_links(
     """
     targets: list[tuple[GraphNode, list]] = []
     for n in nodes:
-        if str(n.type) == "Document":
+        # 문서와 뼈대(학년·과목)는 개념이 아니다. "1학년 국어" 와 "빅데이터" 가
+        # 같은 문장에 있었다는 말은 관계가 아니라 목차다.
+        if str(n.type) == "Document" or is_structure(n):
             continue
         usable = [
             (term, pattern)

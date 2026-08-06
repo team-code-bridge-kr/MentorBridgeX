@@ -24,6 +24,7 @@ from app.schemas.graph import (
 )
 from app.services import node_evidence, node_gaps, node_links
 from app.services.document_service import DocumentService
+from app.services.graph_structure import rebuild as rebuild_structure
 
 router = APIRouter(prefix="/v1/students/me/graph", tags=["ontology-graph"])
 
@@ -56,6 +57,20 @@ async def create_seed(
             session=session,
         )
     return nodes
+
+
+@router.post("/rebuild", summary="생기부 구획으로 그래프 뼈대 다시 세우기")
+async def rebuild_graph(
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> dict:
+    """개념 → 구획 → 학년 → 문서 층을 다시 세운다.
+
+    저장된 생기부 글에서 만들기 때문에 **원본 PDF 가 없어도 된다.** 학생이 직접
+    만든 노드와 손으로 이은 선은 건드리지 않는다. 여러 번 눌러도 안전하다.
+    """
+    sections = await DocumentService().list_sections(session, user.id)
+    return await rebuild_structure(_store(), user.id, sections)
 
 
 @router.post("/nodes", response_model=GraphNode, status_code=status.HTTP_201_CREATED)

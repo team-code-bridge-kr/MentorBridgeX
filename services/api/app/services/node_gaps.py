@@ -15,6 +15,7 @@
 """
 
 from __future__ import annotations
+from app.services.graph_structure import is_structure
 
 import re
 from dataclasses import dataclass, field
@@ -97,6 +98,9 @@ def lonely_nodes(nodes: list[GraphNode], edges: list[GraphEdge]) -> list[LonelyN
     있어서 "이어져 있다"는 말이 되지 못한다.
     """
     doc_ids = {n.id for n in nodes if str(n.type) == "Document"}
+    # 생기부 구획으로 세운 뼈대(학년·과목)는 개념이 아니다. "이어지지 않았다"고
+    # 말해 봐야 학생이 할 수 있는 일이 없다 — 그건 생기부의 목차다.
+    nodes = [n for n in nodes if not is_structure(n)]
     linked: set[str] = set()
     for e in edges:
         if e.source_id in doc_ids or e.target_id in doc_ids:
@@ -126,7 +130,11 @@ def faded_topics(nodes: list[GraphNode], sections: list[DocumentSection]) -> lis
 
     # 노드마다 어느 학년에서 보였는지
     seen: dict[str, set[str]] = {}
-    targets = [(n, patterns_of(n)) for n in nodes if str(n.type) != "Document"]
+    targets = [
+        (n, patterns_of(n))
+        for n in nodes
+        if str(n.type) != "Document" and not is_structure(n)
+    ]
     targets = [(n, p) for n, p in targets if p]
     for s in sections:
         grade = _grade_of(s)

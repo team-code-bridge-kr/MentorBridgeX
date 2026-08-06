@@ -2779,3 +2779,25 @@ tr:hover td { background:var(--surface-container-low); }
   .rd-spread, .rd-region, .rd-card { transition:none; }
   .rd-region.is-flash { animation:none; }
 }
+
+/* 그래프 깊이 고르기 — 툴바 안에 앉는 작은 토글 */
+.depth-pick { display:inline-flex; padding:2px; border-radius:9999px; background:var(--bg2); gap:2px; }
+.depth-btn {
+  padding:5px 12px; border:none; border-radius:9999px; background:transparent;
+  font-size:12.5px; font-weight:600; color:var(--tt); cursor:pointer; transition:background .14s, color .14s;
+}
+.depth-btn.is-on { background:var(--bg1); color:var(--primary); box-shadow:var(--surface-1); }
+.depth-btn:hover:not(.is-on) { color:var(--ts); }
+/* 구획 노드에서 원문으로 가는 길 */
+.node-open {
+  display:block; width:100%; padding:11px 14px; border:1px solid var(--brd);
+  border-radius:14px; background:transparent; text-align:left;
+  font-size:13px; font-weight:600; color:var(--primary); cursor:pointer;
+  transition:border-color .14s, background .14s;
+}
+.node-open:hover { border-color:var(--primary); background:rgba(9,105,218,.05); }
+.graph-note {
+  position:absolute; top:60px; left:50%; transform:translateX(-50%); z-index:20;
+  padding:7px 15px; border-radius:9999px; background:var(--bg1);
+  box-shadow:var(--surface-2); font-size:12.5px; color:var(--ts);
+}

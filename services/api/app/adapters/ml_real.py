@@ -45,7 +45,10 @@ _LABEL_MAX_LEN = 30
 # Per-request caps so one oversized PDF cannot fan out into unbounded LLM spend.
 # 19쪽 표본이 (유형, 제목) 기준 48개 섹션이라 20개로는 창의적 체험활동이 통째로
 # 잘렸다. 32개로 올리고 동시 실행을 6으로 늘려 왕복 횟수(≈5)는 예전과 같게 둔다.
-_MAX_SECTIONS = 32
+# 한 생기부의 구획 수 상한. 32 였을 때 표본 48구획 중 **16개가 통째로 빠졌다** —
+# 3학년 세특이 전부 여기서 잘렸고, 그래프에 없는 과목 12개로 나타났다.
+# 구획 하나가 LLM 한 번이라 값이 클수록 느리고 비싸지만, 가져오기는 한 번뿐이다.
+_MAX_SECTIONS = 80
 _SECTION_CHAR_LIMIT = 4000
 _LLM_CONCURRENCY = 6
 
