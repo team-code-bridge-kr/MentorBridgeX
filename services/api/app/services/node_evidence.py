@@ -114,6 +114,51 @@ def _pattern(label: str) -> re.Pattern[str] | None:
     return re.compile(r"\s*".join(chars))
 
 
+# 노드 하나를 부르는 이름은 여럿일 수 있다.
+#
+# 생기부에는 "인공지능" 이라고 적혀 있는데 노드 이름은 "AI" 인 일이 흔하다.
+# 그러면 출처 문장도 못 찾고 관계도 못 찾는다 — **그 노드만 조용히 빠진다.**
+# 그래서 별칭을 함께 둔다: 무엇으로 적혀 있든 같은 개념으로 본다.
+#
+# 저장 자리는 `external_refs.aliases` 다. 새 표를 만들지 않는 이유는 별칭이
+# 노드에 딸린 값이라 노드를 지우면 함께 사라져야 하기 때문이다.
+ALIAS_MAX = 8
+ALIAS_LEN_MAX = 40
+
+
+def aliases_of(node: GraphNode) -> list[str]:
+    """이 노드의 별칭들. 이름과 겹치거나 빈 것은 뺀다."""
+    raw = (node.external_refs or {}).get("aliases")
+    if not isinstance(raw, list):
+        return []
+    seen = {" ".join(node.label.split())}
+    out: list[str] = []
+    for item in raw:
+        name = " ".join(str(item).split())[:ALIAS_LEN_MAX]
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+        if len(out) >= ALIAS_MAX:
+            break
+    return out
+
+
+def terms_of(node: GraphNode) -> list[str]:
+    """이 노드를 가리키는 모든 이름 — 본 이름 + 별칭."""
+    return [node.label, *aliases_of(node)]
+
+
+def patterns_of(node: GraphNode) -> list[tuple[str, re.Pattern[str]]]:
+    """이름마다 정규식 하나. 어느 이름으로 걸렸는지 알아야 그 자리를 강조한다."""
+    out = []
+    for term in terms_of(node):
+        pattern = _pattern(term)
+        if pattern is not None:
+            out.append((term, pattern))
+    return out
+
+
 def _sentences(content: str) -> list[str]:
     """줄바꿈·중복 공백을 한 칸으로 눌러 놓고 문장으로 자른다.
 
@@ -149,9 +194,9 @@ def _snippet(sentence: str, start: int, end: int) -> tuple[str, int, int]:
 
 def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
     """노드 이름이 적힌 문장을 생기부에서 찾는다."""
-    pattern = _pattern(node.label)
+    patterns = patterns_of(node)
     origin = origin_of(node)
-    if pattern is None or not sections:
+    if not patterns or not sections:
         return NodeEvidence(node_id=node.id, label=node.label, origin=origin, quotes=[], total=0)
 
     # 어느 항목부터 뒤질지. 노드에 붙은 과목·영역과 같은 곳을 먼저 본다 —
@@ -174,7 +219,13 @@ def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
 
     for section in ordered:
         for sentence in _sentences(section.content):
-            match = pattern.search(sentence)
+            # 여러 이름 중 **먼저 나오는** 자리를 강조한다. 별칭으로 걸린
+            # 문장도 출처로서 똑같이 값어치가 있다.
+            match = None
+            for _term, pattern in patterns:
+                found = pattern.search(sentence)
+                if found and (match is None or found.start() < match.start()):
+                    match = found
             if not match:
                 continue
             total += 1

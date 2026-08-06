@@ -392,10 +392,10 @@ export function S06({ onNav }) {
   }, [actions]);
 
   /** 노드 만들기. 연결할 곳을 골랐으면 만든 뒤 바로 잇는다. */
-  const handleCreate = useCallback(async ({ label, section, description, parentId }) => {
+  const handleCreate = useCallback(async ({ label, section, description, aliases, parentId }) => {
     setBusy(true);
     try {
-      const node = await actions.addNode({ label, section, description });
+      const node = await actions.addNode({ label, section, description, aliases });
       if (parentId && node?.id) await actions.connectNodes(parentId, node.id);
       else await actions.loadGraph();
       setCreating(false);
@@ -407,12 +407,12 @@ export function S06({ onNav }) {
   }, [actions]);
 
   /** 노드 고치기. 이름·과목·설명을 한 번에 저장한다. */
-  const handleEdit = useCallback(async ({ label, section, description }) => {
+  const handleEdit = useCallback(async ({ label, section, description, aliases }) => {
     if (!sel) return;
     setBusy(true);
     try {
-      await actions.updateNode(sel.id, { label, section, description });
-      setSel((cur) => (cur ? { ...cur, label, section: section || "기타", description } : cur));
+      await actions.updateNode(sel.id, { label, section, description, aliases });
+      setSel((cur) => (cur ? { ...cur, label, section: section || "기타", description, aliases } : cur));
       setEditing(false);
     } catch (e) {
       actions.toast("error", e.message || "노드를 수정하지 못했습니다.");
@@ -797,6 +797,10 @@ export function S06({ onNav }) {
                 <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                   <Badge t="blue">{sel.cat}</Badge>
                   {sel.section && sel.section !== "기타" && <Badge t="grey">{sel.section}</Badge>}
+                  {/* 다른 이름 — 생기부에 이렇게도 적혀 있다는 뜻 */}
+                  {(sel.aliases || []).map((a) => (
+                    <span key={a} className="node-alias" title="다른 이름(별칭)">{a}</span>
+                  ))}
                 </div>
               </div>
             </div>

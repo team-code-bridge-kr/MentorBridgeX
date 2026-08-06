@@ -45,6 +45,7 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
   const [label, setLabel] = useState("");
   const [section, setSection] = useState(NO_SECTION);
   const [description, setDescription] = useState("");
+  const [aliases, setAliases] = useState("");
   const [parentId, setParentId] = useState("");
   const [error, setError] = useState("");
 
@@ -52,6 +53,7 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
     setLabel(editing ? node?.label || "" : "");
     setSection(editing ? node?.section || NO_SECTION : NO_SECTION);
     setDescription(editing ? node?.description || "" : "");
+    setAliases(editing ? (node?.aliases || []).join(", ") : "");
     setParentId(editing ? "" : defaultParentId || "");
     setError("");
   }, [editing, node?.id, node?.label, node?.section, node?.description, defaultParentId]);
@@ -67,6 +69,12 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
       label: name,
       section: section === NO_SECTION ? "" : section,
       description: description.trim(),
+      // 쉼표로 나눈다. 빈 것과 이름과 같은 것은 버린다.
+      aliases: aliases
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t && t !== name)
+        .slice(0, 8),
       parentId: parentId || null,
     });
   };
@@ -113,6 +121,23 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
           onChange={(e) => setDescription(e.target.value)}
           style={{ ...field, resize: "vertical", lineHeight: 1.55 }}
         />
+      </div>
+
+      <div>
+        <label style={labelStyle} htmlFor="node-alias">다른 이름 <span style={{ fontWeight: 500 }}>(선택, 쉼표로 구분)</span></label>
+        <input
+          id="node-alias"
+          value={aliases}
+          maxLength={200}
+          placeholder="예: 인공지능, 머신러닝"
+          onChange={(e) => setAliases(e.target.value)}
+          style={field}
+        />
+        <p style={{ fontSize: 11, color: TDS.textTertiary, marginTop: 5, lineHeight: 1.5 }}>
+          생기부에 다르게 적혀 있는 말을 넣어 두세요. 출처 문장과 관계 찾기가
+          그 말로도 찾습니다 — 이름이 “AI”인데 생기부엔 “인공지능”이라 적혀 있으면
+          지금은 못 찾습니다.
+        </p>
       </div>
 
       {/* 새로 만들 때만. 고칠 때는 연결을 아래 "연결" 목록에서 다룬다 —

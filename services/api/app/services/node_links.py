@@ -21,15 +21,16 @@ from dataclasses import dataclass, field
 from app.schemas.documents import DocumentSection
 from app.schemas.graph import GraphNode
 
-from .node_evidence import _label, _pattern, _sentences
+from .node_evidence import _label, _sentences, patterns_of, terms_of
 
 # 한 문장에 낱말이 너무 많이 걸리면 그건 문장이 아니라 나열이다(생기부에는
 # "A, B, C, D 를 조사함" 같은 줄이 있다). 그런 문장에서 나온 쌍은 관계라기보다
 # 목록이라 제외한다.
 MAX_PER_SENTENCE = 6
 
-# 이름이 짧으면 아무 문장에나 걸린다("AI", "수학"). 근거 문장을 보여주긴 하지만,
-# 두 글자짜리는 우연히 겹칠 확률이 너무 높아 아예 후보에서 뺀다.
+# 이름이 짧으면 아무 문장에나 걸린다("AI", "수학"). 두 글자짜리는 우연히 겹칠
+# 확률이 너무 높아 그 **이름으로는** 찾지 않는다. 다만 별칭 중 하나가 충분히
+# 길면 그 이름으로 찾는다 — "AI" 노드에 "인공지능" 별칭을 달아 두면 걸린다.
 MIN_LABEL_LEN = 3
 
 SUGGEST_LIMIT = 30
@@ -53,15 +54,17 @@ class LinkSuggestion:
     _seen: set = field(default_factory=set, repr=False)
 
 
-def _one_contains_other(a: str, b: str) -> bool:
+def _one_contains_other(a: GraphNode, b: GraphNode) -> bool:
     """한쪽 이름이 다른 쪽을 품고 있으면 관계가 아니다.
 
     "빅데이터" 와 "빅데이터 분석" 은 늘 같은 문장에 함께 나온다 — 둘이
-    이어져서가 아니라 한쪽이 다른 쪽의 일부라서다.
+    이어져서가 아니라 한쪽이 다른 쪽의 일부라서다. 별칭까지 견준다:
+    "AI" 노드의 별칭이 "인공지능" 이면 "인공지능 윤리" 와도 겹친다.
     """
-    x = re.sub(r"\s+", "", a)
-    y = re.sub(r"\s+", "", b)
-    return x in y or y in x
+    flat = lambda t: re.sub(r"\s+", "", t)  # noqa: E731
+    left = [flat(t) for t in terms_of(a)]
+    right = [flat(t) for t in terms_of(b)]
+    return any(x in y or y in x for x in left for y in right)
 
 
 def suggest_links(
@@ -75,14 +78,17 @@ def suggest_links(
     `existing` 은 이미 이어져 있는 쌍(양방향 모두 넣어 둘 것). 이미 있는 선을
     다시 제안하면 목록이 금세 쓸모없어진다.
     """
-    targets = [
-        (n, _pattern(n.label))
-        for n in nodes
-        if len(n.label.strip()) >= MIN_LABEL_LEN
-        and str(n.type) != "Document"
-        and not _TIME_ONLY.match(n.label)
-    ]
-    targets = [(n, p) for n, p in targets if p is not None]
+    targets: list[tuple[GraphNode, list]] = []
+    for n in nodes:
+        if str(n.type) == "Document":
+            continue
+        usable = [
+            (term, pattern)
+            for term, pattern in patterns_of(n)
+            if len(term.strip()) >= MIN_LABEL_LEN and not _TIME_ONLY.match(term)
+        ]
+        if usable:
+            targets.append((n, usable))
     if len(targets) < 2:
         return []
 
@@ -91,13 +97,13 @@ def suggest_links(
     for section in sections:
         where = _label(section)
         for sentence in _sentences(section.content):
-            hits = [n for n, pattern in targets if pattern.search(sentence)]
+            hits = [n for n, usable in targets if any(p.search(sentence) for _t, p in usable)]
             if len(hits) < 2 or len(hits) > MAX_PER_SENTENCE:
                 continue
             for i, a in enumerate(hits):
                 for b in hits[i + 1 :]:
                     key = (a.id, b.id) if a.id < b.id else (b.id, a.id)
-                    if key in existing or _one_contains_other(a.label, b.label):
+                    if key in existing or _one_contains_other(a, b):
                         continue
                     item = found.get(key)
                     if item is None:

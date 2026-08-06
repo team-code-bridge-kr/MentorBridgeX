@@ -283,6 +283,9 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     kind,
     // 트리 배치에서 이 노드가 어느 가지에 매달리는지 (그래프 뷰의 가지 선)
     parentId: opts.parentId ?? null,
+    // 다른 이름(별칭). 생기부에 "인공지능" 이라 적혀 있는데 노드 이름이 "AI"
+    // 면 출처도 관계도 못 찾는다 — 별칭이 그 간극을 메운다.
+    aliases: Array.isArray(refs.aliases) ? refs.aliases.filter(Boolean) : [],
     // 아이콘 결정에 쓴다: section = 과목·영역, type = 온톨로지 노드 유형
     section: sectionOf(n),
     type: n.type ?? null,
@@ -484,6 +487,7 @@ const api = {
       // 노드에 생기부 문장이 없는 건 오류가 아니라 당연한 일이다.
       const refs = { source: "student" };
       if (node.section) refs.section = node.section;
+      if (node.aliases?.length) refs.aliases = node.aliases;
       const data = await request("/v1/students/me/graph/nodes", {
         method: "POST",
         body: {
@@ -526,7 +530,13 @@ const api = {
       if (patch.label !== undefined) body.label = patch.label;
       if (patch.description !== undefined) body.description = patch.description;
       if (patch.type !== undefined) body.type = patch.type;
-      if (patch.section !== undefined) body.external_refs = { section: patch.section };
+      // external_refs 는 보낸 열쇠만 덮어쓴다(서버가 병합한다). 그래서 과목과
+      // 별칭을 따로 보내도 서로를 지우지 않는다.
+      if (patch.section !== undefined || patch.aliases !== undefined) {
+        body.external_refs = {};
+        if (patch.section !== undefined) body.external_refs.section = patch.section;
+        if (patch.aliases !== undefined) body.external_refs.aliases = patch.aliases;
+      }
       return request(`/v1/students/me/graph/nodes/${id}`, { method: "PATCH", body });
     },
 

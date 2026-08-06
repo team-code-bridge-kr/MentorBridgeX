@@ -2598,3 +2598,10 @@ tr:hover td { background:var(--surface-container-low); }
   max-height:120px; overflow:auto;
 }
 .lnk-acts { display:flex; gap:8px; margin-top:10px; }
+
+/* 노드의 다른 이름(별칭) — 과목 배지보다 한 단계 약하게. 이름은 하나고,
+   이건 "이렇게도 적혀 있다"는 부연이다. */
+.node-alias {
+  padding:2px 8px; border-radius:9999px; border:1px dashed var(--brd);
+  font-size:11px; font-weight:600; color:var(--tt); white-space:nowrap;
+}
