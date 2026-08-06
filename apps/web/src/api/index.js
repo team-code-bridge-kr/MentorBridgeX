@@ -680,6 +680,10 @@ const api = {
         body: { content },
       });
     },
+    /** 영역 하나를 지운다. 그래프 노드는 남는다(손으로 고친 것일 수 있다). */
+    async remove(sectionId) {
+      return request(`/v1/students/me/documents/${sectionId}`, { method: "DELETE" });
+    },
     /**
      * ✅ LIVE — POST /v1/students/me/documents/split-subjects
      *

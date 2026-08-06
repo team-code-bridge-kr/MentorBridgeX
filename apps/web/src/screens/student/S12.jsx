@@ -17,6 +17,8 @@ export function S12({ onNav }) {
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [updatedAt, setUpdatedAt] = useState("");
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!docId) return undefined;
@@ -63,6 +65,19 @@ export function S12({ onNav }) {
     }
   };
 
+  const removeDoc = async () => {
+    setDeleting(true);
+    setErr("");
+    try {
+      await api.documents.remove(docId);
+      sessionStorage.removeItem("mbx_doc_id");
+      onNav("S11");
+    } catch (e) {
+      setErr(e.message);
+      setDeleting(false);
+    }
+  };
+
   // 지금 열린 글에 `[과목]` 표시가 남아 있는지. 세특일 때만 뜻이 있다.
   const markers = docType === "subject_specific" ? subjectMarkers(txt) : [];
 
@@ -89,7 +104,33 @@ export function S12({ onNav }) {
               {updatedAt ? `마지막 저장: ${String(updatedAt).slice(0, 19).replace("T", " ")}` : "새 문서"}
             </div>
           </div>
+          {/* 지우기는 오른쪽 끝. 저장 단추 옆에 두면 손이 잘못 간다. */}
+          <button
+            type="button"
+            className="doc-del"
+            style={{ marginLeft: "auto" }}
+            onClick={() => setConfirmDel(true)}
+          >
+            이 영역 지우기
+          </button>
         </div>
+
+        {confirmDel && (
+          <Notice type="danger" className="mb16">
+            <div className="row-between" style={{ gap: 12, width: "100%" }}>
+              <span>
+                <strong>{subject || meta.t}</strong> {txt.length.toLocaleString()}자를 지웁니다.
+                되돌릴 수 없습니다. 그래프의 노드는 남습니다.
+              </span>
+              <div className="row g-8" style={{ gap: 8 }}>
+                <Btn v="secondary" s="sm" onClick={() => setConfirmDel(false)}>취소</Btn>
+                <button type="button" className="subj-confirm-yes" disabled={deleting} onClick={removeDoc}>
+                  {deleting ? "지우는 중…" : "지우기"}
+                </button>
+              </div>
+            </div>
+          </Notice>
+        )}
 
         {/* 세특이 아직 한 덩어리면 여기서도 나눌 수 있다. 목록으로 되돌아가
             같은 버튼을 다시 찾게 만들 이유가 없다. */}

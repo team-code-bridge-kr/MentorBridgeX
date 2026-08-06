@@ -26,6 +26,10 @@ export function S11({ onNav }) {
   const [creating, setCreating] = useState(false);
   const [splitting, setSplitting] = useState(false);
   const [splitMsg, setSplitMsg] = useState("");
+  // 지우기는 두 걸음이다. 카드 하나가 세특 한 과목 전체라서, 잘못 눌러
+  // 사라지면 원본 PDF 가 없는 학생은 되돌릴 길이 없다.
+  const [delId, setDelId] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -98,6 +102,20 @@ export function S11({ onNav }) {
       setErr(e.message);
     } finally {
       setSplitting(false);
+    }
+  };
+
+  const removeDoc = async (id) => {
+    setDeleting(true);
+    setErr("");
+    try {
+      await api.documents.remove(id);
+      setDelId("");
+      await load();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -235,8 +253,35 @@ export function S11({ onNav }) {
                 {g.docs.map((d) => (
                   <div key={d.id} className="subj-card" onClick={() => openDoc(d, "subject_specific")}>
                     <span className="subj-pill" title={d.subject_id}>{d.subject_id}</span>
+                    <button
+                      type="button"
+                      className="subj-del"
+                      title={`${d.subject_id} 지우기`}
+                      onClick={(e) => { e.stopPropagation(); setDelId(d.id); }}
+                    >
+                      ×
+                    </button>
                     <p className="subj-preview">{d.content}</p>
                     <span className="subj-meta">{d.content.length.toLocaleString()}자</span>
+                    {delId === d.id && (
+                      <div className="subj-confirm" onClick={(e) => e.stopPropagation()}>
+                        <div className="subj-confirm-q">
+                          <strong>{d.subject_id}</strong> {d.content.length.toLocaleString()}자를 지웁니다.
+                          되돌릴 수 없습니다.
+                        </div>
+                        <div className="row g-8" style={{ gap: 8 }}>
+                          <button type="button" className="subj-confirm-no" onClick={() => setDelId("")}>취소</button>
+                          <button
+                            type="button"
+                            className="subj-confirm-yes"
+                            disabled={deleting}
+                            onClick={() => removeDoc(d.id)}
+                          >
+                            {deleting ? "지우는 중…" : "지우기"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

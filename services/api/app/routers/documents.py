@@ -56,6 +56,16 @@ async def patch_document(
     return section
 
 
+@router.delete("/{section_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    section_id: str,
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> None:
+    if not await service.delete_section(session, user.id, section_id):
+        raise AppError("DOC_NOT_FOUND", "문서 영역을 찾을 수 없습니다.", status_code=404)
+
+
 @router.post("/split-subjects", response_model=list[DocumentSection])
 async def split_subjects(
     user: UserRow | MemoryUser = Depends(get_current_user),

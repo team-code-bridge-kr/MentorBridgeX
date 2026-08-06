@@ -531,6 +531,36 @@ class DocumentService:
         await session.refresh(row)
         return self._to_schema_from_row(row)
 
+    async def delete_section(
+        self,
+        session: AsyncSession | None,
+        user_id: str,
+        section_id: str,
+    ) -> bool:
+        """한 영역을 지운다. 그래프 노드는 건드리지 않는다 — 노드는 학생이
+        직접 고친 것일 수 있어서, 글을 지웠다고 함께 지우면 손으로 쓴 것까지
+        말없이 사라진다. 출처 문장만 안 보이게 된다."""
+        if is_offline_demo():
+            docs = get_memory_db().documents
+            doc = docs.get(section_id)
+            if not doc or doc.user_id != user_id:
+                return False
+            del docs[section_id]
+            return True
+
+        result = await session.execute(
+            select(DocumentSectionRow).where(
+                DocumentSectionRow.user_id == user_id,
+                DocumentSectionRow.id == section_id,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            return False
+        await session.delete(row)
+        await session.commit()
+        return True
+
     async def start_pdf_import(
         self,
         session: AsyncSession | None,

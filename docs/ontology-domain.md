@@ -13,6 +13,7 @@
 | F1-04 | 가지치기 추천 | `POST /v1/students/me/recommendations/branch` |
 | F1-05 | 노드/엣지 CRUD | `/v1/students/me/graph/nodes`, `edges` |
 | F1-05b | 노드 출처 문장 | `GET /v1/students/me/graph/nodes/{id}/evidence` |
+| F1-02e | 영역 지우기 | `DELETE /v1/students/me/documents/{id}` |
 | F1-06 | 그래프↔텍스트 동기화 | **partial** — PATCH documents only |
 | F1-08~10 | 양식 변환 | **not in MVP** |
 | F1-12 | 임베딩 | Mock adapter; pgvector tables later |
@@ -78,6 +79,11 @@
   화면이 없는 문서를 가리킨다). 규칙은 `parsers/subject_blocks.py` 와 화면 쪽
   `lib/subjectBlocks.js` 가 같아야 한다.
 - 화면(S11 목록)은 세특만 영역 카드 대신 **학년 → 과목 카드**로 펼친다.
+- 잘못 갈린 과목은 `DELETE /documents/{id}` 로 지운다. 카드에 마우스를 올렸을
+  때만 × 가 나오고, 누르면 카드를 덮고 한 번 더 묻는다 — 카드 한 장이 과목
+  하나 전체라 잘못 누르면 원본 없는 학생은 되돌릴 길이 없다. **그래프 노드는
+  지우지 않는다.** 노드는 학생이 손으로 고쳤을 수 있어서, 글을 지웠다고 함께
+  지우면 손으로 쓴 것까지 말없이 사라진다(출처 문장만 안 보이게 된다).
 
 ## 그래프의 빈 곳 (F1-05e)
 
