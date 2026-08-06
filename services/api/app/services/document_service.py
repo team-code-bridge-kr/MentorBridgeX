@@ -34,6 +34,32 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
 
 
+# 앞부분이 이만큼 같으면 "같은 글"로 본다.
+#
+# 예전에 저장된 글과 지금 다시 읽은 글은 **전처리가 달라져서** 글자 단위로는
+# 어긋난다 — 쪽 꼬리말("/ 이름")이 빠졌고, 줄 끝에서 끊겼던 낱말("도 움을")이
+# 붙었다. 그래도 첫 40자는 그대로다. 공백을 다 지우고 앞부분만 견주면 그 두
+# 차이를 넘어 같은 글임을 알아볼 수 있다.
+SAME_PREFIX = 40
+
+
+def _packed(text: str) -> str:
+    return re.sub(r"\s+", "", text or "")
+
+
+def _probes(text: str) -> list[str]:
+    """같은 글인지 견주기 위한 표본 몇 개(앞·가운데·뒤).
+
+    앞부분만 보면 안 되는 경우가 있다 — 예전 저장본은 쪽 꼬리말이 글 중간에
+    끼어 있어서 시작이 어긋나기도 한다. 세 군데 중 하나만 맞아도 같은 글이다.
+    """
+    packed = _packed(text)
+    if len(packed) < SAME_PREFIX:
+        return []
+    spots = {0, max(0, len(packed) // 2 - SAME_PREFIX // 2), len(packed) - SAME_PREFIX}
+    return [packed[i : i + SAME_PREFIX] for i in sorted(spots)]
+
+
 def _document_label(owner_name: str) -> str:
     """그래프 한가운데 놓이는 문서 노드의 이름.
 
@@ -308,6 +334,8 @@ class DocumentService:
         targets = await self._pdf_subject_blocks(session, user_id)
         # 원본에서 나온 조각들. 이 안에 다 들어 있는 행만 갈아 끼운다.
         from_pdf = {_normalize(c) for _, _, body in targets for c in body.split("\n\n")}
+        # 전처리가 달라졌을 때를 대비한 느슨한 대조 — 앞부분만 견준다.
+        from_pdf_packed = [_packed(c) for _, _, body in targets for c in body.split("\n\n")]
 
         kept: list[DocumentSectionRow] = []
         replaceable: list[DocumentSectionRow] = []
@@ -317,7 +345,16 @@ class DocumentService:
         for row in rows:
             blocks = split_subject_blocks(row.content) or [(row.subject_id or "", row.content)]
             chunks = [_normalize(c) for _, body in blocks for c in body.split("\n\n")]
-            if from_pdf and chunks and all(c in from_pdf for c in chunks):
+
+            def came_from_pdf(chunk: str) -> bool:
+                if chunk in from_pdf:
+                    return True
+                return any(
+                    any(probe in target for target in from_pdf_packed)
+                    for probe in _probes(chunk)
+                )
+
+            if from_pdf and chunks and all(came_from_pdf(c) for c in chunks):
                 replaceable.append(row)  # 원본에서 그대로 다시 만들 수 있다
             else:
                 kept.append(row)

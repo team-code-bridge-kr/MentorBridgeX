@@ -69,7 +69,10 @@ _SUBJECT_HEADER = re.compile(
 _TABLE_STRONG = re.compile(
     r"^(?:"
     r"\d+/\d+\.\d+\(\d+\.\d+\)"
-    r"|[A-E]\(\d+\)"
+    # 성취도 분포는 한 줄에 여러 칸이 붙어 나온다: "A(78.7) B(8.0) C(13.3)".
+    # 한 칸짜리만 보면 이 줄이 표로 안 잡혀서 표 덩어리가 두 토막 나고,
+    # 그 사이에 낀 성적표가 앞 과목 세특 끝에 그대로 딸려 들어갔다.
+    r"|(?:[A-E]\(\d+(?:\.\d+)?\)\s*){1,8}"
     r"|[A-E]|P"
     r"|이수단위\s*합계.*|분포비율|해당\s*사항\s*없음"
     r"|\(표준편차\)|\(수강자수\)"
@@ -91,6 +94,53 @@ _MIN_TABLE_STRONG = 2
 _MIN_SECTION_CHARS = 20
 
 
+# 줄바꿈으로 끊긴 낱말을 도로 붙인다.
+#
+# PDF 의 한 줄은 오른쪽 끝에서 낱말 한가운데를 자른다. 그 줄바꿈을 공백으로
+# 바꾸면 "도\n움을" 이 "도 움을" 이 된다 — 화면에도 그렇게 보이고, 키워드도
+# "도움" 을 못 뽑는다.
+#
+# 그런데 낱말 경계에서 끊긴 줄도 똑같이 생겼다(PDF 는 줄 끝 공백을 남기지 않는다).
+# 그래서 붙일지 말지를 두 가지로 판단한다:
+#
+#   1. 붙였을 때 만들어지는 낱말이 **이 문서 어딘가에 낱말로 실제 있는가**
+#      (문서 자신이 사전이다. 표본 19쪽에서 80곳을 고쳤고 틀린 곳은 없었다.)
+#   2. 왼쪽 조각이 한 글자인가 — 한 글자짜리 낱말이 줄 끝에 오는 일은 드물다.
+#      단, 홀로 쓰이는 한 글자 말은 빼 둔다("및", "잘", "수 있다"의 "수" …).
+_STANDALONE_ONE = {"및", "잘", "더", "못", "안", "수", "것", "될", "등", "후", "때", "뿐", "중", "시"}
+_WRAP_BREAK = re.compile(r"(?<=[가-힣])\n(?=[가-힣])")
+
+
+def _doc_words(text: str) -> set[str]:
+    """이 문서에 띄어쓰기로 구분돼 나온 낱말들 — 붙일지 판단할 사전."""
+    return set(re.findall(r"[가-힣]{2,}", text.replace("\n", " ")))
+
+
+def _join_wrapped(chunk: str, words: set[str]) -> str:
+    """줄 끝에서 끊긴 낱말을 붙이고, 나머지 공백은 한 칸으로 누른다."""
+    def decide(m: re.Match[str]) -> str:
+        left = chunk[: m.start()]
+        right = chunk[m.end() :]
+        tail = re.search(r"[가-힣]+$", left)
+        head = re.match(r"[가-힣]+", right)
+        if not tail or not head:
+            return " "
+        left_word = tail.group(0)
+        merged = left_word + head.group(0)
+        # 붙인 결과가 사전에 있는지 볼 때는 **왼쪽 조각보다 긴** 것만 본다.
+        # 그러지 않으면 "와서" + "발표함" 이 "와서"(문서에 있는 낱말)만 보고
+        # 붙어 버린다 — 이미 완성된 낱말은 붙일 이유가 없다.
+        lo = len(left_word) + 1
+        if any(merged[:k] in words for k in range(lo, min(lo + 3, len(merged)) + 1)):
+            return ""
+        if len(left_word) == 1 and left_word not in _STANDALONE_ONE:
+            return ""
+        return " "
+
+    joined = _WRAP_BREAK.sub(decide, chunk)
+    return re.sub(r"\s+", " ", joined).strip()
+
+
 def _normalize_header(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
@@ -102,12 +152,46 @@ def _strip_page_noise(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
+# 쪽마다 되풀이되는 짧은 줄 = 머리글·꼬리말이다.
+#
+# 생기부 PDF 는 쪽 아래에 "/ <학생 이름>" 이, 위에 학교명·출력일·"성명"·"반" 이
+# 붙는다. 이 줄들이 본문에 섞여 들어가면 세특 끝마다 "/ 장원준" 이 붙는다.
+#
+# 이름과 학교는 학생마다 달라서 낱말로 못 박을 수 없다. 대신 **모든 쪽에 똑같이
+# 나오는 짧은 줄**을 걷는다 — 그게 머리글·꼬리말의 정의다. 실측(19쪽)에서 이
+# 규칙에 걸린 것: 학교명, 이름, "/", 출력일, "성명", "반", "번호", 쪽 번호.
+# 표 머리(학년·성취도·교과 …)는 15쪽 이하에만 나와서 걸리지 않는다(그건 표
+# 걷어내기가 따로 맡는다).
+FURNITURE_MAX_LEN = 24
+FURNITURE_MIN_PAGES = 3
+
+
+def _strip_running_furniture(pages: list[str]) -> list[str]:
+    """쪽마다 되풀이되는 짧은 줄을 걷어낸다."""
+    if len(pages) < FURNITURE_MIN_PAGES:
+        return pages
+    seen: dict[str, int] = {}
+    for page in pages:
+        for line in {ln.strip() for ln in page.splitlines() if ln.strip()}:
+            if len(line) <= FURNITURE_MAX_LEN:
+                seen[line] = seen.get(line, 0) + 1
+    # 거의 모든 쪽에 있어야 머리글·꼬리말이다. 한두 쪽 빠지는 경우까지 봐준다.
+    need = max(FURNITURE_MIN_PAGES, round(len(pages) * 0.9))
+    furniture = {line for line, count in seen.items() if count >= need}
+    if not furniture:
+        return pages
+    return [
+        "\n".join(ln for ln in page.splitlines() if ln.strip() not in furniture)
+        for page in pages
+    ]
+
+
 def extract_text_from_pdf_bytes(data: bytes) -> str:
     if not data:
         return ""
     with fitz.open(stream=data, filetype="pdf") as doc:
         pages = [page.get_text("text") for page in doc]
-    return _strip_page_noise("\n".join(pages))
+    return _strip_page_noise("\n".join(_strip_running_furniture(pages)))
 
 
 @dataclass
@@ -182,9 +266,8 @@ def _find_marker_positions(text: str) -> list[tuple[int, int, str, SectionType]]
     return deduped
 
 
-def _slice_section_text(text: str, start: int, end: int) -> str:
-    chunk = text[start:end]
-    return re.sub(r"\s+", " ", chunk).strip()
+def _slice_section_text(text: str, start: int, end: int, words: set[str]) -> str:
+    return _join_wrapped(text[start:end], words)
 
 
 def _split_major_sections(text: str) -> list[ParsedSection]:
@@ -193,11 +276,12 @@ def _split_major_sections(text: str) -> list[ParsedSection]:
     if not markers:
         return []
 
+    words = _doc_words(text)
     sections: list[ParsedSection] = []
     for i, (_start, header_end, marker, section_type) in enumerate(markers):
         end = markers[i + 1][0] if i + 1 < len(markers) else len(text)
         # 제목 자체는 빼고 그 뒤 본문만 담는다.
-        body = _slice_section_text(text, header_end, end)
+        body = _slice_section_text(text, header_end, end, words)
         if len(body) < _MIN_SECTION_CHARS:
             continue
         sections.append(
@@ -287,6 +371,7 @@ def _strip_grade_tables(text: str) -> str:
 
 def _split_subject_specific_blocks(text: str) -> list[ParsedSection]:
     cleaned = _strip_grade_tables(_subject_region(_strip_page_noise(text)))
+    words = _doc_words(text)
     blocks: list[ParsedSection] = []
 
     # 학년이 바뀌는 자리. 교과학습발달상황은 [1학년] [2학년] [3학년] 순으로
@@ -309,7 +394,8 @@ def _split_subject_specific_blocks(text: str) -> list[ParsedSection]:
         # 학년 표시는 자리만 알려주는 이정표다. 다음 학년 표시가 앞 과목 본문 끝에
         # 딸려 들어가지 않게 여기서 걷어낸다.
         raw = _GRADE_MARKER.sub(" ", cleaned[match.end() : end])
-        body = re.sub(r"\s+", " ", raw).strip()
+        # 줄 끝에서 끊긴 낱말을 도로 붙인다(제목을 다 찾은 뒤라 안전하다).
+        body = _join_wrapped(raw, words)
         if len(body) < 20:
             continue
         blocks.append(
@@ -352,9 +438,11 @@ def _merge_sections(text: str) -> list[ParsedSection]:
 def parse_pdf_bytes(data: bytes) -> ParsedPdf:
     with fitz.open(stream=data, filetype="pdf") as doc:
         page_count = doc.page_count
-        raw = "\n".join(page.get_text("text") for page in doc)
+        pages = [page.get_text("text") for page in doc]
 
-    full_text = _strip_page_noise(raw)
+    # 머리글·꼬리말은 **쪽 단위로** 걷어야 한다. 쪽을 다 이어 붙인 뒤에는
+    # 어느 줄이 쪽마다 되풀이된 것인지 알 수 없다.
+    full_text = _strip_page_noise("\n".join(_strip_running_furniture(pages)))
     sections = _merge_sections(full_text)
     # All unique tokens — no top_n limit.
     frequencies = extract_token_frequencies(full_text)
