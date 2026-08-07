@@ -82,9 +82,14 @@ function mapVoice(v) {
 }
 
 // ── 노드 매퍼: 백엔드 → UI 형태 ─────────────────────────────
-// tier 척도 — 초록에서 분홍으로 가는 순서 있는 5단계 + 주황.
-// 색 자체에 의미를 담지 않고, 서로 구분되는 것만 목적으로 돌려 쓴다.
-const PALETTE = ["#0969da","#0ea5e9","#16a34a","#b84b00","#7c3aed","#db2777"];
+//
+// **노드는 색을 들고 다니지 않는다.** 색은 종류(root/topic/leaf)로 정해지므로
+// 그리는 쪽에서 `KIND_META[n.kind].color` 를 읽는다. 예전에는 여기서 팔레트를
+// 배열 순번으로 돌려 줬는데, 그러면 색이 **배열 인덱스의 함수**가 되어 노드를
+// 하나 지우기만 해도 나머지 색이 밀렸고, 종류와 아무 상관이 없었다 — 캔버스
+// 범례는 그 옆에서 "색 = 노드 유형"이라 적고 있었고, 대시보드 축소판은 이미
+// KIND_META 를 읽고 있어서 두 화면이 같은 그래프를 다른 색으로 그렸다.
+// 색의 진리를 한 곳에 두면 두 화면이 증명 가능하게 같아진다.
 
 const DOC_TYPE = "document";
 
@@ -310,7 +315,6 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     type: n.type ?? null,
     x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
-    color: n.color ?? refs.color ?? PALETTE[idx % PALETTE.length],
     size:  n.size ?? (kind === "root" ? 68 : kind === "topic" ? 46 : 32),
     cat:   n.cat  ?? (kind === "root" ? "핵심 노드" : kind === "topic" ? "연결 노드" : "말단 노드"),
   };

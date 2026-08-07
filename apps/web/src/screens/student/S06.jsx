@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { GRAPH_CANVAS, KIND_META, OVERLAY_SURFACE, OVERLAY_TEXT, Z, ZOOM } from "../../theme/graphMeta.js";
@@ -62,6 +62,75 @@ const BRANCH_META = {
   FUSION:   { label: "융합", color: "#8b5cf6" },
   ACTIVITY: { label: "활동", color: "#22c55e" },
 };
+
+/**
+ * 선과 노드는 **줌·팬을 모르는 채로** 그린다.
+ *
+ * 둘 다 감싸는 레이어의 `transform` 안에 있어서 확대·이동은 그 문자열 하나만
+ * 바뀌면 된다. 그런데 예전에는 이 JSX 가 S06 본문에 있어서, 팬 한 프레임마다
+ * 선 250개와 노드 200개가 통째로 다시 만들어졌다. 밖으로 빼고 `view` 를 넘기지
+ * 않으면 React 가 건너뛴다 — 이번 작업에서 가장 큰 이득이다.
+ *
+ * 그러므로 **여기에 `view` 를 넘기지 말 것.** 넘기는 순간 효과가 사라진다.
+ */
+const GraphEdges = memo(function GraphEdges({ visualEdges, byId, getPos, activeId }) {
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+      {visualEdges.map(e=>{
+        const a=byId.get(e.from), b=byId.get(e.to);
+        if(!a||!b) return null;
+        const on = activeId && (e.from===activeId||e.to===activeId);
+        const pa=getPos(a), pb=getPos(b);
+        const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
+        // 선분에 수직으로 살짝 밀어 마인드맵처럼 부드럽게 휘게 한다.
+        const dx=bx-ax, dy=by-ay;
+        const len=Math.hypot(dx,dy)||1;
+        const off=len*(e.branch?0.07:0.18);
+        const mx=(ax+bx)/2 + (-dy/len)*off;
+        const my=(ay+by)/2 + ( dx/len)*off;
+        return (
+          <path key={e.id}
+            d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
+            fill="none"
+            stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
+            strokeWidth={on?EDGE_W.on:(e.branch?EDGE_W.branch:EDGE_W.base)}
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            opacity={activeId && !on ? .16 : (on?1:(e.branch?.8:.62))}
+            style={{transition:"opacity .2s, stroke-width .2s"}}
+          />
+        );
+      })}
+    </svg>
+  );
+});
+
+/** 노드 — 색은 유형(KIND_META), 아이콘은 과목·분야. `view` 를 받지 않는다. */
+const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connectedIds, activeId, draggingId, onNodeDown, onHover }) {
+  return (
+    <>
+      {nodes.map(n=>{
+        const dimSearch = matchedSet && !matchedSet.has(n.id);
+        const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
+        const dim = dimSearch || dimActive;
+        const isActive = n.id===activeId;
+        const isDraggingThis = draggingId === n.id;
+        const meta = KIND_META[n.kind] || KIND_META.topic;
+        const pos = getPos(n);
+        return (
+          <div key={n.id}
+            onMouseDown={(e)=>onNodeDown(e,n)}
+            onMouseEnter={()=>onHover(n.id)} onMouseLeave={()=>onHover(null)}
+            style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
+            <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${meta.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
+              <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+});
 
 export function S06({ onNav }) {
   const { state, actions } = useStore();
@@ -166,18 +235,30 @@ export function S06({ onNav }) {
     return showLoading("지식 그래프를 불러오는 중이에요…");
   }, [loading]);
 
-  const nodeById = id => nodes.find(n=>n.id===id);
+  // id → 노드. 선을 그릴 때 양 끝을 찾는데, 이게 배열 훑기면 선 하나마다 노드를
+  // 전부 훑게 된다(200노드 × 250선 × 2 = 프레임당 10만 회).
+  const byId = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
 
   // 화면에 그릴 선 — 규칙은 theme/graphView.js (대시보드 미리보기와 공유)
   const visualEdges = useMemo(() => visualEdgesOf(nodes, edges), [nodes, edges]);
 
-  const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
+  // 아래 셋은 **반드시 메모이제이션되어야 한다.** 매 렌더 새로 만들면
+  // `shownLabels` 의 의존성이 늘 바뀌어서 useMemo 가 한 번도 걸리지 않고,
+  // 이름표 자리잡기(O(후보×장애물))가 렌더마다 통째로 다시 돈다.
+  const matched = useMemo(() => {
+    const t = q.trim();
+    if (!t) return null;
+    return nodes.filter(n => n.label.includes(t)).map(n => n.id);
+  }, [q, nodes]);
+  const matchedSet = useMemo(() => (matched ? new Set(matched) : null), [matched]);
   const activeId = hover || sel?.id || null;
-  const activeNode = activeId ? nodes.find(n=>n.id===activeId) : null;
-  const connectedIds = activeId
-    ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
-    : null;
+  const activeNode = activeId ? byId.get(activeId) : null;
+  const connectedIds = useMemo(() => (
+    activeId
+      ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
+      : null
+  ), [visualEdges, activeId]);
   const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
 
   // 캔버스 실제 크기. 라벨을 화면 좌표에 놓으려면 픽셀 크기를 알아야 한다.
@@ -212,7 +293,7 @@ export function S06({ onNav }) {
     if (!canvasBox.w || !nodes.length) return new Map();
     const rank = (n) => {
       if (n.id === activeId) return 0;
-      if (matched?.includes(n.id)) return 1;
+      if (matchedSet?.has(n.id)) return 1;
       if (connectedIds?.has(n.id)) return 2;
       if (n.kind === "root") return 3;
       if (n.kind === "topic") return 4;
@@ -228,7 +309,24 @@ export function S06({ onNav }) {
       .sort((a, b) => a.rank - b.rank || b.n.size - a.n.size);
 
     // 노드 동그라미부터 장애물로 깔아 둔다.
-    const blocks = cands.map(({ s }) => ({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r }));
+    //
+    // 장애물을 격자 칸에 나눠 담아, 후보가 걸치는 칸만 본다. 예전에는 후보마다
+    // 장애물 전부를 훑어서(200×4×최대 200 ≈ 16만 번) 휠 한 틱·팬 한 프레임마다
+    // 그 값을 다시 치렀다. **판정 규칙과 순서는 그대로다** — 보는 범위만 줄인다.
+    // 겹침 판정이 LABEL_MARGIN 만큼 부풀려 보므로 칸을 고를 때도 그만큼 넓게 잡는다.
+    const CELL = 64;
+    const grid = new Map();
+    const eachCell = (b, fn) => {
+      const cx0 = Math.floor((b.x1 - LABEL_MARGIN) / CELL), cx1 = Math.floor((b.x2 + LABEL_MARGIN) / CELL);
+      const cy0 = Math.floor((b.y1 - LABEL_MARGIN) / CELL), cy1 = Math.floor((b.y2 + LABEL_MARGIN) / CELL);
+      for (let cx = cx0; cx <= cx1; cx += 1) for (let cy = cy0; cy <= cy1; cy += 1) {
+        if (fn(`${cx},${cy}`)) return true;
+      }
+      return false;
+    };
+    const addBlock = (b) => { eachCell(b, (k) => { const a = grid.get(k); if (a) a.push(b); else grid.set(k, [b]); return false; }); };
+    const blocked = (b) => eachCell(b, (k) => { const a = grid.get(k); return !!a && a.some((o) => overlaps(b, o)); });
+    for (const { s } of cands) addBlock({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r });
     const out = new Map();
     for (const { n, s, rank: r } of cands) {
       const text = n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
@@ -242,21 +340,21 @@ export function S06({ onNav }) {
         { x: s.x - s.r - LABEL_GAP - w / 2, y: s.y - LABEL_H / 2 },
       ];
       const boxAt = (p) => ({ x1: p.x - w / 2, x2: p.x + w / 2, y1: p.y, y2: p.y + LABEL_H });
-      let box = spots.map(boxAt).find((b) => !blocks.some((o) => overlaps(b, o)));
+      let box = spots.map(boxAt).find((b) => !blocked(b));
       // 지금 보고 있는 노드와 검색에 걸린 노드는 자리가 없어도 반드시 보여준다.
       if (!box && r <= 1) box = boxAt(spots[0]);
       if (!box) continue;
       const top = box.y1;
-      blocks.push(box);
+      addBlock(box);
       // 노드가 흐려졌으면 이름표도 같이 흐려져야 한다. 안 그러면 검색해서
       // 걸러 낸 노드의 이름만 또렷하게 떠 있는다.
       const dim =
-        (matched && !matched.includes(n.id)) ||
+        (matchedSet && !matchedSet.has(n.id)) ||
         (connectedIds && n.id !== activeId && !connectedIds.has(n.id));
       out.set(n.id, { text, left: (box.x1 + box.x2) / 2, top, dim: !!dim });
     }
     return out;
-  }, [nodes, canvasBox, screenOf, view.scale, activeId, matched, connectedIds]);
+  }, [nodes, canvasBox, screenOf, view.scale, activeId, matchedSet, connectedIds]);
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -687,55 +785,15 @@ export function S06({ onNav }) {
                          transition:flying?`transform ${FLY_MS}ms cubic-bezier(.22,.8,.28,1)`:"none",
                          willChange:"transform"}}>
 
-            {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-              {visualEdges.map(e=>{
-                const a=nodeById(e.from), b=nodeById(e.to);
-                if(!a||!b) return null;
-                const on = activeId && (e.from===activeId||e.to===activeId);
-                const pa=getPos(a), pb=getPos(b);
-                const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
-                // 선분에 수직으로 살짝 밀어 마인드맵처럼 부드럽게 휘게 한다.
-                const dx=bx-ax, dy=by-ay;
-                const len=Math.hypot(dx,dy)||1;
-                const off=len*(e.branch?0.07:0.18);
-                const mx=(ax+bx)/2 + (-dy/len)*off;
-                const my=(ay+by)/2 + ( dx/len)*off;
-                return (
-                  <path key={e.id}
-                    d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
-                    fill="none"
-                    stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
-                    strokeWidth={on?EDGE_W.on:(e.branch?EDGE_W.branch:EDGE_W.base)}
-                    vectorEffect="non-scaling-stroke"
-                    strokeLinecap="round"
-                    opacity={activeId && !on ? .16 : (on?1:(e.branch?.8:.62))}
-                    style={{transition:"opacity .2s, stroke-width .2s"}}
-                  />
-                );
-              })}
-            </svg>
-
-            {/* 노드 — 색은 유형, 아이콘은 과목·분야 */}
-            {nodes.map(n=>{
-              const dimSearch = matched && !matched.includes(n.id);
-              const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
-              const dim = dimSearch || dimActive;
-              const isActive = n.id===activeId;
-              const isDraggingThis = dragging.current?.id === n.id;
-              const meta = KIND_META[n.kind] || KIND_META.topic;
-              const pos = getPos(n);
-              return (
-                <div key={n.id}
-                  onMouseDown={(e)=>onNodeDown(e,n)}
-                  onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
-                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
-                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
-                    <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
-                  </div>
-                </div>
-              );
-            })}
+            {/* 엣지·노드는 `view` 를 모른다 — 위 레이어의 transform 이 대신한다.
+                (자세한 까닭은 GraphEdges 위 주석) */}
+            <GraphEdges visualEdges={visualEdges} byId={byId} getPos={getPos} activeId={activeId} />
+            <GraphNodes
+              nodes={nodes} getPos={getPos}
+              matchedSet={matchedSet} connectedIds={connectedIds} activeId={activeId}
+              draggingId={dragging.current?.id ?? null}
+              onNodeDown={onNodeDown} onHover={setHover}
+            />
             </div>{/* 줌·팬 레이어 끝 */}
 
             {/* 이름표 — 줌 바깥이라 확대해도 글자 크기는 그대로다. 서로 겹치면
@@ -923,7 +981,7 @@ export function S06({ onNav }) {
               <button onClick={()=>setSel(null)} style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-              <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${sel.color}, ${sel.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
+              <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
               <div style={{minWidth:0,flex:1}}>
