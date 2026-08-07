@@ -23,11 +23,16 @@ function publish() {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: [...pending] }));
 }
 
-/** 알림을 띄운다. 돌려주는 함수를 부르면 그 알림만 내려간다. */
-export function showLoading(message = "잠시만요…") {
+/**
+ * 알림을 띄운다. 돌려주는 함수를 부르면 그 알림만 내려간다.
+ *
+ * `center` 는 화면에 이것 말고 아무것도 없을 때만 쓴다(구글 로그인 콜백처럼
+ * 스쳐 가는 자리). 평소에는 아래에 두어야 하던 일을 가리지 않는다.
+ */
+export function showLoading(message = "잠시만요…", { center = false } = {}) {
   const id = nextId;
   nextId += 1;
-  pending.push({ id, message });
+  pending.push({ id, message, center });
   publish();
   return () => {
     pending = pending.filter((p) => p.id !== id);
@@ -41,8 +46,8 @@ export function showLoading(message = "잠시만요…") {
  * 성공이든 실패든 반드시 내려가야 한다 — 실패했는데 "쓰는 중" 이 남아 있으면
  * 학생은 계속 기다린다.
  */
-export async function withLoading(message, run) {
-  const done = showLoading(message);
+export async function withLoading(message, run, options) {
+  const done = showLoading(message, options);
   try {
     return await run();
   } finally {
@@ -63,10 +68,10 @@ export function LoadingDock() {
 
   if (!items.length) return null;
   // 여럿이 겹치면 마지막에 시작한 것을 보여준다 — 방금 누른 것이 궁금하다.
-  const { message } = items[items.length - 1];
+  const { message, center } = items[items.length - 1];
 
   return (
-    <div className="ldock" role="status" aria-live="polite">
+    <div className={`ldock${center ? " is-center" : ""}`} role="status" aria-live="polite">
       <span className="ldock-logo">
         <img src={mbxLogo} alt="" />
       </span>

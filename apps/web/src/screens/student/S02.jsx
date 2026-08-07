@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 import { showLoading } from "../../components/LoadingDock.jsx";
 
@@ -16,7 +15,7 @@ export function S02({ onNav }) {
   useEffect(() => {
     let cancelled = false;
     // 구글에서 돌아와 토큰을 바꾸는 동안. 실패하면 아래에서 바로 내린다.
-    const doneLoading = showLoading("로그인을 마무리하는 중이에요…");
+    const doneLoading = showLoading("로그인을 마무리하는 중이에요…", { center: true });
 
     (async () => {
       const params = new URLSearchParams(window.location.search);
@@ -63,40 +62,28 @@ export function S02({ onNav }) {
     return () => { cancelled = true; doneLoading(); };
   }, [actions, onNav]);
 
+  // 기다리는 동안에는 아무것도 그리지 않는다. 아래 알림이 무슨 일이 도는지
+  // 이미 말하고 있고, 자물쇠 그림과 "확인하고 있습니다" 를 한 번 더 얹으면
+  // 같은 말을 두 번 하는 셈이다. 이 화면은 스쳐 가는 자리다.
+  if (!err) return null;
+
   return (
     <div className="login-wrap" style={{ justifyContent: "center", alignItems: "center" }}>
       <div className="login-box" style={{ textAlign: "center", maxWidth: 420 }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: 14, background: TDS.blue500,
-          display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 20,
-        }}>
-          <TFI s={22} color="#fff">🔐</TFI>
-        </div>
-        {err ? (
-          <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10, color: TDS.textPrimary }}>
-              로그인 실패
-            </h2>
-            <p style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 24, lineHeight: 1.6 }}>{err}</p>
-            <button
-              type="button"
-              onClick={() => onNav?.("S01", { replace: true })}
-              style={{
-                height: 44, padding: "0 20px", borderRadius: 10, border: "none",
-                background: TDS.blue500, color: "#fff", fontWeight: 700, cursor: "pointer",
-              }}
-            >
-              로그인으로 돌아가기
-            </button>
-          </>
-        ) : (
-          <>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10, color: TDS.textPrimary }}>
-              Google 로그인 중…
-            </h2>
-            <p style={{ fontSize: 14, color: TDS.textTertiary }}>계정 정보를 확인하고 있습니다.</p>
-          </>
-        )}
+        <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10, color: TDS.textPrimary }}>
+          로그인 실패
+        </h2>
+        <p style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 24, lineHeight: 1.6 }}>{err}</p>
+        <button
+          type="button"
+          onClick={() => onNav?.("S01", { replace: true })}
+          style={{
+            height: 44, padding: "0 20px", borderRadius: 10, border: "none",
+            background: TDS.blue500, color: "#fff", fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          로그인으로 돌아가기
+        </button>
       </div>
     </div>
   );
