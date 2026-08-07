@@ -2831,6 +2831,36 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .graph-note strong { color:var(--tp); }
 .graph-note em { font-style:normal; font-weight:700; color:var(--primary); }
+.graph-note-act {
+  margin-left:10px; padding:0; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; font-size:12.5px; font-weight:700; color:var(--primary);
+  text-decoration:underline; text-underline-offset:2px;
+}
+
+/* ── 접기 손잡이 ──────────────────────────────────────────
+   이름표와 같은 층(화면 좌표)이라 확대·축소해도 크기가 그대로다. 줌 레이어 안에
+   두면 축소했을 때 같이 작아져서 누를 수 없다.
+
+   재질은 `OVERLAY_SURFACE`(theme/graphMeta.js)와 같아야 한다 — 캔버스 위에 뜨는
+   것은 범례·통계·줌과 한 가족으로 읽혀야 한다. graphMeta.js 를 고치면 여기도 함께.
+   `GRAPH_CANVAS` ↔ `.ctx-graph` 를 지금 맞춰 두는 방식과 같다. */
+.g-fold {
+  position:absolute; transform:translate(-50%,-50%); pointer-events:auto;
+  min-width:20px; height:20px; padding:0 5px; border-radius:9999px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-family:inherit; font-size:11px; font-weight:700; line-height:1;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+  color:var(--ts);
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(15,23,42,.07);
+  box-shadow:0 1px 4px rgba(15,23,42,.10);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  transition:color .14s, box-shadow .14s;
+}
+.g-fold:hover { color:var(--primary); box-shadow:0 2px 8px rgba(15,23,42,.16); }
+.g-fold.is-folded { color:var(--primary); }
+.g-fold:focus-visible { outline:2px solid var(--blue-500); outline-offset:1px; }
+@media (prefers-reduced-motion:reduce) { .g-fold { transition:none; } }
 
 /* ── 그래프 툴바 ──────────────────────────────────────────
    `.toolbar` 는 교사 화면(T07)과 공유하므로 밑바탕은 건드리지 않는다.
