@@ -1,17 +1,22 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { GRAPH_CANVAS, KIND_META, OVERLAY_SURFACE, OVERLAY_TEXT, Z, ZOOM } from "../../theme/graphMeta.js";
 import { iconForNode, SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { visualEdgesOf } from "../../theme/graphView.js";
-import { Btn, Badge, Divider } from "../../components/ui.jsx";
+import {
+  ancestorsOf, childMapOf, collapsedForDepth, descendantCount,
+  hiddenBy, sameSet, strayIdsOf,
+} from "../../lib/graphTree.js";
+import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 import { showLoading, withLoading } from "../../components/LoadingDock.jsx";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
-import { LinkSuggestions } from "../../components/graph/LinkSuggestions.jsx";
-import { GraphGaps } from "../../components/graph/GraphGaps.jsx";
+import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
+import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
+import { Popover } from "../../components/ui/Popover.jsx";
 
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
@@ -56,6 +61,27 @@ const overlaps = (a, b) =>
   a.x1 < b.x2 + LABEL_MARGIN && a.x2 + LABEL_MARGIN > b.x1 &&
   a.y1 < b.y2 + LABEL_MARGIN && a.y2 + LABEL_MARGIN > b.y1;
 
+/**
+ * 보던 자리 기억하기 — 접힘·배율·끌어 옮긴 위치.
+ *
+ * **sessionStorage 다.** 이건 *설정*이 아니라 "내가 보고 있던 자리"라서, 탭을
+ * 닫으면 사라지는 게 맞다. 예전에는 화면을 옮겼다가 돌아오기만 해도 다 풀리고
+ * 배율이 100% 로 돌아가서, 노드 상세를 보러 생기부로 갔다 오면 처음부터 다시
+ * 찾아야 했다.
+ *
+ * 위치를 **서버에 보내지는 않는다.** 좌표를 쓰는 엔드포인트가 없고, 배치는
+ * `computeLayout` 이 불러올 때마다 다시 셈한다. 영속화하면 배치 규칙과 조용히
+ * 싸우게 된다 — 끌어 옮기기는 이번 탭 안의 임시 조정이다.
+ */
+const VIEW_KEY = "mbx_graph_view";
+
+function readSaved() {
+  try {
+    const raw = sessionStorage.getItem(VIEW_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 // 가지치기 추천 유형별 표시 정보.
 const BRANCH_META = {
   DEPTH:    { label: "심화", color: "#3182f6" },
@@ -63,33 +89,154 @@ const BRANCH_META = {
   ACTIVITY: { label: "활동", color: "#22c55e" },
 };
 
+/**
+ * 선과 노드는 **줌·팬을 모르는 채로** 그린다.
+ *
+ * 둘 다 감싸는 레이어의 `transform` 안에 있어서 확대·이동은 그 문자열 하나만
+ * 바뀌면 된다. 그런데 예전에는 이 JSX 가 S06 본문에 있어서, 팬 한 프레임마다
+ * 선 250개와 노드 200개가 통째로 다시 만들어졌다. 밖으로 빼고 `view` 를 넘기지
+ * 않으면 React 가 건너뛴다 — 이번 작업에서 가장 큰 이득이다.
+ *
+ * 그러므로 **여기에 `view` 를 넘기지 말 것.** 넘기는 순간 효과가 사라진다.
+ */
+const GraphEdges = memo(function GraphEdges({ visualEdges, byId, getPos, activeId }) {
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
+      {visualEdges.map(e=>{
+        const a=byId.get(e.from), b=byId.get(e.to);
+        if(!a||!b) return null;
+        const on = activeId && (e.from===activeId||e.to===activeId);
+        const pa=getPos(a), pb=getPos(b);
+        const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
+        // 선분에 수직으로 살짝 밀어 마인드맵처럼 부드럽게 휘게 한다.
+        const dx=bx-ax, dy=by-ay;
+        const len=Math.hypot(dx,dy)||1;
+        const off=len*(e.branch?0.07:0.18);
+        const mx=(ax+bx)/2 + (-dy/len)*off;
+        const my=(ay+by)/2 + ( dx/len)*off;
+        return (
+          <path key={e.id}
+            d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
+            fill="none"
+            stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
+            strokeWidth={on?EDGE_W.on:(e.branch?EDGE_W.branch:EDGE_W.base)}
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            opacity={activeId && !on ? .16 : (on?1:(e.branch?.8:.62))}
+            style={{transition:"opacity .2s, stroke-width .2s"}}
+          />
+        );
+      })}
+    </svg>
+  );
+});
+
+/** 노드 — 색은 유형(KIND_META), 아이콘은 과목·분야. `view` 를 받지 않는다. */
+const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connectedIds, activeId, draggingId, onNodeDown, onHover, foldableIds, onToggleFold }) {
+  return (
+    <>
+      {nodes.map(n=>{
+        const dimSearch = matchedSet && !matchedSet.has(n.id);
+        const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
+        const dim = dimSearch || dimActive;
+        const isActive = n.id===activeId;
+        const isDraggingThis = draggingId === n.id;
+        const meta = KIND_META[n.kind] || KIND_META.topic;
+        const pos = getPos(n);
+        return (
+          // 더블클릭 접기는 **보조 경로**다. 눈에 보이는 손잡이(⊕/⊖)가 주 경로 —
+          // 더블클릭만 두면 아무도 찾지 못한다.
+          <div key={n.id}
+            onMouseDown={(e)=>onNodeDown(e,n)}
+            onDoubleClick={foldableIds.has(n.id) ? (e)=>{ e.stopPropagation(); onToggleFold(n.id); } : undefined}
+            onMouseEnter={()=>onHover(n.id)} onMouseLeave={()=>onHover(null)}
+            style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
+            <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${meta.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
+              <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+});
+
 export function S06({ onNav }) {
   const { state, actions } = useStore();
   const { nodes: allNodes, edges: allEdges, loading } = state.graph;
-  // 얼마나 깊이 볼지. 197개를 한꺼번에 펼치면 지도가 아니라 얼룩이 된다.
-  // 1 = 학년·영역까지, 2 = 과목까지, 3 = 개념까지.
-  const [depth, setDepth] = useState(3);
   // 뼈대 다시 세우기 — { busy, msg }
   const [restruct, setRestruct] = useState({ busy: false, msg: "" });
 
-  // 노드의 층. 교과군 1, 생기부 구획 2, 개념 3.
-  const levelOf = useCallback((n) => {
-    if (n.kind === "root") return 0;
-    if (n.familyKey) return 1;
-    if (n.sectionId) return 2;
-    return 3;
-  }, []);
+  /**
+   * 접혀 있는 노드들. **무엇이 보이는지를 정하는 유일한 값이다.**
+   *
+   * 예전에는 전역 깊이(교과/과목/개념) 하나뿐이라 층 단위로 전부-아니면-전무였다.
+   * "미적분만 펴 놓고 나머지는 접어 두기"가 안 됐다 — 지도를 보는 일은 원래
+   * 그런 것인데도.
+   *
+   * 깊이 알약은 없애지 않고 **프리셋 명령**으로 남겼다(누르면 이 집합을 채우고
+   * 물러난다). 전역 깊이와 가지별 예외를 함께 두면 진리가 둘이 되어 "깊이를
+   * 바꾸면 내가 편 가지는 살아남나?"에 어떻게 답해도 절반은 틀렸다고 느낀다.
+   */
+  const [collapsed, setCollapsed] = useState(() => new Set(readSaved()?.collapsed ?? []));
+  // 어느 가지에도 안 붙은 노드를 감출지. 배너에서 켜고 끈다.
+  const [hideStray, setHideStray] = useState(false);
 
-  // 깊이를 줄이면 그 아래는 감춘다. 지우는 게 아니라 접는 것이다 — 개수는
-  // 그대로 세어 보여 줘야 "없어진 줄" 알지 않는다.
+  const childMap = useMemo(() => childMapOf(allNodes), [allNodes]);
+  // 접을 수 있는 노드 = 자식이 있는 노드. 더블클릭을 받을지 정할 때 쓴다.
+  const foldableIds = useMemo(() => new Set(childMap.keys()), [childMap]);
+  const strayIds = useMemo(() => strayIdsOf(allNodes, allEdges), [allNodes, allEdges]);
+  const hidden = useMemo(() => hiddenBy(collapsed, childMap), [collapsed, childMap]);
+
+  // 감추는 것이지 지우는 것이 아니다 — 접힌 노드에 `+N` 을 달아 개수를 남긴다.
   const nodes = useMemo(
-    () => allNodes.filter((n) => levelOf(n) <= depth),
-    [allNodes, depth, levelOf],
+    () => allNodes.filter((n) => !hidden.has(n.id) && !(hideStray && strayIds.has(n.id))),
+    [allNodes, hidden, hideStray, strayIds],
   );
   const edges = useMemo(() => {
     const alive = new Set(nodes.map((n) => n.id));
     return allEdges.filter((e) => alive.has(e.from) && alive.has(e.to));
   }, [allEdges, nodes]);
+
+  /** 이 노드를 접었다 폈다. 자식이 없으면 접을 것이 없다. */
+  const toggleCollapse = useCallback((id) => {
+    setCollapsed((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  /** 이 노드만 펴고 형제는 모두 접는다 — 재루팅 없이 한 가지에 집중하는 길. */
+  const soloExpand = useCallback((node) => {
+    const parent = node.parentId;
+    setCollapsed((cur) => {
+      const next = new Set(cur);
+      next.delete(node.id);
+      for (const sib of childMap.get(parent) || []) {
+        if (sib !== node.id && (childMap.get(sib)?.length ?? 0) > 0) next.add(sib);
+      }
+      return next;
+    });
+  }, [childMap]);
+
+  // 알약 셋이 만드는 접힘 상태. 지금 상태와 견주어 불을 켤지 정한다.
+  const depthPresets = useMemo(() => ({
+    1: collapsedForDepth(allNodes, 1, childMap),
+    2: collapsedForDepth(allNodes, 2, childMap),
+    3: collapsedForDepth(allNodes, 3, childMap),   // 개념은 아래가 없어 빈 집합
+  }), [allNodes, childMap]);
+
+  /** 접힌 가지 안에 있는 노드를 보이게 만든다(조상을 편다). */
+  const revealAncestors = useCallback((id) => {
+    setCollapsed((cur) => {
+      const anc = ancestorsOf(id, allNodes);
+      if (!anc.some((a) => cur.has(a))) return cur;   // 이미 보인다
+      const next = new Set(cur);
+      for (const a of anc) next.delete(a);
+      return next;
+    });
+  }, [allNodes]);
 
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
@@ -101,25 +248,53 @@ export function S06({ onNav }) {
   const [research, setResearch] = useState({});
   // '이 주제로 확장' 진행 중인 추천 id
   const [expanding, setExpanding] = useState(null);
-  // 노드 직접 만들기·고치기·지우기.
-  // AI 가 뽑아 준 결과가 늘 맞지는 않는다 — 학생이 그 자리에서 고칠 수 없으면
-  // 그래프는 남의 것이 된다. 그래서 편집을 그래프 화면 안에 둔다.
-  const [creating, setCreating] = useState(false);
-  // 이어 볼 만한 짝 — { loading, error, items }
-  const [links, setLinks] = useState(null);
-  const [linkBusy, setLinkBusy] = useState(null);
-  // 빈 곳 — { loading, error, empty_subjects, lonely_nodes, faded_topics }
-  const [gaps, setGaps] = useState(null);
+  /**
+   * 옆 패널에 무엇을 세울지 — `null | "create" | "explore"`.
+   *
+   * 노드를 고르면(`sel`) 그것이 **언제나 이깁니다**. 그래서 패널 자리를 다투는
+   * 상태가 사실상 하나뿐이고, 둘이 나란히 설 방법이 없다.
+   *
+   * 예전에는 만들기·빈 곳·관계·상세가 저마다 독립된 boolean 이었고 서로
+   * 배타적이라는 것을 "각 핸들러가 나머지를 꺼 준다"는 관례로만 지켰다. 관례를
+   * 안 지키는 경로(라벨 클릭, 노드 추가)로 들어가면 패널이 둘 서서 720px 를 먹고
+   * 좁은 화면에서 캔버스가 사라졌다.
+   *
+   * 노드 만들기·고치기·지우기를 그래프 화면 안에 두는 까닭: AI 가 뽑아 준 결과가
+   * 늘 맞지는 않는데 그 자리에서 고칠 수 없으면 그래프는 남의 것이 된다.
+   */
+  const [panel, setPanel] = useState(null);
+  // 툴바의 「더보기」 — 자주 안 쓰는 것들을 여기로 넣었다.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
+  /**
+   * 노드 패널에서 펴 둔 구획.
+   *
+   * **노드별이 아니라 구획별로** 기억한다. 코멘트를 안 쓰는 학생은 한 번 접으면
+   * 노드를 옮겨 다녀도 계속 접혀 있어야 한다 — 노드마다 따로 기억하면 새 노드를
+   * 고를 때마다 접었던 것이 되살아난다.
+   */
+  const [openSections, setOpenSections] = useState(
+    () => new Set(readSaved()?.sections ?? ["evidence", "links"]),
+  );
+  const toggleSection = useCallback((key) => {
+    setOpenSections((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   // 노드 위치 로컬 상태 (드래그로 변경)
-  const [positions, setPositions] = useState({});
+  const [positions, setPositions] = useState(() => readSaved()?.positions ?? {});
   // 드래그 상태: { id, startCX, startCY, origXpct, origYpct, moved }
   const dragging = useRef(null);
   const canvasRef = useRef(null);
   // 줌·팬 상태. tx/ty 는 화면 픽셀 이동량, scale 은 배율.
-  const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
+  const [view, setView] = useState(() => readSaved()?.view ?? { scale: 1, tx: 0, ty: 0 });
   const [grabbing, setGrabbing] = useState(false);
   // 자동 포커싱으로 화면이 움직이는 동안만 true. 이때만 부드럽게 움직인다.
   const [flying, setFlying] = useState(false);
@@ -131,9 +306,33 @@ export function S06({ onNav }) {
   // 노드를 끌 때마다 화면이 따라 움직인다.
   const positionsRef = useRef(positions);
 
+  /**
+   * 노드 고르기. 같은 노드를 다시 누르면 닫는다. 만들기·둘러보기는 자리를 비켜 준다.
+   *
+   * 펴는 일을 **여기서** 한다(이펙트가 아니라). 아래 "고른 노드가 사라지면 닫는다"
+   * 이펙트는 이것보다 먼저 선언돼 있어서, 펴기를 이펙트로 미루면 접힌 노드를 고른
+   * 그 순간 선택이 도로 풀린다 — 편 결과는 다음 렌더에나 반영되기 때문이다.
+   * 여기서 함께 부르면 두 갱신이 한 번에 반영되어 그런 틈이 없다.
+   */
+  const selectNode = useCallback((n) => {
+    setPanel(null);
+    revealAncestors(n.id);
+    setSel((cur) => (cur?.id === n.id ? null : n));
+  }, [revealAncestors]);
+
+  /** 옆 패널을 만들기/둘러보기로 세운다. 고른 노드는 놓는다 — 자리는 하나다. */
+  const openPanel = useCallback((which) => {
+    setSel(null);
+    setPanel((cur) => (cur === which ? null : which));
+  }, []);
+
+  const closePanel = useCallback(() => { setSel(null); setPanel(null); }, []);
+
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!allNodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
-  // 선택 노드가 삭제되면 패널 닫기
+  // 고른 노드가 화면에서 사라지면 패널도 닫는다 — 지웠거나, 그 위 가지를 접었거나.
+  // 감춘 것을 패널만 붙들고 있으면 캔버스와 패널이 서로 다른 말을 한다.
+  // (고르는 순간의 펴기는 `selectNode` 가 함께 하므로 여기에 걸리지 않는다.)
   useEffect(()=>{ if(sel && !nodes.find(n=>n.id===sel.id)) setSel(null); }, [nodes, sel]);
   // 다른 노드를 고르면 이전 노드의 추천은 버린다 (엉뚱한 노드의 카드가 남지 않도록)
   useEffect(()=>{
@@ -150,15 +349,36 @@ export function S06({ onNav }) {
       return next;
     });
   }, [allNodes]);
+  // 없어진 노드의 접힘도 함께 치운다. 안 그러면 지운 노드의 id 가 계속 쌓이고,
+  // 나중에 같은 자리를 다시 만들었을 때 난데없이 접힌 채로 나타난다.
+  useEffect(()=>{
+    if (!allNodes.length) return;
+    setCollapsed((cur) => {
+      if (!cur.size) return cur;
+      const alive = new Set(allNodes.map((n) => n.id));
+      let changed = false;
+      const next = new Set();
+      for (const id of cur) { if (alive.has(id)) next.add(id); else changed = true; }
+      return changed ? next : cur;
+    });
+  }, [allNodes]);
+
+  // 보던 자리를 기억한다. 자주 바뀌는 값(팬·줌)이라 조금 미뤄 두고 한 번에 쓴다.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.setItem(VIEW_KEY, JSON.stringify({
+          collapsed: [...collapsed], view, positions, sections: [...openSections],
+        }));
+      } catch { /* 저장 공간이 없으면 기억하지 않을 뿐, 화면은 그대로 돈다 */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [collapsed, view, positions, openSections]);
 
   // 선이 하나도 없는 노드. 예전 화면은 가지를 지어내 이어진 것처럼 보였는데,
   // 이제 진짜 선만 그리니 드러난다. 감추지 말고 세어서 알려 준다 — 한 번
   // 누르면 대부분 제자리를 찾는다.
-  const strayCount = useMemo(() => {
-    const linked = new Set();
-    for (const e of allEdges) { linked.add(e.from); linked.add(e.to); }
-    return allNodes.filter((n) => !linked.has(n.id)).length;
-  }, [allNodes, allEdges]);
+  const strayCount = strayIds.size;
 
   // 그래프를 불러오는 동안. 노드 200개면 눈에 띄게 걸린다.
   useEffect(() => {
@@ -166,18 +386,33 @@ export function S06({ onNav }) {
     return showLoading("지식 그래프를 불러오는 중이에요…");
   }, [loading]);
 
-  const nodeById = id => nodes.find(n=>n.id===id);
+  // id → 노드. 선을 그릴 때 양 끝을 찾는데, 이게 배열 훑기면 선 하나마다 노드를
+  // 전부 훑게 된다(200노드 × 250선 × 2 = 프레임당 10만 회).
+  const byId = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
 
   // 화면에 그릴 선 — 규칙은 theme/graphView.js (대시보드 미리보기와 공유)
   const visualEdges = useMemo(() => visualEdgesOf(nodes, edges), [nodes, edges]);
 
-  const matched = q.trim() ? nodes.filter(n=>n.label.includes(q.trim())).map(n=>n.id) : null;
+  // 아래 셋은 **반드시 메모이제이션되어야 한다.** 매 렌더 새로 만들면
+  // `shownLabels` 의 의존성이 늘 바뀌어서 useMemo 가 한 번도 걸리지 않고,
+  // 이름표 자리잡기(O(후보×장애물))가 렌더마다 통째로 다시 돈다.
+  // 검색은 **접힌 것까지** 뒤진다. 보이는 것만 뒤지면 접어 둔 가지 안의 노드는
+  // 이름을 정확히 알아도 찾을 수 없어서, 접기가 검색을 망가뜨린 꼴이 된다.
+  // 걸린 노드로 갈 때 그 위 조상을 펴 준다(revealAncestors).
+  const matched = useMemo(() => {
+    const t = q.trim();
+    if (!t) return null;
+    return allNodes.filter(n => n.label.includes(t)).map(n => n.id);
+  }, [q, allNodes]);
+  const matchedSet = useMemo(() => (matched ? new Set(matched) : null), [matched]);
   const activeId = hover || sel?.id || null;
-  const activeNode = activeId ? nodes.find(n=>n.id===activeId) : null;
-  const connectedIds = activeId
-    ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
-    : null;
+  const activeNode = activeId ? byId.get(activeId) : null;
+  const connectedIds = useMemo(() => (
+    activeId
+      ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
+      : null
+  ), [visualEdges, activeId]);
   const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
 
   // 캔버스 실제 크기. 라벨을 화면 좌표에 놓으려면 픽셀 크기를 알아야 한다.
@@ -212,7 +447,7 @@ export function S06({ onNav }) {
     if (!canvasBox.w || !nodes.length) return new Map();
     const rank = (n) => {
       if (n.id === activeId) return 0;
-      if (matched?.includes(n.id)) return 1;
+      if (matchedSet?.has(n.id)) return 1;
       if (connectedIds?.has(n.id)) return 2;
       if (n.kind === "root") return 3;
       if (n.kind === "topic") return 4;
@@ -228,7 +463,24 @@ export function S06({ onNav }) {
       .sort((a, b) => a.rank - b.rank || b.n.size - a.n.size);
 
     // 노드 동그라미부터 장애물로 깔아 둔다.
-    const blocks = cands.map(({ s }) => ({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r }));
+    //
+    // 장애물을 격자 칸에 나눠 담아, 후보가 걸치는 칸만 본다. 예전에는 후보마다
+    // 장애물 전부를 훑어서(200×4×최대 200 ≈ 16만 번) 휠 한 틱·팬 한 프레임마다
+    // 그 값을 다시 치렀다. **판정 규칙과 순서는 그대로다** — 보는 범위만 줄인다.
+    // 겹침 판정이 LABEL_MARGIN 만큼 부풀려 보므로 칸을 고를 때도 그만큼 넓게 잡는다.
+    const CELL = 64;
+    const grid = new Map();
+    const eachCell = (b, fn) => {
+      const cx0 = Math.floor((b.x1 - LABEL_MARGIN) / CELL), cx1 = Math.floor((b.x2 + LABEL_MARGIN) / CELL);
+      const cy0 = Math.floor((b.y1 - LABEL_MARGIN) / CELL), cy1 = Math.floor((b.y2 + LABEL_MARGIN) / CELL);
+      for (let cx = cx0; cx <= cx1; cx += 1) for (let cy = cy0; cy <= cy1; cy += 1) {
+        if (fn(`${cx},${cy}`)) return true;
+      }
+      return false;
+    };
+    const addBlock = (b) => { eachCell(b, (k) => { const a = grid.get(k); if (a) a.push(b); else grid.set(k, [b]); return false; }); };
+    const blocked = (b) => eachCell(b, (k) => { const a = grid.get(k); return !!a && a.some((o) => overlaps(b, o)); });
+    for (const { s } of cands) addBlock({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r });
     const out = new Map();
     for (const { n, s, rank: r } of cands) {
       const text = n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
@@ -242,21 +494,46 @@ export function S06({ onNav }) {
         { x: s.x - s.r - LABEL_GAP - w / 2, y: s.y - LABEL_H / 2 },
       ];
       const boxAt = (p) => ({ x1: p.x - w / 2, x2: p.x + w / 2, y1: p.y, y2: p.y + LABEL_H });
-      let box = spots.map(boxAt).find((b) => !blocks.some((o) => overlaps(b, o)));
+      let box = spots.map(boxAt).find((b) => !blocked(b));
       // 지금 보고 있는 노드와 검색에 걸린 노드는 자리가 없어도 반드시 보여준다.
       if (!box && r <= 1) box = boxAt(spots[0]);
       if (!box) continue;
       const top = box.y1;
-      blocks.push(box);
+      addBlock(box);
       // 노드가 흐려졌으면 이름표도 같이 흐려져야 한다. 안 그러면 검색해서
       // 걸러 낸 노드의 이름만 또렷하게 떠 있는다.
       const dim =
-        (matched && !matched.includes(n.id)) ||
+        (matchedSet && !matchedSet.has(n.id)) ||
         (connectedIds && n.id !== activeId && !connectedIds.has(n.id));
       out.set(n.id, { text, left: (box.x1 + box.x2) / 2, top, dim: !!dim });
     }
     return out;
-  }, [nodes, canvasBox, screenOf, view.scale, activeId, matched, connectedIds]);
+  }, [nodes, canvasBox, screenOf, view.scale, activeId, matchedSet, connectedIds]);
+
+  /**
+   * 접기 손잡이의 자리와 내용.
+   *
+   * 자식이 있는 노드에만 붙는다. `screenOf` 를 쓰므로 팬·줌 때 다시 셈하는데,
+   * 대상이 구획·교과군뿐이라(수십 개) 이름표 자리잡기와 견주면 값이 없다.
+   */
+  const foldChips = useMemo(() => {
+    if (!canvasBox.w) return [];
+    const out = [];
+    for (const n of nodes) {
+      if (!(childMap.get(n.id)?.length ?? 0)) continue;
+      const s = screenOf(n);
+      const x = s.x + s.r * 0.72;
+      const y = s.y - s.r * 0.72;
+      if (x < -40 || x > canvasBox.w + 40 || y < -20 || y > canvasBox.h + 20) continue;
+      const isFolded = collapsed.has(n.id);
+      out.push({
+        id: n.id, label: n.label, x, y,
+        collapsed: isFolded,
+        count: isFolded ? descendantCount(n.id, childMap) : 0,
+      });
+    }
+    return out;
+  }, [nodes, childMap, collapsed, screenOf, canvasBox]);
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -304,9 +581,9 @@ export function S06({ onNav }) {
     if (!d) return;
     if (!d.moved) {
       const n = nodes.find(n=>n.id===d.id);
-      if (n) { setLinks(null); setGaps(null); setSel(s => s?.id===n.id ? null : n); }
+      if (n) selectNode(n);
     }
-  }, [nodes]);
+  }, [nodes, selectNode]);
 
   // ── 줌 · 팬 ─────────────────────────────────────────────
   useEffect(() => { viewRef.current = view; }, [view]);
@@ -332,7 +609,37 @@ export function S06({ onNav }) {
     zoomAt(factor, (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2);
   }, [zoomAt]);
 
-  const resetView = useCallback(() => setView({ scale: 1, tx: 0, ty: 0 }), []);
+  /**
+   * 보이는 것에 맞춘다.
+   *
+   * 예전에는 "원래 크기(100%)"로만 돌아갔는데, 접기를 쓰기 시작하면 그게 원하는
+   * 일이 아니다 — 가지 하나만 펴 두면 그 가지가 화면 한구석에 작게 남는다.
+   * 지금 **보이는 노드 전부**가 들어오도록 맞춘다. 접기와 짝을 이루는 동작이다.
+   */
+  const fitView = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect?.width || !nodes.length) { setView({ scale: 1, tx: 0, ty: 0 }); return; }
+    const pos = positionsRef.current;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      const p = pos[n.id] || { x: n.x, y: n.y };
+      const px = (parseFloat(p.x) / 100) * rect.width;
+      const py = (parseFloat(p.y) / 100) * rect.height;
+      const r = n.size / 2 + 26;   // 동그라미 + 이름표가 설 자리
+      if (px - r < minX) minX = px - r;
+      if (px + r > maxX) maxX = px + r;
+      if (py - r < minY) minY = py - r;
+      if (py + r > maxY) maxY = py + r;
+    }
+    const w = Math.max(maxX - minX, 1), h = Math.max(maxY - minY, 1);
+    const scale = clampScale(Math.min(rect.width / w, rect.height / h));
+    setFlying(true);
+    setView({
+      scale,
+      tx: rect.width / 2 - ((minX + maxX) / 2) * scale,
+      ty: rect.height / 2 - ((minY + maxY) / 2) * scale,
+    });
+  }, [nodes]);
 
   /**
    * 고른 노드를 화면 한가운데로 데려온다.
@@ -365,22 +672,37 @@ export function S06({ onNav }) {
 
   // 노드를 고르면 따라간다. sel 이 바뀔 때만 — 그 뒤 사용자가 화면을 끌어
   // 옮겨 놓은 것을 다시 가운데로 되돌리면 안 된다.
+  // (펴기는 `selectNode` 가 이미 했다.)
   useEffect(() => {
     if (!sel) return;
-    const node = nodes.find((n) => n.id === sel.id);
+    const node = allNodes.find((n) => n.id === sel.id);
     if (node) focusNode(node);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sel?.id]);
 
-  // 검색해서 걸린 것이 있으면 첫 노드로 데려간다. 찾았는데 화면 밖에 있으면
-  // 찾은 것이 아니다.
-  const firstMatch = matched?.[0] || null;
+  /**
+   * 검색 결과 사이를 오간다.
+   *
+   * 예전에는 **첫 번째 것으로만** 날아갔다. "탐구"로 12개가 걸려도 나머지 11개에
+   * 갈 방법이 없어서, 찾긴 찾았는데 못 보는 일이 생겼다. 이제 몇 번째인지 세어
+   * 보여주고(3/12) 위아래로 넘긴다.
+   */
+  const [searchIdx, setSearchIdx] = useState(0);
+  // 검색어가 바뀌면 처음부터.
+  useEffect(() => { setSearchIdx(0); }, [q]);
+  const matchCount = matched?.length ?? 0;
+  const curMatch = matchCount ? matched[Math.min(searchIdx, matchCount - 1)] : null;
   useEffect(() => {
-    if (!firstMatch) return;
-    const node = nodes.find((n) => n.id === firstMatch);
+    if (!curMatch) return;
+    revealAncestors(curMatch);
+    const node = allNodes.find((n) => n.id === curMatch);
     if (node) focusNode(node);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [firstMatch]);
+  }, [curMatch]);
+  const stepMatch = (d) => {
+    if (!matchCount) return;
+    setSearchIdx((i) => (i + d + matchCount) % matchCount);
+  };
 
   // 휠 줌. React 의 onWheel 은 passive 로 붙어 preventDefault 가 먹지 않으므로
   // 직접 non-passive 로 등록한다 (안 하면 페이지가 같이 스크롤된다).
@@ -406,48 +728,9 @@ export function S06({ onNav }) {
     setGrabbing(true);
   }, []);
 
-  /** 빈 곳 — 없는 과목 / 이어지지 않은 개념 / 요즘 안 보이는 주제. */
-  const findGaps = useCallback(async () => {
-    setSel(null);
-    setCreating(false);
-    setLinks(null);
-    setGaps({ loading: true });
-    try {
-      setGaps({ loading: false, ...(await api.graph.gaps()) });
-    } catch (e) {
-      setGaps({ loading: false, error: e.message || "찾지 못했습니다." });
-    }
-  }, []);
-
-  /** 생기부 같은 문장에 함께 나온 짝 찾기. */
-  const findLinks = useCallback(async () => {
-    setSel(null);
-    setCreating(false);
-    setGaps(null);
-    setLinks({ loading: true });
-    try {
-      setLinks({ loading: false, items: await api.graph.suggestedLinks(30) });
-    } catch (e) {
-      setLinks({ loading: false, error: e.message || "찾지 못했습니다." });
-    }
-  }, []);
-
-  const dropLink = (s) =>
-    setLinks((cur) => (cur?.items
-      ? { ...cur, items: cur.items.filter((x) => !(x.source_id === s.source_id && x.target_id === s.target_id)) }
-      : cur));
-
-  const acceptLink = useCallback(async (s) => {
-    setLinkBusy(`${s.source_id}-${s.target_id}`);
-    try {
-      await actions.connectNodes(s.source_id, s.target_id);
-      dropLink(s);
-    } catch (e) {
-      actions.toast("error", e.message || "잇지 못했습니다.");
-    } finally {
-      setLinkBusy(null);
-    }
-  }, [actions]);
+  // 빈 곳·이어 볼 만한 짝·넓혀 볼 만한 주제는 전부 "이 그래프에서 다음에 무엇을
+  // 볼까"라는 한 물음이라 `components/graph/GraphExplore.jsx` 한자리에 모았다.
+  // 불러오기와 그 상태도 거기에 있다 — 여기서 들고 있을 까닭이 없다.
 
   /** 노드 만들기. 연결할 곳을 골랐으면 만든 뒤 바로 잇는다. */
   const handleCreate = useCallback(async ({ label, section, description, aliases, parentId }) => {
@@ -456,7 +739,7 @@ export function S06({ onNav }) {
       const node = await actions.addNode({ label, section, description, aliases });
       if (parentId && node?.id) await actions.connectNodes(parentId, node.id);
       else await actions.loadGraph();
-      setCreating(false);
+      setPanel(null);
     } catch (e) {
       actions.toast("error", e.message || "노드를 추가하지 못했습니다.");
     } finally {
@@ -492,6 +775,37 @@ export function S06({ onNav }) {
       setBusy(false);
     }
   }, [sel, actions]);
+
+  /**
+   * 이 노드에 달린 코멘트.
+   *
+   * 백엔드 코멘트에는 노드 id 가 없다 — `target` 이 자유 문자열이라 이름으로
+   * 잇는 수밖에 없다. **취약하다**(이름이 같은 노드가 둘이면 섞이고, 이름을
+   * 고치면 끊긴다). 그래도 모든 노드에 같은 코멘트를 뿌리던 것보다는 낫다.
+   * 백엔드에 node_id 가 생기면 여기와 `submitComment` 두 곳만 고치면 된다.
+   */
+  const nodeComments = useMemo(
+    () => (sel ? comments.filter((c) => c.target === sel.label) : []),
+    [comments, sel],
+  );
+
+  // 노드를 옮기면 쓰던 초안은 버린다 — 남겨 두면 엉뚱한 노드에 달린다.
+  useEffect(() => { setCommentDraft(""); }, [sel?.id]);
+
+  const submitComment = useCallback(async () => {
+    const content = commentDraft.trim();
+    if (!sel || !content) return;
+    setCommentBusy(true);
+    try {
+      const created = await api.comments.create({ content, type: "그래프", target: sel.label });
+      setComments((cur) => [created, ...cur]);
+      setCommentDraft("");
+    } catch (e) {
+      actions.toast("error", e.message || "코멘트를 남기지 못했습니다.");
+    } finally {
+      setCommentBusy(false);
+    }
+  }, [commentDraft, sel, actions]);
 
   const handleConnect = useCallback(async (targetId) => {
     if (!sel) return;
@@ -533,13 +847,9 @@ export function S06({ onNav }) {
     }
   }, []);
 
-  const handlePrune = () => {
-    if (!sel) {
-      actions.toast("info", "먼저 노드를 선택한 뒤 가지치기 추천을 눌러주세요.");
-      return;
-    }
-    runPrune(sel);
-  };
+  // 툴바에 있던 「가지치기 추천」 단추는 걷어냈다. 노드를 안 고른 채로 누르면
+  // "먼저 노드를 선택하세요"라고 **꾸짖기만** 했는데, 꾸짖는 단추는 기능이 아니라
+  // 결함이다. 이 기능은 노드를 고른 뒤에만 뜻이 있으므로 노드 패널 안에만 둔다.
 
   // 2단계: 이 버튼을 눌렀을 때만 웹 검색이 실행된다.
   const handleResearch = useCallback(async (rec) => {
@@ -568,6 +878,25 @@ export function S06({ onNav }) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sel, expanding, actions, state.session?.user?.id]);
 
+  /** 생기부 구획으로 학년·과목 층을 다시 세운다. 여러 번 눌러도 안전하다. */
+  const rebuildLayers = useCallback(async () => {
+    setMoreOpen(false);
+    setRestruct({ busy: true, msg: "" });
+    try {
+      const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
+      await actions.loadGraph(state.session?.user?.id);
+      setRestruct({
+        busy: false,
+        msg: r.changed
+          ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
+          : "이미 생기부와 같은 모양입니다.",
+      });
+    } catch (e) {
+      setRestruct({ busy: false, msg: e.message });
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [actions, state.session?.user?.id]);
+
   // 카테고리별 개수 (범례용)
   const kindCounts = nodes.reduce((a,n)=>{ a[n.kind]=(a[n.kind]||0)+1; return a; }, {});
 
@@ -576,66 +905,94 @@ export function S06({ onNav }) {
       {restruct.msg
         ? <div className="graph-note">{restruct.msg}</div>
         : strayCount > 0 && (
+          // 읽기만 하는 문장이 아니라 손잡이다 — 어느 가지에도 안 붙은 노드는
+          // 지도를 읽는 데 방해가 되므로, 붙이기 전까지 잠시 치울 수 있어야 한다.
           <div className="graph-note">
-            이어지지 않은 노드 <strong>{strayCount}개</strong> — 생기부 구획에 붙이려면 <em>층 다시 세우기</em>를 누르세요.
+            이어지지 않은 노드 <strong>{strayCount}개</strong> — 붙이려면 <em>더보기 → 층 다시 세우기</em>.
+            <button type="button" className="graph-note-act" onClick={()=>setHideStray(v=>!v)}>
+              {hideStray ? "다시 보기" : "잠시 감추기"}
+            </button>
           </div>
         )}
-      <div className="toolbar">
-        <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
-        <Btn v="secondary" s="sm" onClick={findLinks}><NavIcon name="link" size={15} color={TDS.textSecondary}/> 관계 찾기</Btn>
-        <Btn v="secondary" s="sm" onClick={findGaps}><NavIcon name="search" size={15} color={TDS.textSecondary}/> 빈 곳 보기</Btn>
-        {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
-            이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다. */}
-        <Btn
-          v="secondary"
-          s="sm"
-          disabled={restruct.busy}
-          title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다."
-          onClick={async () => {
-            setRestruct({ busy: true, msg: "" });
-            try {
-              const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
-              await actions.loadGraph(state.session?.user?.id);
-              setRestruct({
-                busy: false,
-                msg: r.changed
-                  ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
-                  : "이미 생기부와 같은 모양입니다.",
-              });
-            } catch (e) {
-              setRestruct({ busy: false, msg: e.message });
-            }
-          }}
-        >
-          <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
-        </Btn>
-        {/* 얼마나 깊이 볼지. 개념까지 다 펼치면 200개가 한 화면에 깔린다 —
-            지도를 읽는 첫걸음은 "덜 보는 것"이다. */}
-        <div className="depth-pick" role="group" aria-label="보이는 깊이">
-          {[[1, "교과"], [2, "과목"], [3, "개념"]].map(([lv, label]) => (
-            <button
-              key={lv}
-              type="button"
-              className={`depth-btn${depth === lv ? " is-on" : ""}`}
-              aria-pressed={depth === lv}
-              onClick={() => setDepth(lv)}
-            >
-              {label}
-            </button>
-          ))}
+      {/* 툴바 — 늘 쓰는 것만 밖에 두고 나머지는 「더보기」 안으로.
+          예전에는 열 개가 한 줄에 늘어서서 무엇이 중요한지 알 수 없었고,
+          좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
+      <div className="toolbar toolbar-graph">
+        <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
+        {/* 깊이 알약은 **모드가 아니라 명령**이다. 누르면 그만큼 접어 두고
+            물러난다 — 그 뒤 학생이 가지 하나를 손으로 펴도 다투지 않는다.
+            손으로 건드리면 어느 알약에도 불이 켜지지 않는다(정직하게). */}
+        <div className="depth-pick" role="group" aria-label="한꺼번에 접기">
+          {[[1, "교과"], [2, "과목"], [3, "개념"]].map(([lv, label]) => {
+            const preset = depthPresets[lv];
+            const on = sameSet(collapsed, preset);
+            return (
+              <button
+                key={lv}
+                type="button"
+                className={`depth-btn${on ? " is-on" : ""}`}
+                aria-pressed={on}
+                onClick={() => setCollapsed(new Set(preset))}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
-        <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
+        <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
+          <NavIcon name="search" size={15} color={TDS.textSecondary}/> 둘러보기
+        </Btn>
         <div style={{flex:1}} />
-        <div className="search-wrap" style={{width:220}}>
-          <NavIcon name="graph" size={15} color={TDS.textTertiary}/><input placeholder="노드 검색..." value={q} onChange={e=>setQ(e.target.value)} />
+        {/* ref 는 감싸는 div 가 든다 — `Btn` 은 ref 를 넘겨주지 않는 함수 컴포넌트다.
+            Popover 는 앵커 **안쪽** 클릭만 걸러 내면 되므로 감싼 것으로 충분하다. */}
+        <div style={{position:"relative"}} ref={moreRef}>
+          <Btn v="secondary" s="sm" aria-expanded={moreOpen} onClick={()=>setMoreOpen(o=>!o)}>
+            더보기
+          </Btn>
+          <Popover open={moreOpen} onClose={()=>setMoreOpen(false)} anchorRef={moreRef} label="그래프 도구" align="right">
+            <div className="pop-list">
+              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S09"); }}>
+                시드로 생성
+                <span className="gpop-hint">키워드를 넣어 그래프를 시작합니다.</span>
+              </button>
+              {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
+                  이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다.
+                  설명을 hint 로 올렸다 — title 은 마우스를 올려야만 보여서, 정작
+                  이 단추를 눌러도 되는지 망설이는 사람에게 닿지 않았다. */}
+              <button type="button" className="pop-item gpop-item" disabled={restruct.busy} onClick={rebuildLayers}>
+                {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
+                <span className="gpop-hint">
+                  생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.
+                </span>
+              </button>
+              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S29"); }}>
+                내보내기
+              </button>
+            </div>
+          </Popover>
+        </div>
+        <div className="search-wrap" style={{width:240}}>
+          <NavIcon name="graph" size={15} color={TDS.textTertiary}/>
+          <input
+            placeholder="노드 검색..."
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); stepMatch(e.shiftKey?-1:1); } }}
+          />
+          {q.trim() && (
+            <span className="gsearch-nav">
+              <span className="gsearch-count">{matchCount ? `${Math.min(searchIdx, matchCount-1)+1}/${matchCount}` : "0"}</span>
+              <button type="button" onClick={()=>stepMatch(-1)} disabled={!matchCount} aria-label="이전 결과">↑</button>
+              <button type="button" onClick={()=>stepMatch(1)} disabled={!matchCount} aria-label="다음 결과">↓</button>
+            </span>
+          )}
         </div>
       </div>
-      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+      {/* 캔버스 + 패널. 좁은 화면에서 세로로 나뉘어야 하므로 인라인이 아니라
+          클래스로 둔다 — 인라인 스타일에는 @media 를 걸 수 없다. */}
+      <div className="gbody">
         {/* Canvas */}
-        <div style={{flex:1,padding:20,overflow:"hidden",position:"relative"}}>
+        <div className="gstage">
           <div
             ref={canvasRef}
             className="graph-canvas"
@@ -687,55 +1044,16 @@ export function S06({ onNav }) {
                          transition:flying?`transform ${FLY_MS}ms cubic-bezier(.22,.8,.28,1)`:"none",
                          willChange:"transform"}}>
 
-            {/* 엣지 — 곡선 + 활성 노드 연결선 강조 (viewBox % 좌표계) */}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-              {visualEdges.map(e=>{
-                const a=nodeById(e.from), b=nodeById(e.to);
-                if(!a||!b) return null;
-                const on = activeId && (e.from===activeId||e.to===activeId);
-                const pa=getPos(a), pb=getPos(b);
-                const ax=parseFloat(pa.x), ay=parseFloat(pa.y), bx=parseFloat(pb.x), by=parseFloat(pb.y);
-                // 선분에 수직으로 살짝 밀어 마인드맵처럼 부드럽게 휘게 한다.
-                const dx=bx-ax, dy=by-ay;
-                const len=Math.hypot(dx,dy)||1;
-                const off=len*(e.branch?0.07:0.18);
-                const mx=(ax+bx)/2 + (-dy/len)*off;
-                const my=(ay+by)/2 + ( dx/len)*off;
-                return (
-                  <path key={e.id}
-                    d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
-                    fill="none"
-                    stroke={on?"url(#edgeGrad)":GRAPH_EDGE}
-                    strokeWidth={on?EDGE_W.on:(e.branch?EDGE_W.branch:EDGE_W.base)}
-                    vectorEffect="non-scaling-stroke"
-                    strokeLinecap="round"
-                    opacity={activeId && !on ? .16 : (on?1:(e.branch?.8:.62))}
-                    style={{transition:"opacity .2s, stroke-width .2s"}}
-                  />
-                );
-              })}
-            </svg>
-
-            {/* 노드 — 색은 유형, 아이콘은 과목·분야 */}
-            {nodes.map(n=>{
-              const dimSearch = matched && !matched.includes(n.id);
-              const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
-              const dim = dimSearch || dimActive;
-              const isActive = n.id===activeId;
-              const isDraggingThis = dragging.current?.id === n.id;
-              const meta = KIND_META[n.kind] || KIND_META.topic;
-              const pos = getPos(n);
-              return (
-                <div key={n.id}
-                  onMouseDown={(e)=>onNodeDown(e,n)}
-                  onMouseEnter={()=>setHover(n.id)} onMouseLeave={()=>setHover(null)}
-                  style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
-                  <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${n.color}, ${n.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${n.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
-                    <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
-                  </div>
-                </div>
-              );
-            })}
+            {/* 엣지·노드는 `view` 를 모른다 — 위 레이어의 transform 이 대신한다.
+                (자세한 까닭은 GraphEdges 위 주석) */}
+            <GraphEdges visualEdges={visualEdges} byId={byId} getPos={getPos} activeId={activeId} />
+            <GraphNodes
+              nodes={nodes} getPos={getPos}
+              matchedSet={matchedSet} connectedIds={connectedIds} activeId={activeId}
+              draggingId={dragging.current?.id ?? null}
+              onNodeDown={onNodeDown} onHover={setHover}
+              foldableIds={foldableIds} onToggleFold={toggleCollapse}
+            />
             </div>{/* 줌·팬 레이어 끝 */}
 
             {/* 이름표 — 줌 바깥이라 확대해도 글자 크기는 그대로다. 서로 겹치면
@@ -747,7 +1065,7 @@ export function S06({ onNav }) {
                      누르는 자리라, 여기서 못 고르면 매번 작은 원을 조준해야 한다. */
                   <span key={id} title={l.text}
                     onMouseDown={(e)=>e.stopPropagation()}
-                    onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) setSel(s=>s?.id===n.id?null:n); }}
+                    onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) selectNode(n); }}
                     onMouseEnter={()=>setHover(id)} onMouseLeave={()=>setHover(null)}
                     style={{position:"absolute",left:l.left,top:l.top,transform:"translateX(-50%)",
                             pointerEvents:"auto",cursor:"pointer",opacity:l.dim?DIM_OPACITY:1,
@@ -759,6 +1077,25 @@ export function S06({ onNav }) {
                     {l.text}
                   </span>
                 )
+              ))}
+            </div>
+
+            {/* 접기 손잡이 — 이름표와 **같은 층**(화면 좌표)에 그린다.
+                줌 레이어 안에 두면 축소했을 때 같이 작아져서 누를 수 없다.
+                자식이 있는 노드에만 붙고, 접혀 있으면 자손 수를 달아 준다 —
+                "무엇이 접혀 있는지" 를 숫자로라도 남기지 않으면 사라진 걸로 읽힌다. */}
+            <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:Z.label,overflow:"hidden"}}>
+              {foldChips.map((c) => (
+                <button key={c.id} type="button"
+                  className={`g-fold${c.collapsed ? " is-folded" : ""}`}
+                  aria-label={c.collapsed ? `${c.label} 펴기 (자손 ${c.count}개)` : `${c.label} 접기`}
+                  aria-expanded={!c.collapsed}
+                  title={c.collapsed ? `펴기 — 아래에 ${c.count}개` : "접기"}
+                  onMouseDown={(e)=>e.stopPropagation()}
+                  onClick={()=>toggleCollapse(c.id)}
+                  style={{left:c.x, top:c.y}}>
+                  {c.collapsed ? `+${c.count}` : "−"}
+                </button>
               ))}
             </div>
 
@@ -841,7 +1178,7 @@ export function S06({ onNav }) {
               {[
                 { key:"in",    text:"+", title:"확대",       onClick:()=>zoomByButton(ZOOM.step) },
                 { key:"out",   text:"−", title:"축소",       onClick:()=>zoomByButton(1/ZOOM.step) },
-                { key:"reset", text:"⤾", title:"원래 크기로", onClick:resetView },
+                { key:"reset", text:"⤾", title:"보이는 것에 맞추기", onClick:fitView },
               ].map(b=>(
                 <button key={b.key} title={b.title} onClick={b.onClick}
                   style={{...OVERLAY_SURFACE,borderRadius:12,width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:b.key==="reset"?15:18,fontWeight:600,color:OVERLAY_TEXT.secondary}}>
@@ -855,75 +1192,51 @@ export function S06({ onNav }) {
           </div>
         </div>
 
-        {/* 노드 만들기 — 상세 패널과 같은 자리에 선다. 패널을 둘로 늘리면
-            좁은 화면에서 캔버스가 사라진다. */}
-        {creating && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 추가</span>
-              <button onClick={()=>setCreating(false)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
+        {/* ── 옆 패널 — 자리는 하나다 ────────────────────────────
+            고른 노드가 언제나 이긴다. 만들기·둘러보기는 노드를 고르는 순간
+            비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
+
+        {!sel && panel === "create" && (
+          <GraphPanel title="노드 추가" onClose={closePanel}>
             <NodeEditor
               mode="create"
               nodes={nodes}
               defaultParentId={nodes.find(n=>n.kind==="root")?.id || ""}
               busy={busy}
               onSubmit={handleCreate}
-              onCancel={()=>setCreating(false)}
+              onCancel={closePanel}
             />
-          </div>
+          </GraphPanel>
         )}
 
-        {/* 빈 곳 — 상세·만들기·관계와 같은 자리 */}
-        {gaps && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>빈 곳</span>
-              <button onClick={()=>setGaps(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
-            <GraphGaps
-              state={gaps}
-              onRetry={findGaps}
+        {!sel && panel === "explore" && (
+          <GraphPanel title="둘러보기" onClose={closePanel}>
+            <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
                 sessionStorage.setItem("mbx_doc_type", s.section_type || "");
                 sessionStorage.setItem("mbx_doc_subject", "");
                 onNav("S12");
               }}
+              // 접혀서 지금 안 보이는 노드도 고를 수 있어야 한다. 빈 곳·관계는
+              // 그래프 **전체**를 뒤져 알려 주는데, 골랐을 때 아무 일도 안 일어나면
+              // 알려 준 쪽이 거짓말한 꼴이 된다. selectNode 가 그 위를 펴 준다.
               onPickNode={(id)=>{
-                const n = nodes.find((x)=>x.id===id);
-                if (n) { setGaps(null); setSel(n); }
+                const n = allNodes.find((x)=>x.id===id);
+                if (n) selectNode(n);
               }}
+              onConnect={(from, to)=>actions.connectNodes(from, to)}
+              onGraphChanged={()=>actions.loadGraph(state.session?.user?.id)}
+              onError={(m)=>actions.toast("error", m)}
             />
-          </div>
-        )}
-
-        {/* 관계 찾기 — 상세·만들기와 같은 자리에 선다 */}
-        {links && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>관계 찾기</span>
-              <button onClick={()=>setLinks(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
-            <LinkSuggestions
-              state={links}
-              busyId={linkBusy}
-              onAccept={acceptLink}
-              onSkip={dropLink}
-              onRetry={findLinks}
-            />
-          </div>
+          </GraphPanel>
         )}
 
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 상세</span>
-              <button onClick={()=>setSel(null)} style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
+          <GraphPanel title="노드" onClose={closePanel}>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-              <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${sel.color}, ${sel.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
+              <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
               <div style={{minWidth:0,flex:1}}>
@@ -953,6 +1266,14 @@ export function S06({ onNav }) {
                 </Btn>
               </div>
             )}
+            {/* 이것만 펴기 — 형제 가지를 모두 접어 이 가지 하나에 집중한다.
+                재루팅(다른 화면으로 들어가는 것)이 아니라 제자리에서 접는 것이라
+                전체 그림을 잃지 않고, 되돌리는 길도 늘 같다. */}
+            {!editing && !confirmDelete && foldableIds.has(sel.id) && sel.parentId && (
+              <Btn v="ghost" s="sm" style={{marginTop:8,width:"100%"}} onClick={()=>soloExpand(sel)}>
+                이것만 펴기
+              </Btn>
+            )}
             {editing && (
               <NodeEditor
                 mode="edit"
@@ -977,53 +1298,68 @@ export function S06({ onNav }) {
               <p style={{fontSize:13,color:TDS.textSecondary,lineHeight:1.65,margin:"14px 0 0",wordBreak:"keep-all"}}>{sel.description}</p>
             )}
 
-            <Divider my={16} />
-
-            {/* 출처 — 이 노드가 생기부 어느 문장에서 나왔는지. 고치거나 지우려는
-                순간에는 판단할 근거가 필요하므로 연결·추천보다 위에 둔다. */}
+            {/* ── 구획들 ──────────────────────────────────────────
+                예전에는 출처·연결·추천·코멘트가 끊김 없이 230줄 이어져서, 「수정」을
+                누르려고 끝까지 내려가는 일이 생겼다. 탭이 아니라 디스클로저를 쓰는
+                까닭은 접혀 있어도 제목과 개수가 남기 때문이다 — 탭은 그것이 있다는
+                사실 자체를 감춘다(폐지한 S07 의 4탭이 정확히 그 실패였다). */}
             {!editing && !confirmDelete && (
-              <>
-                {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
-                    문장을 뒤지는 대신 그 글로 데려간다. */}
-                {sel.sectionId ? (
-                  <button
-                    type="button"
-                    className="node-open"
-                    onClick={() => {
-                      sessionStorage.setItem("mbx_doc_id", sel.sectionId);
-                      sessionStorage.setItem("mbx_doc_type", "");
-                      sessionStorage.setItem("mbx_doc_subject", "");
-                      onNav("S12");
-                    }}
-                  >
-                    생기부에서 이 글 열기 →
-                  </button>
-                ) : (
-                  <NodeEvidence nodeId={sel.id} label={sel.label} />
-                )}
-                <Divider my={16} />
-              </>
-            )}
+              <div style={{marginTop:16}}>
+                {/* 출처가 맨 위인 까닭: 고치거나 지우려는 순간에는 판단할 근거가
+                    먼저 필요하다. */}
+                <Section
+                  title="출처"
+                  open={openSections.has("evidence")}
+                  onToggle={()=>toggleSection("evidence")}
+                >
+                  {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
+                      문장을 뒤지는 대신 그 글로 데려간다. */}
+                  {sel.sectionId ? (
+                    <button
+                      type="button"
+                      className="node-open"
+                      onClick={() => {
+                        sessionStorage.setItem("mbx_doc_id", sel.sectionId);
+                        sessionStorage.setItem("mbx_doc_type", "");
+                        sessionStorage.setItem("mbx_doc_subject", "");
+                        onNav("S12");
+                      }}
+                    >
+                      생기부에서 이 글 열기 →
+                    </button>
+                  ) : (
+                    <NodeEvidence nodeId={sel.id} label={sel.label} />
+                  )}
+                </Section>
 
-            {!editing && !confirmDelete && (
-              <>
-                <NodeConnections
-                  node={sel}
-                  edges={edges}
-                  nodes={nodes}
-                  busy={busy}
-                  onConnect={handleConnect}
-                  onDisconnect={handleDisconnect}
-                />
-                <Divider my={16} />
-              </>
-            )}
+                <Section
+                  title="연결"
+                  count={eList.length}
+                  open={openSections.has("links")}
+                  onToggle={()=>toggleSection("links")}
+                >
+                  <NodeConnections
+                    node={sel}
+                    edges={edges}
+                    nodes={nodes}
+                    busy={busy}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
+                  />
+                </Section>
 
-            {/* 가지치기 추천 — 상단 버튼을 누르면 여기에 카드 3개가 뜬다 */}
+                <Section
+                  title="다음 탐구"
+                  count={prune?.items?.length ?? null}
+                  open={openSections.has("prune")}
+                  onToggle={()=>toggleSection("prune")}
+                >
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>가지치기 추천</p>
+              <p style={{fontSize:12,color:TDS.textTertiary,margin:0,lineHeight:1.5,wordBreak:"keep-all"}}>
+                이 노드에서 뻗어 갈 주제를 찾아 줍니다.
+              </p>
               <Btn v="secondary" s="sm" disabled={!!prune?.loading} onClick={()=>runPrune(sel)}>
-                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시 추천" : "추천 받기"}
+                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시" : "추천 받기"}
               </Btn>
             </div>
 
@@ -1041,11 +1377,6 @@ export function S06({ onNav }) {
               </div>
             )}
 
-            {!prune && (
-              <div style={{fontSize:13,color:TDS.textDisabled,marginBottom:12}}>
-                상단의 “가지치기 추천”을 누르면 다음 탐구 방향 3개를 제안합니다.
-              </div>
-            )}
 
             {prune?.items?.map((rec) => {
               const meta = BRANCH_META[rec.type] || BRANCH_META.DEPTH;
@@ -1125,28 +1456,56 @@ export function S06({ onNav }) {
               );
             })}
 
-            <Divider my={16} />
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>코멘트 {comments.length}개</p>
-            </div>
-            {!comments.length ? (
-              <div style={{fontSize:13,color:TDS.textDisabled,padding:"8px 0"}}>아직 코멘트가 없습니다</div>
-            ) : comments.slice(0,3).map((c,i)=>(
-              <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
-                <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>
-                  {c.author?.[0]??"?"}
-                </div>
-                <div style={{minWidth:0,flex:1}}>
-                  <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:2}}>{c.author}</div>
-                  <div style={{fontSize:12,color:TDS.textSecondary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.content}</div>
-                </div>
+                </Section>
+
+                {/* 코멘트 — 이 노드에 달린 것만.
+                    예전에는 `api.comments.list()` 를 전역으로 불러 **모든 노드에 같은
+                    코멘트**가 떴다. 백엔드 코멘트에는 노드 id 가 없고 `target` 이
+                    자유 문자열이라, 지금 이을 수 있는 고리는 이름뿐이다 —
+                    이름이 같은 노드가 둘이면 섞이고 이름을 고치면 끊긴다.
+                    백엔드에 node_id 가 생기면 이 두 줄만 바꾸면 된다. */}
+                <Section
+                  title="코멘트"
+                  count={nodeComments.length}
+                  open={openSections.has("comments")}
+                  onToggle={()=>toggleSection("comments")}
+                >
+                  {!nodeComments.length && (
+                    <p style={{fontSize:12.5,color:TDS.textTertiary,margin:"0 0 10px"}}>
+                      이 노드에 달린 코멘트가 없습니다.
+                    </p>
+                  )}
+                  {nodeComments.slice(0,5).map((c)=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>
+                        {c.author?.[0]??"?"}
+                      </div>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:2}}>{c.author}</div>
+                        <div style={{fontSize:12,color:TDS.textSecondary,lineHeight:1.55,wordBreak:"keep-all"}}>{c.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* 쓰는 자리도 여기다. 다른 화면(S24)으로 보내면 방금 보던 노드와
+                      쓰는 자리가 떨어져서, 무엇에 대해 쓰는 중인지 잊는다. */}
+                  <textarea
+                    className="inp textarea"
+                    style={{minHeight:64,marginTop:2}}
+                    placeholder={`'${sel.label}' 에 남길 말…`}
+                    value={commentDraft}
+                    onChange={(e)=>setCommentDraft(e.target.value)}
+                  />
+                  <Btn
+                    v="secondary" s="sm" style={{marginTop:8,width:"100%"}}
+                    disabled={commentBusy || !commentDraft.trim()}
+                    onClick={submitComment}
+                  >
+                    {commentBusy ? "남기는 중…" : "코멘트 남기기"}
+                  </Btn>
+                </Section>
               </div>
-            ))}
-            <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:10}}>
-              <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S07")}>노드 상세 보기</Btn>
-              <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
-            </div>
-          </div>
+            )}
+          </GraphPanel>
         ); })()}
       </div>
     </div>

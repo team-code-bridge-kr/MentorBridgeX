@@ -2831,6 +2831,120 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .graph-note strong { color:var(--tp); }
 .graph-note em { font-style:normal; font-weight:700; color:var(--primary); }
+.graph-note-act {
+  margin-left:10px; padding:0; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; font-size:12.5px; font-weight:700; color:var(--primary);
+  text-decoration:underline; text-underline-offset:2px;
+}
+
+/* ── 접기 손잡이 ──────────────────────────────────────────
+   이름표와 같은 층(화면 좌표)이라 확대·축소해도 크기가 그대로다. 줌 레이어 안에
+   두면 축소했을 때 같이 작아져서 누를 수 없다.
+
+   재질은 `OVERLAY_SURFACE`(theme/graphMeta.js)와 같아야 한다 — 캔버스 위에 뜨는
+   것은 범례·통계·줌과 한 가족으로 읽혀야 한다. graphMeta.js 를 고치면 여기도 함께.
+   `GRAPH_CANVAS` ↔ `.ctx-graph` 를 지금 맞춰 두는 방식과 같다. */
+.g-fold {
+  position:absolute; transform:translate(-50%,-50%); pointer-events:auto;
+  min-width:20px; height:20px; padding:0 5px; border-radius:9999px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-family:inherit; font-size:11px; font-weight:700; line-height:1;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+  color:var(--ts);
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(15,23,42,.07);
+  box-shadow:0 1px 4px rgba(15,23,42,.10);
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  transition:color .14s, box-shadow .14s;
+}
+.g-fold:hover { color:var(--primary); box-shadow:0 2px 8px rgba(15,23,42,.16); }
+.g-fold.is-folded { color:var(--primary); }
+.g-fold:focus-visible { outline:2px solid var(--blue-500); outline-offset:1px; }
+@media (prefers-reduced-motion:reduce) { .g-fold { transition:none; } }
+
+/* ── 그래프 툴바 ──────────────────────────────────────────
+   `.toolbar` 는 교사 화면(T07)과 공유하므로 밑바탕은 건드리지 않는다.
+   여기만 줄바꿈을 허용한다 — 그래프 툴바는 항목이 많아 좁은 화면에서 넘친다. */
+.toolbar-graph { flex-wrap:wrap; row-gap:8px; }
+/* 「더보기」 안의 설명 줄. 공용 `.pop-item-hint` 는 이름 옆에 붙는 짧은 곁말이라
+   한 줄짜리를 전제하는데, 여기 설명은 문장이라 아래로 내려놓아야 읽힌다. */
+.gpop-item { display:block; width:100%; }
+.gpop-hint {
+  display:block; margin-top:3px; font-size:11.5px; font-weight:500;
+  color:var(--tt); line-height:1.5; word-break:keep-all; white-space:normal;
+}
+.pop-item:disabled { color:var(--td); cursor:default; }
+.pop-item:disabled:hover { background:transparent; }
+
+/* 검색 결과 오가기. 예전에는 첫 번째로만 날아가서 나머지에 갈 길이 없었다. */
+.gsearch-nav { display:flex; align-items:center; gap:2px; margin-left:auto; flex-shrink:0; }
+.gsearch-count {
+  font-size:11.5px; font-weight:700; color:var(--tt);
+  font-variant-numeric:tabular-nums; margin-right:2px;
+}
+.gsearch-nav button {
+  width:20px; height:20px; display:flex; align-items:center; justify-content:center;
+  border:none; border-radius:5px; background:transparent; cursor:pointer;
+  font-family:inherit; font-size:11px; color:var(--ts);
+}
+.gsearch-nav button:hover:not(:disabled) { background:var(--bg1); color:var(--primary); }
+.gsearch-nav button:disabled { color:var(--td); cursor:default; }
+
+/* ── 그래프 옆 패널 ───────────────────────────────────────
+   생기부 리더(`.rd-panel`)와 같은 규칙이다 — 캔버스 **옆에** 붙고 절대 위에
+   띄우지 않는다. 좁은 화면에서는 아래로 나뉜다(패널이 캔버스를 덮으면 안 된다).
+   자리는 하나뿐이라 무엇을 세울지는 S06 의 상태가 정한다. */
+.gbody { flex:1; min-height:0; display:flex; align-items:stretch; overflow:hidden; }
+.gstage { flex:1; min-width:0; padding:20px; overflow:hidden; position:relative; }
+.gpanel {
+  flex:0 0 auto; width:clamp(330px, 30%, 430px);
+  border-left:1px solid var(--brd); background:var(--bg1);
+  overflow-y:auto; padding:18px 18px 28px;
+}
+.gpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
+.gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }
+.gpanel-x {
+  width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  border:none; border-radius:8px; background:var(--bg3); color:var(--ts); cursor:pointer;
+}
+.gpanel-x:hover { background:var(--bg2); color:var(--tp); }
+/* 좁은 화면 — 세로로 나눈다. 패널이 캔버스를 덮으면 안 된다(리더와 같은 규칙). */
+@media (max-width:900px) {
+  .gbody { flex-direction:column; }
+  .gstage { padding:12px; }
+  .gpanel { width:auto; height:46dvh; border-left:none; border-top:1px solid var(--brd); }
+}
+
+/* ── 패널 안의 접히는 구획 ────────────────────────────────
+   탭이 아니라 디스클로저다. 접혀 있어도 제목과 개수가 남으므로 "무엇이 있는지"는
+   늘 보인다 — 탭은 그 사실 자체를 감춘다. */
+.gsec { border-top:1px solid var(--surface-container); }
+.gsec:first-child { border-top:none; }
+.gsec-hd {
+  display:flex; align-items:center; gap:7px; width:100%;
+  padding:11px 0; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; text-align:left;
+}
+.gsec-hd svg { flex-shrink:0; transform:rotate(-90deg); transition:transform .16s ease; }
+.gsec-hd[aria-expanded="true"] svg { transform:rotate(0deg); }
+.gsec-title { font-size:13px; font-weight:700; color:var(--ts); }
+.gsec-count {
+  margin-left:auto; font-size:11.5px; font-weight:700; color:var(--tt);
+  font-variant-numeric:tabular-nums;
+}
+.gsec-hd:hover .gsec-title { color:var(--tp); }
+.gsec-body { padding-bottom:14px; }
+
+/* 그래프 전체 확장 추천 한 줄 */
+.gsug {
+  display:flex; align-items:center; gap:10px; padding:10px 0;
+  border-bottom:1px solid rgba(15,23,42,.07);
+}
+.gsug:last-child { border-bottom:none; }
+
+@media (prefers-reduced-motion:reduce) {
+  .gsec-hd svg { transition:none; }
+}
 
 /* ── 빠른 실행 차림표 ─────────────────────────────────────
    오른쪽 아래 단추 하나에서 위로 펼친다. 항목이 둘뿐이라 부채꼴 대신
