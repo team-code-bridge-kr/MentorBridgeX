@@ -8,6 +8,7 @@ import {
   ancestorsOf, childMapOf, collapsedForDepth, descendantCount,
   hiddenBy, sameSet, strayIdsOf,
 } from "../../lib/graphTree.js";
+import { LABEL_FONT, LABEL_H, placeLabels } from "../../lib/graphLabels.js";
 import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
@@ -17,9 +18,6 @@ import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
 import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
 import { Popover } from "../../components/ui/Popover.jsx";
-
-// 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
-const LABEL_MAX = 14;
 
 // 밝은 판 위의 연결선 색.
 //
@@ -35,31 +33,11 @@ const DIM_OPACITY = 0.34;
 // 선택 라벨 카드가 캔버스 밖으로 나가지 않도록 남겨 두는 좌우 여백(px).
 const LABEL_EDGE_PAD = 90;
 
-/**
- * 라벨 배치.
- *
- * 라벨을 노드 안에 같이 그리면 두 가지가 망가진다. 확대할 때 글자까지 같이
- * 커져서 아무리 확대해도 빽빽함이 그대로고, 이웃 노드의 라벨끼리 겹쳐 무엇도
- * 읽히지 않는다(126개 노드에서 실제로 그랬다).
- *
- * 그래서 라벨은 **줌 바깥의 화면 좌표**에 그리고, 자리가 겹치면 덜 중요한 쪽을
- * 지운다. 확대하면 노드 사이가 벌어지므로 자연스럽게 더 많은 이름이 드러난다 —
- * "확대하면 글자가 나온다"는 게 따로 만든 기능이 아니라 이 규칙의 결과다.
- */
-const LABEL_FONT = 11.5;   // 확대해도 이 크기 그대로다
-const LABEL_H = 19;
-const LABEL_GAP = 5;       // 노드 아래 띄우는 거리
-const LABEL_MARGIN = 3;    // 라벨끼리 최소로 벌리는 거리
-
 // 자동 포커싱 — 고른 노드로 데려갈 때의 최소 배율과 걸리는 시간.
 // 1.35 는 "이름이 읽히기 시작하는" 배율이다. 더 키우면 고른 노드만 남고 둘레가
 // 사라져서, 무엇 옆에 있던 노드인지 알 수 없게 된다.
 const FOCUS_SCALE = 1.35;
 const FLY_MS = 380;
-
-const overlaps = (a, b) =>
-  a.x1 < b.x2 + LABEL_MARGIN && a.x2 + LABEL_MARGIN > b.x1 &&
-  a.y1 < b.y2 + LABEL_MARGIN && a.y2 + LABEL_MARGIN > b.y1;
 
 /**
  * 보던 자리 기억하기 — 접힘·배율·끌어 옮긴 위치.
@@ -439,76 +417,18 @@ export function S06({ onNav }) {
   }, [getPos, canvasBox, view]);
 
   /**
-   * 이번 화면에서 이름을 보여줄 노드들. 중요한 것부터 자리를 잡고, 이미 놓인
-   * 라벨이나 노드와 겹치면 건너뛴다. 노드 자체도 장애물로 둔다 — 남의 이름표가
-   * 동그라미를 덮으면 그 노드가 없는 것처럼 보인다.
+   * 이번 화면에서 이름을 보여줄 노드들.
+   *
+   * 규칙(순위·네 자리·장애물·포기)은 `lib/graphLabels.js` 에 있다. 화면 코드에
+   * 묻혀 있는 동안에는 한 줄도 시험해 볼 수 없었다.
    */
-  const shownLabels = useMemo(() => {
-    if (!canvasBox.w || !nodes.length) return new Map();
-    const rank = (n) => {
-      if (n.id === activeId) return 0;
-      if (matchedSet?.has(n.id)) return 1;
-      if (connectedIds?.has(n.id)) return 2;
-      if (n.kind === "root") return 3;
-      if (n.kind === "topic") return 4;
-      return 5;
-    };
-    const cands = nodes
-      .map((n) => ({ n, s: screenOf(n), rank: rank(n) }))
-      // 화면 밖은 계산에서 뺀다. 안 보이는 자리를 두고 다투게 두면 정작 보이는
-      // 노드의 이름이 밀려난다.
-      .filter(({ s }) => s.x > -80 && s.x < canvasBox.w + 80 && s.y > -40 && s.y < canvasBox.h + 40)
-      // 다 축소한 상태에서는 말단 노드 이름까지 다투게 두지 않는다(지도가 흐려진다).
-      .filter(({ n }) => view.scale >= 0.85 || n.kind !== "leaf" || rank(n) <= 2)
-      .sort((a, b) => a.rank - b.rank || b.n.size - a.n.size);
-
-    // 노드 동그라미부터 장애물로 깔아 둔다.
-    //
-    // 장애물을 격자 칸에 나눠 담아, 후보가 걸치는 칸만 본다. 예전에는 후보마다
-    // 장애물 전부를 훑어서(200×4×최대 200 ≈ 16만 번) 휠 한 틱·팬 한 프레임마다
-    // 그 값을 다시 치렀다. **판정 규칙과 순서는 그대로다** — 보는 범위만 줄인다.
-    // 겹침 판정이 LABEL_MARGIN 만큼 부풀려 보므로 칸을 고를 때도 그만큼 넓게 잡는다.
-    const CELL = 64;
-    const grid = new Map();
-    const eachCell = (b, fn) => {
-      const cx0 = Math.floor((b.x1 - LABEL_MARGIN) / CELL), cx1 = Math.floor((b.x2 + LABEL_MARGIN) / CELL);
-      const cy0 = Math.floor((b.y1 - LABEL_MARGIN) / CELL), cy1 = Math.floor((b.y2 + LABEL_MARGIN) / CELL);
-      for (let cx = cx0; cx <= cx1; cx += 1) for (let cy = cy0; cy <= cy1; cy += 1) {
-        if (fn(`${cx},${cy}`)) return true;
-      }
-      return false;
-    };
-    const addBlock = (b) => { eachCell(b, (k) => { const a = grid.get(k); if (a) a.push(b); else grid.set(k, [b]); return false; }); };
-    const blocked = (b) => eachCell(b, (k) => { const a = grid.get(k); return !!a && a.some((o) => overlaps(b, o)); });
-    for (const { s } of cands) addBlock({ x1: s.x - s.r, x2: s.x + s.r, y1: s.y - s.r, y2: s.y + s.r });
-    const out = new Map();
-    for (const { n, s, rank: r } of cands) {
-      const text = n.label.length > LABEL_MAX ? `${n.label.slice(0, LABEL_MAX)}…` : n.label;
-      const w = text.length * LABEL_FONT * 0.92 + 16;
-      // 아래가 막혔으면 위·오른쪽·왼쪽 순으로 자리를 옮겨 본다. 한 자리만
-      // 보고 포기하면 빽빽한 곳에서 이름이 통째로 사라진다.
-      const spots = [
-        { x: s.x, y: s.y + s.r + LABEL_GAP },
-        { x: s.x, y: s.y - s.r - LABEL_GAP - LABEL_H },
-        { x: s.x + s.r + LABEL_GAP + w / 2, y: s.y - LABEL_H / 2 },
-        { x: s.x - s.r - LABEL_GAP - w / 2, y: s.y - LABEL_H / 2 },
-      ];
-      const boxAt = (p) => ({ x1: p.x - w / 2, x2: p.x + w / 2, y1: p.y, y2: p.y + LABEL_H });
-      let box = spots.map(boxAt).find((b) => !blocked(b));
-      // 지금 보고 있는 노드와 검색에 걸린 노드는 자리가 없어도 반드시 보여준다.
-      if (!box && r <= 1) box = boxAt(spots[0]);
-      if (!box) continue;
-      const top = box.y1;
-      addBlock(box);
-      // 노드가 흐려졌으면 이름표도 같이 흐려져야 한다. 안 그러면 검색해서
-      // 걸러 낸 노드의 이름만 또렷하게 떠 있는다.
-      const dim =
-        (matchedSet && !matchedSet.has(n.id)) ||
-        (connectedIds && n.id !== activeId && !connectedIds.has(n.id));
-      out.set(n.id, { text, left: (box.x1 + box.x2) / 2, top, dim: !!dim });
-    }
-    return out;
-  }, [nodes, canvasBox, screenOf, view.scale, activeId, matchedSet, connectedIds]);
+  const shownLabels = useMemo(
+    () => placeLabels({
+      nodes, screenOf, canvas: canvasBox, scale: view.scale,
+      activeId, matchedSet, connectedIds,
+    }),
+    [nodes, canvasBox, screenOf, view.scale, activeId, matchedSet, connectedIds],
+  );
 
   /**
    * 접기 손잡이의 자리와 내용.

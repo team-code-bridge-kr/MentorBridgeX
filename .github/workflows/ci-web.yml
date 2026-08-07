@@ -1,0 +1,52 @@
+name: CI — Web (React)
+
+# 웹(`apps/web`)을 검사하는 워크플로가 여태 없었다. 백엔드·플러터는 있는데
+# 화면만 아무도 안 보고 있어서, 빌드가 깨진 채로 머지돼도 알 길이 없었다.
+
+on:
+  push:
+    branches: ["develop", "main", "shared/**", "fix/**", "feat/**", "release/**"]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/ci-web.yml"
+  pull_request:
+    branches: ["develop", "main"]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/ci-web.yml"
+
+concurrency:
+  group: ci-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # 그래프 화면은 jsdom 에서 진짜로 마운트해서 눌러 본다. 빌드는 문법과
+      # import 만 보므로, "고른 노드가 도로 풀리는" 따위는 여기서만 잡힌다.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
