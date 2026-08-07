@@ -8,13 +8,13 @@ import {
   ancestorsOf, childMapOf, collapsedForDepth, descendantCount,
   hiddenBy, sameSet, strayIdsOf,
 } from "../../lib/graphTree.js";
-import { Btn, Badge, Divider } from "../../components/ui.jsx";
+import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 import { showLoading, withLoading } from "../../components/LoadingDock.jsx";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
-import { GraphPanel } from "../../components/graph/GraphPanel.jsx";
+import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
 import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
 import { Popover } from "../../components/ui/Popover.jsx";
 
@@ -266,6 +266,25 @@ export function S06({ onNav }) {
   // 툴바의 「더보기」 — 자주 안 쓰는 것들을 여기로 넣었다.
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef(null);
+  /**
+   * 노드 패널에서 펴 둔 구획.
+   *
+   * **노드별이 아니라 구획별로** 기억한다. 코멘트를 안 쓰는 학생은 한 번 접으면
+   * 노드를 옮겨 다녀도 계속 접혀 있어야 한다 — 노드마다 따로 기억하면 새 노드를
+   * 고를 때마다 접었던 것이 되살아난다.
+   */
+  const [openSections, setOpenSections] = useState(
+    () => new Set(readSaved()?.sections ?? ["evidence", "links"]),
+  );
+  const toggleSection = useCallback((key) => {
+    setOpenSections((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -349,12 +368,12 @@ export function S06({ onNav }) {
     const t = setTimeout(() => {
       try {
         sessionStorage.setItem(VIEW_KEY, JSON.stringify({
-          collapsed: [...collapsed], view, positions,
+          collapsed: [...collapsed], view, positions, sections: [...openSections],
         }));
       } catch { /* 저장 공간이 없으면 기억하지 않을 뿐, 화면은 그대로 돈다 */ }
     }, 300);
     return () => clearTimeout(t);
-  }, [collapsed, view, positions]);
+  }, [collapsed, view, positions, openSections]);
 
   // 선이 하나도 없는 노드. 예전 화면은 가지를 지어내 이어진 것처럼 보였는데,
   // 이제 진짜 선만 그리니 드러난다. 감추지 말고 세어서 알려 준다 — 한 번
@@ -756,6 +775,37 @@ export function S06({ onNav }) {
       setBusy(false);
     }
   }, [sel, actions]);
+
+  /**
+   * 이 노드에 달린 코멘트.
+   *
+   * 백엔드 코멘트에는 노드 id 가 없다 — `target` 이 자유 문자열이라 이름으로
+   * 잇는 수밖에 없다. **취약하다**(이름이 같은 노드가 둘이면 섞이고, 이름을
+   * 고치면 끊긴다). 그래도 모든 노드에 같은 코멘트를 뿌리던 것보다는 낫다.
+   * 백엔드에 node_id 가 생기면 여기와 `submitComment` 두 곳만 고치면 된다.
+   */
+  const nodeComments = useMemo(
+    () => (sel ? comments.filter((c) => c.target === sel.label) : []),
+    [comments, sel],
+  );
+
+  // 노드를 옮기면 쓰던 초안은 버린다 — 남겨 두면 엉뚱한 노드에 달린다.
+  useEffect(() => { setCommentDraft(""); }, [sel?.id]);
+
+  const submitComment = useCallback(async () => {
+    const content = commentDraft.trim();
+    if (!sel || !content) return;
+    setCommentBusy(true);
+    try {
+      const created = await api.comments.create({ content, type: "그래프", target: sel.label });
+      setComments((cur) => [created, ...cur]);
+      setCommentDraft("");
+    } catch (e) {
+      actions.toast("error", e.message || "코멘트를 남기지 못했습니다.");
+    } finally {
+      setCommentBusy(false);
+    }
+  }, [commentDraft, sel, actions]);
 
   const handleConnect = useCallback(async (targetId) => {
     if (!sel) return;
@@ -1248,53 +1298,68 @@ export function S06({ onNav }) {
               <p style={{fontSize:13,color:TDS.textSecondary,lineHeight:1.65,margin:"14px 0 0",wordBreak:"keep-all"}}>{sel.description}</p>
             )}
 
-            <Divider my={16} />
-
-            {/* 출처 — 이 노드가 생기부 어느 문장에서 나왔는지. 고치거나 지우려는
-                순간에는 판단할 근거가 필요하므로 연결·추천보다 위에 둔다. */}
+            {/* ── 구획들 ──────────────────────────────────────────
+                예전에는 출처·연결·추천·코멘트가 끊김 없이 230줄 이어져서, 「수정」을
+                누르려고 끝까지 내려가는 일이 생겼다. 탭이 아니라 디스클로저를 쓰는
+                까닭은 접혀 있어도 제목과 개수가 남기 때문이다 — 탭은 그것이 있다는
+                사실 자체를 감춘다(폐지한 S07 의 4탭이 정확히 그 실패였다). */}
             {!editing && !confirmDelete && (
-              <>
-                {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
-                    문장을 뒤지는 대신 그 글로 데려간다. */}
-                {sel.sectionId ? (
-                  <button
-                    type="button"
-                    className="node-open"
-                    onClick={() => {
-                      sessionStorage.setItem("mbx_doc_id", sel.sectionId);
-                      sessionStorage.setItem("mbx_doc_type", "");
-                      sessionStorage.setItem("mbx_doc_subject", "");
-                      onNav("S12");
-                    }}
-                  >
-                    생기부에서 이 글 열기 →
-                  </button>
-                ) : (
-                  <NodeEvidence nodeId={sel.id} label={sel.label} />
-                )}
-                <Divider my={16} />
-              </>
-            )}
+              <div style={{marginTop:16}}>
+                {/* 출처가 맨 위인 까닭: 고치거나 지우려는 순간에는 판단할 근거가
+                    먼저 필요하다. */}
+                <Section
+                  title="출처"
+                  open={openSections.has("evidence")}
+                  onToggle={()=>toggleSection("evidence")}
+                >
+                  {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
+                      문장을 뒤지는 대신 그 글로 데려간다. */}
+                  {sel.sectionId ? (
+                    <button
+                      type="button"
+                      className="node-open"
+                      onClick={() => {
+                        sessionStorage.setItem("mbx_doc_id", sel.sectionId);
+                        sessionStorage.setItem("mbx_doc_type", "");
+                        sessionStorage.setItem("mbx_doc_subject", "");
+                        onNav("S12");
+                      }}
+                    >
+                      생기부에서 이 글 열기 →
+                    </button>
+                  ) : (
+                    <NodeEvidence nodeId={sel.id} label={sel.label} />
+                  )}
+                </Section>
 
-            {!editing && !confirmDelete && (
-              <>
-                <NodeConnections
-                  node={sel}
-                  edges={edges}
-                  nodes={nodes}
-                  busy={busy}
-                  onConnect={handleConnect}
-                  onDisconnect={handleDisconnect}
-                />
-                <Divider my={16} />
-              </>
-            )}
+                <Section
+                  title="연결"
+                  count={eList.length}
+                  open={openSections.has("links")}
+                  onToggle={()=>toggleSection("links")}
+                >
+                  <NodeConnections
+                    node={sel}
+                    edges={edges}
+                    nodes={nodes}
+                    busy={busy}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
+                  />
+                </Section>
 
-            {/* 가지치기 추천 — 상단 버튼을 누르면 여기에 카드 3개가 뜬다 */}
+                <Section
+                  title="다음 탐구"
+                  count={prune?.items?.length ?? null}
+                  open={openSections.has("prune")}
+                  onToggle={()=>toggleSection("prune")}
+                >
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>가지치기 추천</p>
+              <p style={{fontSize:12,color:TDS.textTertiary,margin:0,lineHeight:1.5,wordBreak:"keep-all"}}>
+                이 노드에서 뻗어 갈 주제를 찾아 줍니다.
+              </p>
               <Btn v="secondary" s="sm" disabled={!!prune?.loading} onClick={()=>runPrune(sel)}>
-                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시 추천" : "추천 받기"}
+                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시" : "추천 받기"}
               </Btn>
             </div>
 
@@ -1312,11 +1377,6 @@ export function S06({ onNav }) {
               </div>
             )}
 
-            {!prune && (
-              <div style={{fontSize:13,color:TDS.textDisabled,marginBottom:12}}>
-                상단의 “가지치기 추천”을 누르면 다음 탐구 방향 3개를 제안합니다.
-              </div>
-            )}
 
             {prune?.items?.map((rec) => {
               const meta = BRANCH_META[rec.type] || BRANCH_META.DEPTH;
@@ -1396,29 +1456,55 @@ export function S06({ onNav }) {
               );
             })}
 
-            <Divider my={16} />
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <p style={{fontSize:12,fontWeight:600,color:TDS.textTertiary,margin:0}}>코멘트 {comments.length}개</p>
-            </div>
-            {!comments.length ? (
-              <div style={{fontSize:13,color:TDS.textDisabled,padding:"8px 0"}}>아직 코멘트가 없습니다</div>
-            ) : comments.slice(0,3).map((c,i)=>(
-              <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
-                <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>
-                  {c.author?.[0]??"?"}
-                </div>
-                <div style={{minWidth:0,flex:1}}>
-                  <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:2}}>{c.author}</div>
-                  <div style={{fontSize:12,color:TDS.textSecondary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.content}</div>
-                </div>
+                </Section>
+
+                {/* 코멘트 — 이 노드에 달린 것만.
+                    예전에는 `api.comments.list()` 를 전역으로 불러 **모든 노드에 같은
+                    코멘트**가 떴다. 백엔드 코멘트에는 노드 id 가 없고 `target` 이
+                    자유 문자열이라, 지금 이을 수 있는 고리는 이름뿐이다 —
+                    이름이 같은 노드가 둘이면 섞이고 이름을 고치면 끊긴다.
+                    백엔드에 node_id 가 생기면 이 두 줄만 바꾸면 된다. */}
+                <Section
+                  title="코멘트"
+                  count={nodeComments.length}
+                  open={openSections.has("comments")}
+                  onToggle={()=>toggleSection("comments")}
+                >
+                  {!nodeComments.length && (
+                    <p style={{fontSize:12.5,color:TDS.textTertiary,margin:"0 0 10px"}}>
+                      이 노드에 달린 코멘트가 없습니다.
+                    </p>
+                  )}
+                  {nodeComments.slice(0,5).map((c)=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>
+                        {c.author?.[0]??"?"}
+                      </div>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontSize:12,fontWeight:700,color:TDS.textPrimary,marginBottom:2}}>{c.author}</div>
+                        <div style={{fontSize:12,color:TDS.textSecondary,lineHeight:1.55,wordBreak:"keep-all"}}>{c.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* 쓰는 자리도 여기다. 다른 화면(S24)으로 보내면 방금 보던 노드와
+                      쓰는 자리가 떨어져서, 무엇에 대해 쓰는 중인지 잊는다. */}
+                  <textarea
+                    className="inp textarea"
+                    style={{minHeight:64,marginTop:2}}
+                    placeholder={`'${sel.label}' 에 남길 말…`}
+                    value={commentDraft}
+                    onChange={(e)=>setCommentDraft(e.target.value)}
+                  />
+                  <Btn
+                    v="secondary" s="sm" style={{marginTop:8,width:"100%"}}
+                    disabled={commentBusy || !commentDraft.trim()}
+                    onClick={submitComment}
+                  >
+                    {commentBusy ? "남기는 중…" : "코멘트 남기기"}
+                  </Btn>
+                </Section>
               </div>
-            ))}
-            {/* "노드 상세 보기"(S07) 단추는 걷어냈다 — 그 화면은 어떤 노드를 눌러도
-                "양자컴퓨팅"이 뜨는 하드코딩 목업이었다. 지금 읽고 있는 이 패널이
-                진짜 상세다(§14: 고치기는 그래프 화면 안에서 한다). */}
-            <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:10}}>
-              <Btn v="secondary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
-            </div>
+            )}
           </GraphPanel>
         ); })()}
       </div>
