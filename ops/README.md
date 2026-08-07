@@ -39,6 +39,21 @@ GitHub develop  ──(2분마다 서버가 당김)──▶  홈서버
 
 바뀐 것이 없으면 **아무것도 적지 않는다.** 로그에 줄이 생겼다는 건 뭔가 했다는 뜻이다.
 
+## Node 판
+
+저장소 뿌리의 **`.nvmrc` 가 정답**이다(지금 `24`). CI(`ci-web.yml`)도 24 를 쓰고,
+`ops/auto-deploy.sh` 도 이 파일을 읽어 같은 판을 고른다.
+
+맞추지 않으면 조용히 지나가다 배포에서만 터진다. 실제로:
+
+- **npm 10(Node 20)** 은 이 저장소의 락파일을 못 읽는다 —
+  `npm ci` 가 `EUSAGE … Missing: esbuild@0.28.1 from lock file` 로 죽는다.
+  락파일이 잘못된 게 아니라 npm 10 이 vitest 아래 중첩된 의존성을 다르게 다룬다.
+- **jsdom 30** 은 Node 22+ 를 요구한다. Node 20 에서는 테스트가 아예 못 뜬다
+  (`webidl.util.markAsUncloneable is not a function`).
+
+새로 서버를 세운다면 `nvm install $(cat .nvmrc)` 부터.
+
 ## 조심할 것
 
 - **빌드가 실패하면 옛 `dist` 를 그대로 둔다.** 반쯤 부서진 화면을 내보내는 것보다

@@ -19,8 +19,16 @@
 set -uo pipefail
 
 # cron 은 로그인 셸이 아니라서 PATH 가 /usr/bin:/bin 뿐이다. node 는 nvm 안에
-# 있어 그대로는 `npm: not found` 로 조용히 실패한다 — 처음 붙였을 때 실제로
-# 그랬다. 여기서 직접 찾아 붙인다.
+# 있어 그대로는 `npm: not found` 로 조용히 실패한다 — 처음 붙였을 때 실제로 그랬다.
+#
+# 어느 판을 쓸지는 **`.nvmrc` 가 정한다.** 아무거나 잡으면 CI 와 다른 판으로
+# 빌드하게 되고, 그 차이는 조용히 지나가다 배포에서만 터진다(실제로 npm 10 은
+# 이 저장소의 락파일을 못 읽어 `npm ci` 가 EUSAGE 로 죽는다).
+_want=$(cat "${MBX_REPO:-/home/activejang/MentorBridgeX}/.nvmrc" 2>/dev/null | tr -d ' \n')
+for d in "$HOME"/.nvm/versions/node/v${_want}.*/bin; do
+  [ -x "$d/npm" ] && PATH="$d:$PATH"
+done
+export PATH
 if ! command -v npm >/dev/null 2>&1; then
   for d in "$HOME"/.nvm/versions/node/*/bin; do
     [ -x "$d/npm" ] && PATH="$d:$PATH"
@@ -76,6 +84,7 @@ log "== ${before:0:7} → ${after:0:7} ($(git log -1 --pretty=%s | cut -c1-60))"
 
 ok=1
 if grep -q '^apps/web/' <<<"$changed"; then
+  log "   node $(node -v 2>/dev/null) / npm $(npm -v 2>/dev/null)"
   if grep -q '^apps/web/package-lock.json$' <<<"$changed"; then
     log "   의존성 바뀜 → npm ci"
     (cd apps/web && npm ci --silent) >>"$LOG" 2>&1 || { log "   !! npm ci 실패"; ok=0; }
