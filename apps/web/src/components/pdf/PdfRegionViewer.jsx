@@ -165,7 +165,7 @@ export function PdfRegionViewer({ file, onRegions }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [zoomed]);
 
-  if (state.status === "loading") return <div className="rs-empty">PDF 를 여는 중…</div>;
+  if (state.status === "loading") return <div className="rs-empty" />;
   if (state.status === "error")
     return <div className="rs-empty" style={{ color: "var(--danger)" }}>PDF 를 열지 못했습니다. {state.message}</div>;
   if (state.status === "scanned")

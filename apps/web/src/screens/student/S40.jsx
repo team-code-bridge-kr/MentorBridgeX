@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import { Btn } from "../../components/ui.jsx";
 
 // 계열 표시 순서 — 이공계 학생이 다수라 앞에 둔다
@@ -52,7 +53,11 @@ export function S40({ onNav }) {
     }
   };
 
-  if (loading) return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
+  // 화면을 비우고 문구는 알림에 맡긴다. 여기저기 다른 말로 적으면 같은
+  // 기다림이 화면마다 달라 보인다.
+  useLoading(loading, "학과 목록을 불러오는 중이에요…");
+
+  if (loading) return <div className="rs-wrap" />;
 
   return (
     <div className="rs-wrap">

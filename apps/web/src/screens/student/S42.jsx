@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import { Btn } from "../../components/ui.jsx";
 
 export function S42({ onNav }) {
@@ -60,7 +61,11 @@ export function S42({ onNav }) {
   const preset = keywords.filter((k) => k.source === "preset");
   const manual = keywords.filter((k) => k.source === "manual");
 
-  if (loading) return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
+  // 화면을 비우고 문구는 알림에 맡긴다. 여기저기 다른 말로 적으면 같은
+  // 기다림이 화면마다 달라 보인다.
+  useLoading(loading, "관심 키워드를 불러오는 중이에요…");
+
+  if (loading) return <div className="rs-wrap" />;
 
   return (
     <div className="rs-wrap">

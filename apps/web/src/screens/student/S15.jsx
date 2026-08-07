@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Empty } from "../../components/ui.jsx";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import { openVoiceDock } from "../../components/voice/VoiceDock.jsx";
 import { RenameField } from "../../components/dashboard/RenameField.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
@@ -10,6 +11,7 @@ import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 export function S15({ onNav }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  useLoading(loading, "녹음 목록을 불러오는 중이에요…");
   const [err, setErr] = useState("");
   const [renaming, setRenaming] = useState(null);
   const stType = { 완료: "green", "검토 대기": "orange", "녹음 중": "blue" };
@@ -57,7 +59,6 @@ export function S15({ onNav }) {
         <Btn v="primary" onClick={startNew}><TFI>🎙️</TFI> 새 녹음 시작</Btn>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}
-      {loading && <div style={{ color: TDS.textTertiary }}>불러오는 중…</div>}
       {!loading && !sessions.length && (
         <Empty
           title="아직 녹음 세션이 없습니다."

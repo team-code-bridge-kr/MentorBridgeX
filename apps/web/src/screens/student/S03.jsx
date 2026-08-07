@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import { useOnboarding } from "../../hooks/useOnboarding.js";
 import { homeForStudent } from "../../lib/onboardingData.js";
 import { Shell } from "../../components/onboarding/Shell.jsx";
@@ -112,19 +113,15 @@ export function S03({ onNav }) {
   }, []);
 
   const total = role === "student" ? STUDENT_STEPS : role ? SHORT_STEPS : 0;
+  useLoading(loading || step === null, "온보딩을 준비하는 중이에요…");
+
   const errorLine = error ? (
     <p className="ob-warn" role="alert">
       {error}
     </p>
   ) : null;
 
-  if (loading || step === null) {
-    return (
-      <div className="ob-wrap">
-        <div className="ob-card ob-card-loading">불러오는 중…</div>
-      </div>
-    );
-  }
+  if (loading || step === null) return <div className="ob-wrap" />;
 
   /* ── STEP 0 역할 ─────────────────────────────────────── */
   if (step === 0) {

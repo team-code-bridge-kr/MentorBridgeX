@@ -55,6 +55,21 @@ export async function withLoading(message, run, options) {
   }
 }
 
+/**
+ * 조건이 참인 동안만 알림을 띄운다.
+ *
+ * 화면마다 `if (loading) return <div>불러오는 중…</div>` 을 따로 쓰면 문구도
+ * 모양도 제각각이 되고, 무엇보다 그 화면이 **통째로 사라진다** — 사이드바만
+ * 남은 빈 화면은 고장으로 읽힌다. 있던 것은 그대로 두고 알림만 얹는다.
+ */
+export function useLoading(active, message, options) {
+  const center = options?.center;
+  useEffect(() => {
+    if (!active) return undefined;
+    return showLoading(message, center ? { center } : undefined);
+  }, [active, message, center]);
+}
+
 export function LoadingDock() {
   const [items, setItems] = useState([]);
 

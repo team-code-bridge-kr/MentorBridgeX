@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { Btn, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 
 export function S14({ onNav }) {
   const [job, setJob] = useState(null);
+  useLoading(!job, "파싱 결과를 불러오는 중이에요…");
   const [sel, setSel] = useState(new Set());
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,7 +79,7 @@ export function S14({ onNav }) {
       <div style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 20 }}>
         {job
           ? `${job.result?.page_count ?? "?"}페이지 · 키워드 ${tokens.length}개 · 영역 ${job.result?.sections_parsed ?? 0}개`
-          : "결과를 불러오는 중…"}
+          : ""}
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
       {job?.status === "failed" && <Notice type="danger">{job.error || "처리 실패"}</Notice>}

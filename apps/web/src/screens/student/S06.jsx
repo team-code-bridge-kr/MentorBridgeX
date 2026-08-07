@@ -668,7 +668,8 @@ export function S06({ onNav }) {
 
             {loading && (
               <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:OVERLAY_TEXT.tertiary,zIndex:Z.loading}}>
-                <div className="spinner" /><div style={{fontSize:13}}>그래프 불러오는 중…</div>
+                {/* 문구는 아래 알림이 맡는다. 여기까지 적으면 같은 말이 두 번이다. */}
+                <div className="spinner" />
               </div>
             )}
             {!loading && !nodes.length && (

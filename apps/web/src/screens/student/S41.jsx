@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import { ArticleVisual } from "../../components/research/ArticleVisual.jsx";
 import { DateRangeFilter } from "../../components/research/DateRangeFilter.jsx";
 import { InterestKeywordSection } from "../../components/research/InterestKeywordSection.jsx";
@@ -302,13 +303,14 @@ export function S41({ onNav }) {
   }, [firstId]);
   const featured = featuredIds.map((id) => feed.items.find((i) => i.id === id)).filter(Boolean);
   const idSet = new Set(featuredIds);
+  // 문구는 알림에 맡긴다. 화면마다 다른 말로 적으면 같은 기다림이 달라 보인다.
+  useLoading(!checkedProfile, "탐구 피드를 불러오는 중이에요…");
+
   const hero = featured[0] || null;
   const cards = featured.slice(1);
   const rest = feed.items.filter((i) => !idSet.has(i.id));
 
-  if (!checkedProfile) {
-    return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
-  }
+  if (!checkedProfile) return <div className="rs-wrap" />;
 
   return (
     <div className="rs-wrap">

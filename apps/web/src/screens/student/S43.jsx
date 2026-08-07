@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import api from "../../api/index.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 
 export function S43({ onNav }) {
   const [terms, setTerms] = useState([]);
@@ -39,7 +40,11 @@ export function S43({ onNav }) {
     }
   };
 
-  if (loading) return <div className="rs-wrap"><div className="rs-empty">불러오는 중…</div></div>;
+  // 화면을 비우고 문구는 알림에 맡긴다. 여기저기 다른 말로 적으면 같은
+  // 기다림이 화면마다 달라 보인다.
+  useLoading(loading, "읽은 글에서 개념을 뽑는 중이에요…");
+
+  if (loading) return <div className="rs-wrap" />;
 
   if (!readCount) {
     return (

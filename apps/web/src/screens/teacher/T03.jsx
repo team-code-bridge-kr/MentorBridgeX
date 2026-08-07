@@ -4,11 +4,20 @@ import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import { timeAgo } from "../../utils/time.js";
+import { useLoading } from "../../components/LoadingDock.jsx";
 
 export function T03({ onNav }) {
   const { state, actions } = useStore();
   const students = state.students;
-  useEffect(()=>{ if(!students.length) actions.loadStudents(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
+  // 예전에는 목록이 비면 무조건 "불러오는 중…" 이라고 적었다. 담당 학생이 정말
+  // 없는 교사에게는 영영 끝나지 않는 것처럼 보인다 — 둘을 구별한다.
+  const [loading, setLoading] = useState(!students.length);
+  useEffect(()=>{
+    if (students.length) { setLoading(false); return; }
+    actions.loadStudents(state.session?.user?.id).finally(()=>setLoading(false));
+    /* eslint-disable-next-line */
+  }, []);
+  useLoading(loading, "담당 학생을 불러오는 중이에요…");
   const stType={활발:"green",보통:"grey",낮음:"orange"};
   const open = (s) => { actions.selectStudent(s); onNav("T07"); };
   const pendingComments = state.comments.filter(c=>!c.replied).length;
@@ -33,7 +42,11 @@ export function T03({ onNav }) {
               <Badge t={stType[s.activity]}>{s.activity}</Badge>
             </div>
           ))}
-          {!students.length && <div style={{padding:"24px 0",textAlign:"center",color:TDS.textTertiary,fontSize:13}}>불러오는 중…</div>}
+          {!students.length && !loading && (
+            <div style={{padding:"24px 0",textAlign:"center",color:TDS.textTertiary,fontSize:13}}>
+              아직 담당 학생이 없습니다.
+            </div>
+          )}
         </Card>
         <Card>
           <div className="card-hdr">

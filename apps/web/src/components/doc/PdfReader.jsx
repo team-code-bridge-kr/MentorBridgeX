@@ -545,9 +545,8 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
   if (err || !doc || !pages) {
     return (
       <div className="rd">
-        <div className="rs-empty" style={err ? { color: "var(--danger)" } : undefined}>
-          {err || "생기부를 읽는 중…"}
-        </div>
+        {/* 읽는 동안의 문구는 아래 알림이 맡는다. 여기서는 오류만 말한다. */}
+        {err && <div className="rs-empty" style={{ color: "var(--danger)" }}>{err}</div>}
       </div>
     );
   }

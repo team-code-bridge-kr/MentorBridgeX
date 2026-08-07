@@ -51,7 +51,7 @@ export function T02({ onNav }) {
         <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>처리 타임라인</div>
         {[
           {s:"완료",t:"신청 접수",d:submittedStr},
-          {s:approved||rejected?"완료":"진행",t:"서류 검토",d:approved||rejected?"완료":"검토 중..."},
+          {s:approved||rejected?"완료":"진행",t:"서류 검토",d:approved||rejected?"완료":"검토 중…"},
           {s:approved?"완료":rejected?"완료":"대기",t:approved?"승인 완료":rejected?"반려됨":"관리자 확인",d:approved||rejected?"완료":"대기"},
         ].map((item,i)=>(
           <div key={i} style={{display:"flex",gap:12,padding:"8px 0"}}>

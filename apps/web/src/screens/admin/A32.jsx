@@ -63,7 +63,7 @@ export function A32({ onNav }) {
       {step===3&&(
         <div className="card card-p" style={{textAlign:"center",padding:"32px"}}>
           <div style={{fontSize:32,marginBottom:12}}>⏳</div>
-          <div style={{fontSize:15,fontWeight:700}}>디버깅 세션 생성 중...</div>
+          <div style={{fontSize:15,fontWeight:700}}>디버깅 세션 생성 중…</div>
           <div style={{fontSize:12,color:TDS.textTertiary,marginTop:8,marginBottom:24}}>세션 ID: DBG-2026-0120-001</div>
           <Btn v="primary" s="md" onClick={()=>setStep(4)}>완료 확인</Btn>
         </div>
