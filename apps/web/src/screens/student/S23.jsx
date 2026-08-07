@@ -1,3 +1,14 @@
+/**
+ * S23 가지치기/확장 추천 — **잠들어 있다.** 기능은 살아서 자리를 옮겼다.
+ *
+ * 여기 쓰는 API(`api.graph.pruneSuggestions` / `acceptSuggestion`)는 진짜지만,
+ * 이 화면은 원래도 사이드바에서 닿지 않는 고아였다(디버그 화면 고르개로만 열렸다).
+ * 같은 기능이 이제 그래프 화면의 **둘러보기 패널 → "넓혀 볼 만한 주제"** 에 있다
+ * (`components/graph/GraphExplore.jsx`). 추천은 그래프를 **보면서** 판단하는
+ * 것이라, 그림이 없는 화면에 따로 두면 무엇에 뻗는 가지인지 알 수 없다.
+ *
+ * 이 파일은 나중에 "추천만 몰아 보는 자리"가 필요해질 때를 위해 남긴다.
+ */
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
 import { Btn, Notice } from "../../components/ui.jsx";

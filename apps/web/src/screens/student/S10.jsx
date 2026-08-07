@@ -1,3 +1,13 @@
+/**
+ * S10 그래프 변경 이력 — **잠들어 있다.** 툴바에서 이 화면으로 가던 길을 걷어냈다.
+ *
+ * 아래 `logs` 는 2026-01 로 박힌 가짜 여섯 줄이고, 필터 알약에는 onClick 이 아예
+ * 없다. 그리고 **백엔드에 이력 엔드포인트가 없다** — 노드·엣지의 변경을 기록하는
+ * 곳이 어디에도 없으므로 이 화면은 진짜가 될 수 없었다.
+ *
+ * 되살리려면 백엔드가 먼저 변경을 남겨야 한다. 그때는 이 화면이 아니라 노드
+ * 패널의 한 구획으로 돌아오는 편이 낫다 — 이력은 그 노드를 보면서 읽는 것이다.
+ */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";

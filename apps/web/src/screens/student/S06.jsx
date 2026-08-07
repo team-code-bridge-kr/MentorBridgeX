@@ -10,8 +10,9 @@ import api from "../../api/index.js";
 import { showLoading, withLoading } from "../../components/LoadingDock.jsx";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
-import { LinkSuggestions } from "../../components/graph/LinkSuggestions.jsx";
-import { GraphGaps } from "../../components/graph/GraphGaps.jsx";
+import { GraphPanel } from "../../components/graph/GraphPanel.jsx";
+import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
+import { Popover } from "../../components/ui/Popover.jsx";
 
 // 라벨 pill 이 지나치게 길어지지 않도록 자르는 기준 (전체 문구는 title 로 노출).
 const LABEL_MAX = 14;
@@ -170,15 +171,24 @@ export function S06({ onNav }) {
   const [research, setResearch] = useState({});
   // '이 주제로 확장' 진행 중인 추천 id
   const [expanding, setExpanding] = useState(null);
-  // 노드 직접 만들기·고치기·지우기.
-  // AI 가 뽑아 준 결과가 늘 맞지는 않는다 — 학생이 그 자리에서 고칠 수 없으면
-  // 그래프는 남의 것이 된다. 그래서 편집을 그래프 화면 안에 둔다.
-  const [creating, setCreating] = useState(false);
-  // 이어 볼 만한 짝 — { loading, error, items }
-  const [links, setLinks] = useState(null);
-  const [linkBusy, setLinkBusy] = useState(null);
-  // 빈 곳 — { loading, error, empty_subjects, lonely_nodes, faded_topics }
-  const [gaps, setGaps] = useState(null);
+  /**
+   * 옆 패널에 무엇을 세울지 — `null | "create" | "explore"`.
+   *
+   * 노드를 고르면(`sel`) 그것이 **언제나 이깁니다**. 그래서 패널 자리를 다투는
+   * 상태가 사실상 하나뿐이고, 둘이 나란히 설 방법이 없다.
+   *
+   * 예전에는 만들기·빈 곳·관계·상세가 저마다 독립된 boolean 이었고 서로
+   * 배타적이라는 것을 "각 핸들러가 나머지를 꺼 준다"는 관례로만 지켰다. 관례를
+   * 안 지키는 경로(라벨 클릭, 노드 추가)로 들어가면 패널이 둘 서서 720px 를 먹고
+   * 좁은 화면에서 캔버스가 사라졌다.
+   *
+   * 노드 만들기·고치기·지우기를 그래프 화면 안에 두는 까닭: AI 가 뽑아 준 결과가
+   * 늘 맞지는 않는데 그 자리에서 고칠 수 없으면 그래프는 남의 것이 된다.
+   */
+  const [panel, setPanel] = useState(null);
+  // 툴바의 「더보기」 — 자주 안 쓰는 것들을 여기로 넣었다.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -199,6 +209,20 @@ export function S06({ onNav }) {
   // 자동 포커싱은 "선택이 바뀔 때만" 돌아야 한다. positions 를 의존성에 넣으면
   // 노드를 끌 때마다 화면이 따라 움직인다.
   const positionsRef = useRef(positions);
+
+  /** 노드 고르기. 같은 노드를 다시 누르면 닫는다. 만들기·둘러보기는 자리를 비켜 준다. */
+  const selectNode = useCallback((n) => {
+    setPanel(null);
+    setSel((cur) => (cur?.id === n.id ? null : n));
+  }, []);
+
+  /** 옆 패널을 만들기/둘러보기로 세운다. 고른 노드는 놓는다 — 자리는 하나다. */
+  const openPanel = useCallback((which) => {
+    setSel(null);
+    setPanel((cur) => (cur === which ? null : which));
+  }, []);
+
+  const closePanel = useCallback(() => { setSel(null); setPanel(null); }, []);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!allNodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
@@ -402,9 +426,9 @@ export function S06({ onNav }) {
     if (!d) return;
     if (!d.moved) {
       const n = nodes.find(n=>n.id===d.id);
-      if (n) { setLinks(null); setGaps(null); setSel(s => s?.id===n.id ? null : n); }
+      if (n) selectNode(n);
     }
-  }, [nodes]);
+  }, [nodes, selectNode]);
 
   // ── 줌 · 팬 ─────────────────────────────────────────────
   useEffect(() => { viewRef.current = view; }, [view]);
@@ -470,15 +494,28 @@ export function S06({ onNav }) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sel?.id]);
 
-  // 검색해서 걸린 것이 있으면 첫 노드로 데려간다. 찾았는데 화면 밖에 있으면
-  // 찾은 것이 아니다.
-  const firstMatch = matched?.[0] || null;
+  /**
+   * 검색 결과 사이를 오간다.
+   *
+   * 예전에는 **첫 번째 것으로만** 날아갔다. "탐구"로 12개가 걸려도 나머지 11개에
+   * 갈 방법이 없어서, 찾긴 찾았는데 못 보는 일이 생겼다. 이제 몇 번째인지 세어
+   * 보여주고(3/12) 위아래로 넘긴다.
+   */
+  const [searchIdx, setSearchIdx] = useState(0);
+  // 검색어가 바뀌면 처음부터.
+  useEffect(() => { setSearchIdx(0); }, [q]);
+  const matchCount = matched?.length ?? 0;
+  const curMatch = matchCount ? matched[Math.min(searchIdx, matchCount - 1)] : null;
   useEffect(() => {
-    if (!firstMatch) return;
-    const node = nodes.find((n) => n.id === firstMatch);
+    if (!curMatch) return;
+    const node = nodes.find((n) => n.id === curMatch);
     if (node) focusNode(node);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [firstMatch]);
+  }, [curMatch]);
+  const stepMatch = (d) => {
+    if (!matchCount) return;
+    setSearchIdx((i) => (i + d + matchCount) % matchCount);
+  };
 
   // 휠 줌. React 의 onWheel 은 passive 로 붙어 preventDefault 가 먹지 않으므로
   // 직접 non-passive 로 등록한다 (안 하면 페이지가 같이 스크롤된다).
@@ -504,48 +541,9 @@ export function S06({ onNav }) {
     setGrabbing(true);
   }, []);
 
-  /** 빈 곳 — 없는 과목 / 이어지지 않은 개념 / 요즘 안 보이는 주제. */
-  const findGaps = useCallback(async () => {
-    setSel(null);
-    setCreating(false);
-    setLinks(null);
-    setGaps({ loading: true });
-    try {
-      setGaps({ loading: false, ...(await api.graph.gaps()) });
-    } catch (e) {
-      setGaps({ loading: false, error: e.message || "찾지 못했습니다." });
-    }
-  }, []);
-
-  /** 생기부 같은 문장에 함께 나온 짝 찾기. */
-  const findLinks = useCallback(async () => {
-    setSel(null);
-    setCreating(false);
-    setGaps(null);
-    setLinks({ loading: true });
-    try {
-      setLinks({ loading: false, items: await api.graph.suggestedLinks(30) });
-    } catch (e) {
-      setLinks({ loading: false, error: e.message || "찾지 못했습니다." });
-    }
-  }, []);
-
-  const dropLink = (s) =>
-    setLinks((cur) => (cur?.items
-      ? { ...cur, items: cur.items.filter((x) => !(x.source_id === s.source_id && x.target_id === s.target_id)) }
-      : cur));
-
-  const acceptLink = useCallback(async (s) => {
-    setLinkBusy(`${s.source_id}-${s.target_id}`);
-    try {
-      await actions.connectNodes(s.source_id, s.target_id);
-      dropLink(s);
-    } catch (e) {
-      actions.toast("error", e.message || "잇지 못했습니다.");
-    } finally {
-      setLinkBusy(null);
-    }
-  }, [actions]);
+  // 빈 곳·이어 볼 만한 짝·넓혀 볼 만한 주제는 전부 "이 그래프에서 다음에 무엇을
+  // 볼까"라는 한 물음이라 `components/graph/GraphExplore.jsx` 한자리에 모았다.
+  // 불러오기와 그 상태도 거기에 있다 — 여기서 들고 있을 까닭이 없다.
 
   /** 노드 만들기. 연결할 곳을 골랐으면 만든 뒤 바로 잇는다. */
   const handleCreate = useCallback(async ({ label, section, description, aliases, parentId }) => {
@@ -554,7 +552,7 @@ export function S06({ onNav }) {
       const node = await actions.addNode({ label, section, description, aliases });
       if (parentId && node?.id) await actions.connectNodes(parentId, node.id);
       else await actions.loadGraph();
-      setCreating(false);
+      setPanel(null);
     } catch (e) {
       actions.toast("error", e.message || "노드를 추가하지 못했습니다.");
     } finally {
@@ -631,13 +629,9 @@ export function S06({ onNav }) {
     }
   }, []);
 
-  const handlePrune = () => {
-    if (!sel) {
-      actions.toast("info", "먼저 노드를 선택한 뒤 가지치기 추천을 눌러주세요.");
-      return;
-    }
-    runPrune(sel);
-  };
+  // 툴바에 있던 「가지치기 추천」 단추는 걷어냈다. 노드를 안 고른 채로 누르면
+  // "먼저 노드를 선택하세요"라고 **꾸짖기만** 했는데, 꾸짖는 단추는 기능이 아니라
+  // 결함이다. 이 기능은 노드를 고른 뒤에만 뜻이 있으므로 노드 패널 안에만 둔다.
 
   // 2단계: 이 버튼을 눌렀을 때만 웹 검색이 실행된다.
   const handleResearch = useCallback(async (rec) => {
@@ -666,6 +660,25 @@ export function S06({ onNav }) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [sel, expanding, actions, state.session?.user?.id]);
 
+  /** 생기부 구획으로 학년·과목 층을 다시 세운다. 여러 번 눌러도 안전하다. */
+  const rebuildLayers = useCallback(async () => {
+    setMoreOpen(false);
+    setRestruct({ busy: true, msg: "" });
+    try {
+      const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
+      await actions.loadGraph(state.session?.user?.id);
+      setRestruct({
+        busy: false,
+        msg: r.changed
+          ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
+          : "이미 생기부와 같은 모양입니다.",
+      });
+    } catch (e) {
+      setRestruct({ busy: false, msg: e.message });
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [actions, state.session?.user?.id]);
+
   // 카테고리별 개수 (범례용)
   const kindCounts = nodes.reduce((a,n)=>{ a[n.kind]=(a[n.kind]||0)+1; return a; }, {});
 
@@ -678,37 +691,11 @@ export function S06({ onNav }) {
             이어지지 않은 노드 <strong>{strayCount}개</strong> — 생기부 구획에 붙이려면 <em>층 다시 세우기</em>를 누르세요.
           </div>
         )}
-      <div className="toolbar">
-        <Btn v="primary" s="sm" onClick={()=>{ setCreating(true); setSel(null); }}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S09")}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 시드로 생성</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S10")}><NavIcon name="history" size={15} color={TDS.textSecondary}/> 변경 이력</Btn>
-        <Btn v="secondary" s="sm" onClick={findLinks}><NavIcon name="link" size={15} color={TDS.textSecondary}/> 관계 찾기</Btn>
-        <Btn v="secondary" s="sm" onClick={findGaps}><NavIcon name="search" size={15} color={TDS.textSecondary}/> 빈 곳 보기</Btn>
-        {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
-            이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다. */}
-        <Btn
-          v="secondary"
-          s="sm"
-          disabled={restruct.busy}
-          title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다."
-          onClick={async () => {
-            setRestruct({ busy: true, msg: "" });
-            try {
-              const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
-              await actions.loadGraph(state.session?.user?.id);
-              setRestruct({
-                busy: false,
-                msg: r.changed
-                  ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
-                  : "이미 생기부와 같은 모양입니다.",
-              });
-            } catch (e) {
-              setRestruct({ busy: false, msg: e.message });
-            }
-          }}
-        >
-          <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
-        </Btn>
+      {/* 툴바 — 늘 쓰는 것만 밖에 두고 나머지는 「더보기」 안으로.
+          예전에는 열 개가 한 줄에 늘어서서 무엇이 중요한지 알 수 없었고,
+          좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
+      <div className="toolbar toolbar-graph">
+        <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
         {/* 얼마나 깊이 볼지. 개념까지 다 펼치면 200개가 한 화면에 깔린다 —
             지도를 읽는 첫걸음은 "덜 보는 것"이다. */}
         <div className="depth-pick" role="group" aria-label="보이는 깊이">
@@ -724,16 +711,60 @@ export function S06({ onNav }) {
             </button>
           ))}
         </div>
-        <Btn v="secondary" s="sm" onClick={handlePrune}><NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 가지치기 추천</Btn>
-        <Btn v="secondary" s="sm" onClick={()=>onNav("S29")}><NavIcon name="exportIco" size={15} color={TDS.textSecondary}/> 내보내기</Btn>
+        <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
+          <NavIcon name="search" size={15} color={TDS.textSecondary}/> 둘러보기
+        </Btn>
         <div style={{flex:1}} />
-        <div className="search-wrap" style={{width:220}}>
-          <NavIcon name="graph" size={15} color={TDS.textTertiary}/><input placeholder="노드 검색..." value={q} onChange={e=>setQ(e.target.value)} />
+        {/* ref 는 감싸는 div 가 든다 — `Btn` 은 ref 를 넘겨주지 않는 함수 컴포넌트다.
+            Popover 는 앵커 **안쪽** 클릭만 걸러 내면 되므로 감싼 것으로 충분하다. */}
+        <div style={{position:"relative"}} ref={moreRef}>
+          <Btn v="secondary" s="sm" aria-expanded={moreOpen} onClick={()=>setMoreOpen(o=>!o)}>
+            더보기
+          </Btn>
+          <Popover open={moreOpen} onClose={()=>setMoreOpen(false)} anchorRef={moreRef} label="그래프 도구" align="right">
+            <div className="pop-list">
+              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S09"); }}>
+                시드로 생성
+                <span className="gpop-hint">키워드를 넣어 그래프를 시작합니다.</span>
+              </button>
+              {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
+                  이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다.
+                  설명을 hint 로 올렸다 — title 은 마우스를 올려야만 보여서, 정작
+                  이 단추를 눌러도 되는지 망설이는 사람에게 닿지 않았다. */}
+              <button type="button" className="pop-item gpop-item" disabled={restruct.busy} onClick={rebuildLayers}>
+                {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
+                <span className="gpop-hint">
+                  생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.
+                </span>
+              </button>
+              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S29"); }}>
+                내보내기
+              </button>
+            </div>
+          </Popover>
+        </div>
+        <div className="search-wrap" style={{width:240}}>
+          <NavIcon name="graph" size={15} color={TDS.textTertiary}/>
+          <input
+            placeholder="노드 검색..."
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); stepMatch(e.shiftKey?-1:1); } }}
+          />
+          {q.trim() && (
+            <span className="gsearch-nav">
+              <span className="gsearch-count">{matchCount ? `${Math.min(searchIdx, matchCount-1)+1}/${matchCount}` : "0"}</span>
+              <button type="button" onClick={()=>stepMatch(-1)} disabled={!matchCount} aria-label="이전 결과">↑</button>
+              <button type="button" onClick={()=>stepMatch(1)} disabled={!matchCount} aria-label="다음 결과">↓</button>
+            </span>
+          )}
         </div>
       </div>
-      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+      {/* 캔버스 + 패널. 좁은 화면에서 세로로 나뉘어야 하므로 인라인이 아니라
+          클래스로 둔다 — 인라인 스타일에는 @media 를 걸 수 없다. */}
+      <div className="gbody">
         {/* Canvas */}
-        <div style={{flex:1,padding:20,overflow:"hidden",position:"relative"}}>
+        <div className="gstage">
           <div
             ref={canvasRef}
             className="graph-canvas"
@@ -805,7 +836,7 @@ export function S06({ onNav }) {
                      누르는 자리라, 여기서 못 고르면 매번 작은 원을 조준해야 한다. */
                   <span key={id} title={l.text}
                     onMouseDown={(e)=>e.stopPropagation()}
-                    onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) setSel(s=>s?.id===n.id?null:n); }}
+                    onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) selectNode(n); }}
                     onMouseEnter={()=>setHover(id)} onMouseLeave={()=>setHover(null)}
                     style={{position:"absolute",left:l.left,top:l.top,transform:"translateX(-50%)",
                             pointerEvents:"auto",cursor:"pointer",opacity:l.dim?DIM_OPACITY:1,
@@ -913,35 +944,26 @@ export function S06({ onNav }) {
           </div>
         </div>
 
-        {/* 노드 만들기 — 상세 패널과 같은 자리에 선다. 패널을 둘로 늘리면
-            좁은 화면에서 캔버스가 사라진다. */}
-        {creating && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 추가</span>
-              <button onClick={()=>setCreating(false)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
+        {/* ── 옆 패널 — 자리는 하나다 ────────────────────────────
+            고른 노드가 언제나 이긴다. 만들기·둘러보기는 노드를 고르는 순간
+            비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
+
+        {!sel && panel === "create" && (
+          <GraphPanel title="노드 추가" onClose={closePanel}>
             <NodeEditor
               mode="create"
               nodes={nodes}
               defaultParentId={nodes.find(n=>n.kind==="root")?.id || ""}
               busy={busy}
               onSubmit={handleCreate}
-              onCancel={()=>setCreating(false)}
+              onCancel={closePanel}
             />
-          </div>
+          </GraphPanel>
         )}
 
-        {/* 빈 곳 — 상세·만들기·관계와 같은 자리 */}
-        {gaps && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>빈 곳</span>
-              <button onClick={()=>setGaps(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
-            <GraphGaps
-              state={gaps}
-              onRetry={findGaps}
+        {!sel && panel === "explore" && (
+          <GraphPanel title="둘러보기" onClose={closePanel}>
+            <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
                 sessionStorage.setItem("mbx_doc_type", s.section_type || "");
@@ -950,36 +972,18 @@ export function S06({ onNav }) {
               }}
               onPickNode={(id)=>{
                 const n = nodes.find((x)=>x.id===id);
-                if (n) { setGaps(null); setSel(n); }
+                if (n) selectNode(n);
               }}
+              onConnect={(from, to)=>actions.connectNodes(from, to)}
+              onGraphChanged={()=>actions.loadGraph(state.session?.user?.id)}
+              onError={(m)=>actions.toast("error", m)}
             />
-          </div>
-        )}
-
-        {/* 관계 찾기 — 상세·만들기와 같은 자리에 선다 */}
-        {links && (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>관계 찾기</span>
-              <button onClick={()=>setLinks(null)} aria-label="닫기" style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
-            <LinkSuggestions
-              state={links}
-              busyId={linkBusy}
-              onAccept={acceptLink}
-              onSkip={dropLink}
-              onRetry={findLinks}
-            />
-          </div>
+          </GraphPanel>
         )}
 
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
-          <div style={{width:360,background:TDS.bgPrimary,borderLeft:`1px solid ${TDS.borderDefault}`,padding:24,overflowY:"auto"}}>
-            <div className="row-between mb16" style={{marginBottom:16}}>
-              <span style={{fontSize:16,fontWeight:700,color:TDS.textPrimary}}>노드 상세</span>
-              <button onClick={()=>setSel(null)} style={{background:TDS.bgTertiary,border:"none",width:28,height:28,borderRadius:8,cursor:"pointer",color:TDS.textSecondary,display:"flex",alignItems:"center",justifyContent:"center"}}><NavIcon name="close" size={14} color={TDS.textSecondary}/></button>
-            </div>
+          <GraphPanel title="노드" onClose={closePanel}>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
@@ -1200,11 +1204,13 @@ export function S06({ onNav }) {
                 </div>
               </div>
             ))}
+            {/* "노드 상세 보기"(S07) 단추는 걷어냈다 — 그 화면은 어떤 노드를 눌러도
+                "양자컴퓨팅"이 뜨는 하드코딩 목업이었다. 지금 읽고 있는 이 패널이
+                진짜 상세다(§14: 고치기는 그래프 화면 안에서 한다). */}
             <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:10}}>
-              <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S07")}>노드 상세 보기</Btn>
-              <Btn v="primary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
+              <Btn v="secondary" s="md" style={{width:"100%"}} onClick={()=>onNav("S24")}>코멘트 작성</Btn>
             </div>
-          </div>
+          </GraphPanel>
         ); })()}
       </div>
     </div>

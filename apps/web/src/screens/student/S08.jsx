@@ -1,3 +1,13 @@
+/**
+ * S08 엣지 상세 — **잠들어 있다.** S07 에서만 닿았는데 그 화면도 잠들었다.
+ *
+ * 내용이 전부 하드코딩이고, 무엇보다 **백엔드에 엣지 상세 엔드포인트가 없다**
+ * (`api.graph.*` 에 엣지를 하나 읽어 오는 것이 없다 — 만들기·지우기뿐).
+ * 진짜로 할 수 있는 일인 "연결 끊기"는 이미 S06 노드 패널의 `NodeConnections`
+ * 안에 있다.
+ *
+ * 되살리려면 백엔드에 엣지 조회·수정이 먼저 생겨야 한다.
+ */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
