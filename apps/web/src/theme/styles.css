@@ -2837,30 +2837,44 @@ tr:hover td { background:var(--surface-container-low); }
   text-decoration:underline; text-underline-offset:2px;
 }
 
-/* ── 접기 손잡이 ──────────────────────────────────────────
+/* ── 경로표시 ─────────────────────────────────────────────
+   재배치는 **모드**를 만들고, 모드에는 나가는 길이 반드시 있어야 한다.
+   어디에 있는지와 어떻게 나가는지를 같은 줄에 둔다. */
+.gcrumb { display:flex; align-items:center; gap:1px; min-width:0; flex-wrap:wrap; }
+.gcrumb-item {
+  max-width:180px; padding:4px 8px; border:none; border-radius:7px; cursor:pointer;
+  background:transparent; font-family:inherit; font-size:13px; font-weight:600;
+  color:var(--ts); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.gcrumb-item:hover { background:var(--bg2); color:var(--tp); }
+/* 지금 자리는 누를 수는 있지만(새로고침) 눌러야 할 것처럼 보이지는 않게 */
+.gcrumb-item.is-here { color:var(--tp); font-weight:700; cursor:default; }
+.gcrumb-item.is-here:hover { background:transparent; }
+.gcrumb-item:focus-visible { outline:2px solid var(--blue-500); outline-offset:-2px; }
+.gcrumb-sep { color:var(--td); font-size:12px; padding:0 1px; }
+
+/* ── "안에 N개 더" 배지 ───────────────────────────────────
    이름표와 같은 층(화면 좌표)이라 확대·축소해도 크기가 그대로다. 줌 레이어 안에
-   두면 축소했을 때 같이 작아져서 누를 수 없다.
+   두면 축소했을 때 같이 작아져서 읽을 수 없다.
+
+   **누르는 것이 아니다** — 들어가는 것은 노드를 누르면 된다. 이건 얼마나 들어
+   있는지 미리 알려 주는 표시라 `pointer-events:none` 으로 두어, 배지를 겨냥하다
+   노드를 못 누르는 일이 없게 한다.
 
    재질은 `OVERLAY_SURFACE`(theme/graphMeta.js)와 같아야 한다 — 캔버스 위에 뜨는
-   것은 범례·통계·줌과 한 가족으로 읽혀야 한다. graphMeta.js 를 고치면 여기도 함께.
-   `GRAPH_CANVAS` ↔ `.ctx-graph` 를 지금 맞춰 두는 방식과 같다. */
+   것은 범례·통계·줌과 한 가족으로 읽혀야 한다. graphMeta.js 를 고치면 여기도 함께. */
 .g-fold {
-  position:absolute; transform:translate(-50%,-50%); pointer-events:auto;
-  min-width:20px; height:20px; padding:0 5px; border-radius:9999px; cursor:pointer;
+  position:absolute; transform:translate(-50%,-50%); pointer-events:none;
+  min-width:18px; height:18px; padding:0 5px; border-radius:9999px;
   display:flex; align-items:center; justify-content:center;
-  font-family:inherit; font-size:11px; font-weight:700; line-height:1;
+  font-family:inherit; font-size:10.5px; font-weight:700; line-height:1;
   font-variant-numeric:tabular-nums; white-space:nowrap;
   color:var(--ts);
   background:rgba(255,255,255,.92);
   border:1px solid rgba(15,23,42,.07);
   box-shadow:0 1px 4px rgba(15,23,42,.10);
   backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  transition:color .14s, box-shadow .14s;
 }
-.g-fold:hover { color:var(--primary); box-shadow:0 2px 8px rgba(15,23,42,.16); }
-.g-fold.is-folded { color:var(--primary); }
-.g-fold:focus-visible { outline:2px solid var(--blue-500); outline-offset:1px; }
-@media (prefers-reduced-motion:reduce) { .g-fold { transition:none; } }
 
 /* ── 그래프 툴바 ──────────────────────────────────────────
    `.toolbar` 는 교사 화면(T07)과 공유하므로 밑바탕은 건드리지 않는다.

@@ -4,10 +4,10 @@ import TDS from "../../theme/tokens.js";
 import { GRAPH_CANVAS, KIND_META, OVERLAY_SURFACE, OVERLAY_TEXT, Z, ZOOM } from "../../theme/graphMeta.js";
 import { iconForNode, SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { visualEdgesOf } from "../../theme/graphView.js";
+import { childMapOf, descendantCount, strayIdsOf } from "../../lib/graphTree.js";
 import {
-  ancestorsOf, childMapOf, collapsedForDepth, descendantCount,
-  hiddenBy, sameSet, strayIdsOf,
-} from "../../lib/graphTree.js";
+  drillTargetOf, focusViewOf, parentOf, pathTo, rootIdOf,
+} from "../../lib/graphFocus.js";
 import { LABEL_FONT, LABEL_H, placeLabels } from "../../lib/graphLabels.js";
 import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
@@ -110,7 +110,7 @@ const GraphEdges = memo(function GraphEdges({ visualEdges, byId, getPos, activeI
 });
 
 /** 노드 — 색은 유형(KIND_META), 아이콘은 과목·분야. `view` 를 받지 않는다. */
-const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connectedIds, activeId, draggingId, onNodeDown, onHover, foldableIds, onToggleFold }) {
+const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connectedIds, activeId, draggingId, onNodeDown, onHover, drillableIds, onDrill }) {
   return (
     <>
       {nodes.map(n=>{
@@ -122,11 +122,11 @@ const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connect
         const meta = KIND_META[n.kind] || KIND_META.topic;
         const pos = getPos(n);
         return (
-          // 더블클릭 접기는 **보조 경로**다. 눈에 보이는 손잡이(⊕/⊖)가 주 경로 —
-          // 더블클릭만 두면 아무도 찾지 못한다.
+          // 한 번 누르면 고르면서 **그 노드로 들어간다**(자식이 있으면).
+          // 더블클릭도 같은 일을 한다 — 익숙한 손짓이라 남겨 둔다.
           <div key={n.id}
             onMouseDown={(e)=>onNodeDown(e,n)}
-            onDoubleClick={foldableIds.has(n.id) ? (e)=>{ e.stopPropagation(); onToggleFold(n.id); } : undefined}
+            onDoubleClick={drillableIds.has(n.id) ? (e)=>{ e.stopPropagation(); onDrill(n); } : undefined}
             onMouseEnter={()=>onHover(n.id)} onMouseLeave={()=>onHover(null)}
             style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
             <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${meta.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
@@ -146,75 +146,91 @@ export function S06({ onNav }) {
   const [restruct, setRestruct] = useState({ busy: false, msg: "" });
 
   /**
-   * 접혀 있는 노드들. **무엇이 보이는지를 정하는 유일한 값이다.**
+   * 지금 들여다보고 있는 노드. **무엇이 보이는지를 정하는 유일한 값이다.**
    *
-   * 예전에는 전역 깊이(교과/과목/개념) 하나뿐이라 층 단위로 전부-아니면-전무였다.
-   * "미적분만 펴 놓고 나머지는 접어 두기"가 안 됐다 — 지도를 보는 일은 원래
-   * 그런 것인데도.
+   * 화면에는 이 노드와 그 자식들만 선다. 층을 옮기는 일은 `focusId` 를 바꾸는
+   * 것 하나뿐이라, 상태가 서로 다투지 않는다.
    *
-   * 깊이 알약은 없애지 않고 **프리셋 명령**으로 남겼다(누르면 이 집합을 채우고
-   * 물러난다). 전역 깊이와 가지별 예외를 함께 두면 진리가 둘이 되어 "깊이를
-   * 바꾸면 내가 편 가지는 살아남나?"에 어떻게 답해도 절반은 틀렸다고 느낀다.
+   * 예전에는 가지별 접기였다. 자리를 안 바꾸는 것이 장점이었는데 **써 보니
+   * 시야가 안 걷혔다** — 한 가지를 접어도 나머지 190개가 그대로 남는다.
+   * 지도 감각을 지킬 값어치는 지도가 읽힐 때 생기는데, 197개가 깔린 그림은
+   * 애초에 지도가 아니라 얼룩이라 지킬 것이 없었다.
    */
-  const [collapsed, setCollapsed] = useState(() => new Set(readSaved()?.collapsed ?? []));
-  // 어느 가지에도 안 붙은 노드를 감출지. 배너에서 켜고 끈다.
-  const [hideStray, setHideStray] = useState(false);
+  const [focusId, setFocusId] = useState(() => readSaved()?.focusId ?? null);
 
   const childMap = useMemo(() => childMapOf(allNodes), [allNodes]);
-  // 접을 수 있는 노드 = 자식이 있는 노드. 더블클릭을 받을지 정할 때 쓴다.
-  const foldableIds = useMemo(() => new Set(childMap.keys()), [childMap]);
-  const strayIds = useMemo(() => strayIdsOf(allNodes, allEdges), [allNodes, allEdges]);
-  const hidden = useMemo(() => hiddenBy(collapsed, childMap), [collapsed, childMap]);
+  /** 들어갈 수 있는 노드 = 자식이 있는 노드. */
+  const drillableIds = useMemo(() => new Set(childMap.keys()), [childMap]);
+  const rootId = useMemo(() => rootIdOf(allNodes, childMap), [allNodes, childMap]);
 
-  // 감추는 것이지 지우는 것이 아니다 — 접힌 노드에 `+N` 을 달아 개수를 남긴다.
-  const nodes = useMemo(
-    () => allNodes.filter((n) => !hidden.has(n.id) && !(hideStray && strayIds.has(n.id))),
-    [allNodes, hidden, hideStray, strayIds],
+  /**
+   * 층이 아예 없는 그래프인가 — 개념이 전부 문서에 바로 매달린 **별 모양**.
+   *
+   * 「층 다시 세우기」를 한 번도 안 누른 계정이 여기 해당한다. 이때는 들어갈
+   * 곳이 없어서 화면이 아무 반응을 안 하는데, 그걸 말해 주지 않으면 고장으로
+   * 읽힌다. 실측: 계정 165개 중 층이 있는 것은 17개뿐이다.
+   */
+  const noLayers = useMemo(() => {
+    if (!allNodes.length || !rootId) return false;
+    const kids = childMap.get(rootId) || [];
+    if (!kids.length) return false;
+    return kids.every((id) => !(childMap.get(id)?.length));
+  }, [allNodes, rootId, childMap]);
+  // 그래프가 새로 오면 초점이 없어졌을 수 있다. 그때는 뿌리로 돌아간다.
+  const activeFocus = useMemo(
+    () => (focusId && allNodes.some((n) => n.id === focusId) ? focusId : rootId),
+    [focusId, allNodes, rootId],
   );
+
+  const view0 = useMemo(
+    () => focusViewOf(allNodes, childMap, activeFocus),
+    [allNodes, childMap, activeFocus],
+  );
+  /** 뿌리 → 지금 초점까지의 길. 경로표시가 이걸 그린다. */
+  const trail = useMemo(() => pathTo(activeFocus, allNodes), [activeFocus, allNodes]);
+
+  /**
+   * 이번 화면의 노드 — 초점과 그 자식들뿐.
+   *
+   * 자리는 `graphFocus` 가 새로 셈한다. 전역 방사 배치(`api/index.js`)는 층마다
+   * 화면을 새로 쓰는 지금은 뜻이 없다.
+   */
+  const nodes = useMemo(() => {
+    if (!view0.focus) return [];
+    const pos = view0.positions;
+    return [view0.focus, ...view0.children].map((n) => {
+      const p = pos.get(n.id);
+      return p ? { ...n, x: p.x, y: p.y } : n;
+    });
+  }, [view0]);
+
   const edges = useMemo(() => {
     const alive = new Set(nodes.map((n) => n.id));
     return allEdges.filter((e) => alive.has(e.from) && alive.has(e.to));
   }, [allEdges, nodes]);
 
-  /** 이 노드를 접었다 폈다. 자식이 없으면 접을 것이 없다. */
-  const toggleCollapse = useCallback((id) => {
-    setCollapsed((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
-  /** 이 노드만 펴고 형제는 모두 접는다 — 재루팅 없이 한 가지에 집중하는 길. */
-  const soloExpand = useCallback((node) => {
-    const parent = node.parentId;
-    setCollapsed((cur) => {
-      const next = new Set(cur);
-      next.delete(node.id);
-      for (const sib of childMap.get(parent) || []) {
-        if (sib !== node.id && (childMap.get(sib)?.length ?? 0) > 0) next.add(sib);
-      }
-      return next;
-    });
+  /** 이 노드로 들어간다. 자식이 없으면 들어갈 데가 없어 아무 일도 안 한다. */
+  const drillInto = useCallback((node) => {
+    const target = drillTargetOf(node, childMap);
+    if (target) setFocusId(target);
+    return !!target;
   }, [childMap]);
 
-  // 알약 셋이 만드는 접힘 상태. 지금 상태와 견주어 불을 켤지 정한다.
-  const depthPresets = useMemo(() => ({
-    1: collapsedForDepth(allNodes, 1, childMap),
-    2: collapsedForDepth(allNodes, 2, childMap),
-    3: collapsedForDepth(allNodes, 3, childMap),   // 개념은 아래가 없어 빈 집합
-  }), [allNodes, childMap]);
+  /** 한 층 위로. 뿌리면 더 갈 곳이 없다. */
+  const goUp = useCallback(() => {
+    const up = parentOf(activeFocus, allNodes);
+    if (up) setFocusId(up);
+    return !!up;
+  }, [activeFocus, allNodes]);
 
-  /** 접힌 가지 안에 있는 노드를 보이게 만든다(조상을 편다). */
-  const revealAncestors = useCallback((id) => {
-    setCollapsed((cur) => {
-      const anc = ancestorsOf(id, allNodes);
-      if (!anc.some((a) => cur.has(a))) return cur;   // 이미 보인다
-      const next = new Set(cur);
-      for (const a of anc) next.delete(a);
-      return next;
-    });
-  }, [allNodes]);
+  /** 이 노드가 보이도록 초점을 옮긴다 — 검색·빈 곳에서 고른 노드가 딴 층일 때. */
+  const focusToShow = useCallback((id) => {
+    const n = allNodes.find((x) => x.id === id);
+    if (!n) return;
+    // 자식이 있으면 그 노드로 들어가고, 말단이면 그 부모 층에서 보여준다.
+    const target = (childMap.get(id)?.length ?? 0) > 0 ? id : (n.parentId || rootId);
+    if (target) setFocusId(target);
+  }, [allNodes, childMap, rootId]);
 
   const [sel, setSel] = useState(null);
   const [hover, setHover] = useState(null);
@@ -285,18 +301,20 @@ export function S06({ onNav }) {
   const positionsRef = useRef(positions);
 
   /**
-   * 노드 고르기. 같은 노드를 다시 누르면 닫는다. 만들기·둘러보기는 자리를 비켜 준다.
+   * 노드 고르기 — **한 번 누르면 고르면서 그 노드로 들어간다.**
    *
-   * 펴는 일을 **여기서** 한다(이펙트가 아니라). 아래 "고른 노드가 사라지면 닫는다"
-   * 이펙트는 이것보다 먼저 선언돼 있어서, 펴기를 이펙트로 미루면 접힌 노드를 고른
-   * 그 순간 선택이 도로 풀린다 — 편 결과는 다음 렌더에나 반영되기 때문이다.
-   * 여기서 함께 부르면 두 갱신이 한 번에 반영되어 그런 틈이 없다.
+   * 손짓 하나에 두 가지가 일어나지만 뜻은 하나다: "이걸 본다." 패널에 그 노드가
+   * 서고, 화면은 그 노드의 둘레로 바뀐다. 자식이 없는 개념 노드는 들어갈 데가
+   * 없으므로 고르기만 한다 — 빈 화면으로 데려가면 길을 잃는다.
+   *
+   * 같은 노드를 다시 누르면 패널만 닫는다. 초점은 그대로 둔다 — 들어온 것을
+   * 되돌리는 길은 경로표시이지 같은 노드를 또 누르는 것이 아니다.
    */
   const selectNode = useCallback((n) => {
     setPanel(null);
-    revealAncestors(n.id);
+    drillInto(n);
     setSel((cur) => (cur?.id === n.id ? null : n));
-  }, [revealAncestors]);
+  }, [drillInto]);
 
   /** 옆 패널을 만들기/둘러보기로 세운다. 고른 노드는 놓는다 — 자리는 하나다. */
   const openPanel = useCallback((which) => {
@@ -327,35 +345,30 @@ export function S06({ onNav }) {
       return next;
     });
   }, [allNodes]);
-  // 없어진 노드의 접힘도 함께 치운다. 안 그러면 지운 노드의 id 가 계속 쌓이고,
-  // 나중에 같은 자리를 다시 만들었을 때 난데없이 접힌 채로 나타난다.
+  // 보고 있던 층의 노드가 사라졌으면(지웠거나 다시 세웠거나) 뿌리로 돌아간다.
+  // `activeFocus` 가 이미 뿌리로 떨어뜨려 주지만, 저장된 값도 함께 치워야
+  // 다음에 들어올 때 없는 층을 다시 찾지 않는다.
   useEffect(()=>{
-    if (!allNodes.length) return;
-    setCollapsed((cur) => {
-      if (!cur.size) return cur;
-      const alive = new Set(allNodes.map((n) => n.id));
-      let changed = false;
-      const next = new Set();
-      for (const id of cur) { if (alive.has(id)) next.add(id); else changed = true; }
-      return changed ? next : cur;
-    });
-  }, [allNodes]);
+    if (!allNodes.length || !focusId) return;
+    if (!allNodes.some((n) => n.id === focusId)) setFocusId(null);
+  }, [allNodes, focusId]);
 
   // 보던 자리를 기억한다. 자주 바뀌는 값(팬·줌)이라 조금 미뤄 두고 한 번에 쓴다.
   useEffect(() => {
     const t = setTimeout(() => {
       try {
         sessionStorage.setItem(VIEW_KEY, JSON.stringify({
-          collapsed: [...collapsed], view, positions, sections: [...openSections],
+          focusId: activeFocus, view, positions, sections: [...openSections],
         }));
       } catch { /* 저장 공간이 없으면 기억하지 않을 뿐, 화면은 그대로 돈다 */ }
     }, 300);
     return () => clearTimeout(t);
-  }, [collapsed, view, positions, openSections]);
+  }, [activeFocus, view, positions, openSections]);
 
   // 선이 하나도 없는 노드. 예전 화면은 가지를 지어내 이어진 것처럼 보였는데,
   // 이제 진짜 선만 그리니 드러난다. 감추지 말고 세어서 알려 준다 — 한 번
   // 누르면 대부분 제자리를 찾는다.
+  const strayIds = useMemo(() => strayIdsOf(allNodes, allEdges), [allNodes, allEdges]);
   const strayCount = strayIds.size;
 
   // 그래프를 불러오는 동안. 노드 200개면 눈에 띄게 걸린다.
@@ -375,9 +388,9 @@ export function S06({ onNav }) {
   // 아래 셋은 **반드시 메모이제이션되어야 한다.** 매 렌더 새로 만들면
   // `shownLabels` 의 의존성이 늘 바뀌어서 useMemo 가 한 번도 걸리지 않고,
   // 이름표 자리잡기(O(후보×장애물))가 렌더마다 통째로 다시 돈다.
-  // 검색은 **접힌 것까지** 뒤진다. 보이는 것만 뒤지면 접어 둔 가지 안의 노드는
-  // 이름을 정확히 알아도 찾을 수 없어서, 접기가 검색을 망가뜨린 꼴이 된다.
-  // 걸린 노드로 갈 때 그 위 조상을 펴 준다(revealAncestors).
+  // 검색은 **그래프 전체**를 뒤진다. 지금 층만 뒤지면 다른 층의 노드는 이름을
+  // 정확히 알아도 찾을 수 없어서, 초점이 검색을 망가뜨린 꼴이 된다.
+  // 걸린 노드가 보이도록 초점을 옮겨 준다(focusToShow).
   const matched = useMemo(() => {
     const t = q.trim();
     if (!t) return null;
@@ -431,29 +444,27 @@ export function S06({ onNav }) {
   );
 
   /**
-   * 접기 손잡이의 자리와 내용.
+   * "안에 N개 더 있음" 배지.
    *
-   * 자식이 있는 노드에만 붙는다. `screenOf` 를 쓰므로 팬·줌 때 다시 셈하는데,
-   * 대상이 구획·교과군뿐이라(수십 개) 이름표 자리잡기와 견주면 값이 없다.
+   * 자식이 있는 노드에만 붙는다. 눌러서 들어가는 것이 아니라 **얼마나 들어 있는지**
+   * 를 미리 알려 주는 표시다 — 들어가는 것은 노드를 누르면 된다. 숫자가 없으면
+   * 어느 가지가 깊은지 모른 채 하나씩 들어가 봐야 한다.
    */
-  const foldChips = useMemo(() => {
+  const drillChips = useMemo(() => {
     if (!canvasBox.w) return [];
     const out = [];
     for (const n of nodes) {
-      if (!(childMap.get(n.id)?.length ?? 0)) continue;
+      if (n.id === activeFocus) continue;               // 가운데 노드는 이미 여기다
+      const kids = childMap.get(n.id)?.length ?? 0;
+      if (!kids) continue;                              // 말단은 들어갈 데가 없다
       const s = screenOf(n);
       const x = s.x + s.r * 0.72;
       const y = s.y - s.r * 0.72;
       if (x < -40 || x > canvasBox.w + 40 || y < -20 || y > canvasBox.h + 20) continue;
-      const isFolded = collapsed.has(n.id);
-      out.push({
-        id: n.id, label: n.label, x, y,
-        collapsed: isFolded,
-        count: isFolded ? descendantCount(n.id, childMap) : 0,
-      });
+      out.push({ id: n.id, label: n.label, x, y, count: descendantCount(n.id, childMap) });
     }
     return out;
-  }, [nodes, childMap, collapsed, screenOf, canvasBox]);
+  }, [nodes, childMap, activeFocus, screenOf, canvasBox]);
 
   // ── 드래그 핸들러 ────────────────────────────────────────
   const onNodeDown = useCallback((e, n) => {
@@ -495,7 +506,20 @@ export function S06({ onNav }) {
   }, []);
 
   const onCanvasUp = useCallback((e) => {
-    if (panning.current) { panning.current = null; setGrabbing(false); return; }
+    if (panning.current) {
+      const p = panning.current;
+      panning.current = null;
+      setGrabbing(false);
+      // 빈 배경을 **끌지 않고 누르기만** 하면 한 층 위로. 끌었으면 화면을 옮긴
+      // 것이므로 아무 일도 하지 않는다(4px 는 노드 클릭과 같은 기준).
+      const moved = Math.abs(e.clientX - p.cx) > 4 || Math.abs(e.clientY - p.cy) > 4;
+      if (!moved) {
+        // 무언가 고른 상태면 그것부터 놓는다 — 보던 것을 놓기도 전에 층이
+        // 바뀌면 어디로 갔는지 알 수 없다.
+        if (sel || panel) { setSel(null); setPanel(null); } else goUp();
+      }
+      return;
+    }
     const d = dragging.current;
     dragging.current = null;
     if (!d) return;
@@ -503,7 +527,7 @@ export function S06({ onNav }) {
       const n = nodes.find(n=>n.id===d.id);
       if (n) selectNode(n);
     }
-  }, [nodes, selectNode]);
+  }, [nodes, selectNode, sel, panel, goUp]);
 
   // ── 줌 · 팬 ─────────────────────────────────────────────
   useEffect(() => { viewRef.current = view; }, [view]);
@@ -614,9 +638,7 @@ export function S06({ onNav }) {
   const curMatch = matchCount ? matched[Math.min(searchIdx, matchCount - 1)] : null;
   useEffect(() => {
     if (!curMatch) return;
-    revealAncestors(curMatch);
-    const node = allNodes.find((n) => n.id === curMatch);
-    if (node) focusNode(node);
+    focusToShow(curMatch);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [curMatch]);
   const stepMatch = (d) => {
@@ -824,13 +846,21 @@ export function S06({ onNav }) {
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       {restruct.msg
         ? <div className="graph-note">{restruct.msg}</div>
-        : strayCount > 0 && (
-          // 읽기만 하는 문장이 아니라 손잡이다 — 어느 가지에도 안 붙은 노드는
-          // 지도를 읽는 데 방해가 되므로, 붙이기 전까지 잠시 치울 수 있어야 한다.
+        : noLayers ? (
+          // 층이 없으면 들어갈 곳도 없다. 화면이 그 사실을 말해 주지 않으면
+          // 학생은 "기능이 고장 났다"고 읽는다 — 실제로 그렇게 읽혔다.
+          // 실측: 계정 165개 중 층이 있는 것은 17개뿐이다.
           <div className="graph-note">
-            이어지지 않은 노드 <strong>{strayCount}개</strong> — 붙이려면 <em>더보기 → 층 다시 세우기</em>.
-            <button type="button" className="graph-note-act" onClick={()=>setHideStray(v=>!v)}>
-              {hideStray ? "다시 보기" : "잠시 감추기"}
+            아직 <strong>층이 없습니다</strong> — 개념이 전부 문서에 바로 매달려 있어 들어갈 곳이 없어요.
+            <button type="button" className="graph-note-act" disabled={restruct.busy} onClick={rebuildLayers}>
+              {restruct.busy ? "세우는 중…" : "층 세우기"}
+            </button>
+          </div>
+        ) : strayCount > 0 && (
+          <div className="graph-note">
+            이어지지 않은 노드 <strong>{strayCount}개</strong> — 어느 층에도 안 붙어 있어 여기서는 안 보입니다.
+            <button type="button" className="graph-note-act" disabled={restruct.busy} onClick={rebuildLayers}>
+              {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
             </button>
           </div>
         )}
@@ -839,26 +869,25 @@ export function S06({ onNav }) {
           좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
       <div className="toolbar toolbar-graph">
         <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
-        {/* 깊이 알약은 **모드가 아니라 명령**이다. 누르면 그만큼 접어 두고
-            물러난다 — 그 뒤 학생이 가지 하나를 손으로 펴도 다투지 않는다.
-            손으로 건드리면 어느 알약에도 불이 켜지지 않는다(정직하게). */}
-        <div className="depth-pick" role="group" aria-label="한꺼번에 접기">
-          {[[1, "교과"], [2, "과목"], [3, "개념"]].map(([lv, label]) => {
-            const preset = depthPresets[lv];
-            const on = sameSet(collapsed, preset);
-            return (
+        {/* 경로표시 — 어디에 있는지와 어떻게 나가는지가 같은 줄에 있다.
+            재배치는 **모드**를 만들고, 모드에는 나가는 길이 반드시 있어야 한다.
+            깊이 알약(교과/과목/개념)은 없앴다 — 층을 오가는 길이 둘이면 어느 쪽이
+            진짜인지 알 수 없고, 이제 층은 초점 하나로 정해진다. */}
+        <nav className="gcrumb" aria-label="현재 위치">
+          {trail.map((n, i) => (
+            <span key={n.id}>
+              {i > 0 && <span className="gcrumb-sep" aria-hidden>›</span>}
               <button
-                key={lv}
                 type="button"
-                className={`depth-btn${on ? " is-on" : ""}`}
-                aria-pressed={on}
-                onClick={() => setCollapsed(new Set(preset))}
+                className={`gcrumb-item${i === trail.length - 1 ? " is-here" : ""}`}
+                aria-current={i === trail.length - 1 ? "true" : undefined}
+                onClick={() => { setFocusId(n.id); setSel(null); }}
               >
-                {label}
+                {n.label}
               </button>
-            );
-          })}
-        </div>
+            </span>
+          ))}
+        </nav>
         <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
           <NavIcon name="search" size={15} color={TDS.textSecondary}/> 둘러보기
         </Btn>
@@ -972,7 +1001,7 @@ export function S06({ onNav }) {
               matchedSet={matchedSet} connectedIds={connectedIds} activeId={activeId}
               draggingId={dragging.current?.id ?? null}
               onNodeDown={onNodeDown} onHover={setHover}
-              foldableIds={foldableIds} onToggleFold={toggleCollapse}
+              drillableIds={drillableIds} onDrill={selectNode}
             />
             </div>{/* 줌·팬 레이어 끝 */}
 
@@ -1005,17 +1034,13 @@ export function S06({ onNav }) {
                 자식이 있는 노드에만 붙고, 접혀 있으면 자손 수를 달아 준다 —
                 "무엇이 접혀 있는지" 를 숫자로라도 남기지 않으면 사라진 걸로 읽힌다. */}
             <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:Z.label,overflow:"hidden"}}>
-              {foldChips.map((c) => (
-                <button key={c.id} type="button"
-                  className={`g-fold${c.collapsed ? " is-folded" : ""}`}
-                  aria-label={c.collapsed ? `${c.label} 펴기 (자손 ${c.count}개)` : `${c.label} 접기`}
-                  aria-expanded={!c.collapsed}
-                  title={c.collapsed ? `펴기 — 아래에 ${c.count}개` : "접기"}
-                  onMouseDown={(e)=>e.stopPropagation()}
-                  onClick={()=>toggleCollapse(c.id)}
+              {drillChips.map((c) => (
+                <span key={c.id} className="g-fold"
+                  title={`안에 ${c.count}개 더 있습니다 — 눌러서 들어가기`}
+                  aria-hidden
                   style={{left:c.x, top:c.y}}>
-                  {c.collapsed ? `+${c.count}` : "−"}
-                </button>
+                  {c.count}
+                </span>
               ))}
             </div>
 
@@ -1186,12 +1211,11 @@ export function S06({ onNav }) {
                 </Btn>
               </div>
             )}
-            {/* 이것만 펴기 — 형제 가지를 모두 접어 이 가지 하나에 집중한다.
-                재루팅(다른 화면으로 들어가는 것)이 아니라 제자리에서 접는 것이라
-                전체 그림을 잃지 않고, 되돌리는 길도 늘 같다. */}
-            {!editing && !confirmDelete && foldableIds.has(sel.id) && sel.parentId && (
-              <Btn v="ghost" s="sm" style={{marginTop:8,width:"100%"}} onClick={()=>soloExpand(sel)}>
-                이것만 펴기
+            {/* 캔버스에서 이름표를 누르면 바로 들어가지만, 패널에서 읽다가
+                "들어가 볼까" 싶어질 때의 자리도 있어야 한다. */}
+            {!editing && !confirmDelete && drillableIds.has(sel.id) && sel.id !== activeFocus && (
+              <Btn v="ghost" s="sm" style={{marginTop:8,width:"100%"}} onClick={()=>setFocusId(sel.id)}>
+                여기서부터 보기
               </Btn>
             )}
             {editing && (

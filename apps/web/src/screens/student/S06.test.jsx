@@ -77,12 +77,7 @@ async function settle() {
 const html = () => host.innerHTML;
 const all = (sel) => [...host.querySelectorAll(sel)];
 const btn = (t) => all(".btn").find((b) => (b.textContent || "").includes(t));
-const pill = (t) => all(".depth-btn").find((b) => b.textContent === t);
-const fold = (labelPrefix) => all(".g-fold").find((b) => (b.getAttribute("aria-label") || "").startsWith(labelPrefix));
 const click = async (el) => { await act(async () => { el.click(); }); await settle(); };
-/** 노드의 자리(style 문자열)를 모아 둔다 — 접기 전후 비교용. */
-const positions = () => all(".graph-canvas [style*='position: absolute'][style*='left']")
-  .map((n) => n.getAttribute("style"));
 
 beforeEach(async () => {
   stubFetch();
@@ -94,10 +89,30 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("첫 화면", () => {
-  it("오류 없이 그려지고 노드가 다 뜬다", () => {
+describe("첫 화면 — 뿌리 층", () => {
+  it("오류 없이 그려진다", () => {
     expect(html().length).toBeGreaterThan(500);
-    expect(all(".graph-canvas [style*='border-radius: 50%']").length).toBeGreaterThanOrEqual(11);
+  });
+
+  it("문서와 교과군만 보인다 — 손자는 안 보인다", () => {
+    // 이게 시야가 걷히는 까닭이다. 197노드 계정 기준 17개만 남는다.
+    expect(html()).toContain("수학");
+    expect(html()).toContain("과학");
+    expect(html()).not.toContain("미적분");
+    expect(html()).not.toContain("경사 하강법");
+  });
+
+  it("화면에 선 노드는 문서 1 + 교과군 2 = 3개뿐", () => {
+    // 동그라미로 세지 않는다 — 범례에도 색 점이 있어서 같이 걸린다.
+    expect(all(".graph-canvas [style*='pointer-events: auto']")
+      .map((n) => n.textContent).filter(Boolean).sort())
+      .toEqual(["과학", "내 생기부", "수학"]);
+  });
+
+  it("경로표시가 지금 자리를 알려준다", () => {
+    const items = all(".gcrumb-item").map((b) => b.textContent);
+    expect(items).toEqual(["내 생기부"]);
+    expect(host.querySelector(".gcrumb-item").className).toContain("is-here");
   });
 
   it("툴바는 넷이다 — 으뜸 단추는 하나뿐", () => {
@@ -109,93 +124,93 @@ describe("첫 화면", () => {
   });
 
   it("걷어낸 단추는 없다", () => {
-    // 「변경 이력」·「노드 상세 보기」는 가짜 화면으로 가던 길이었고,
-    // 「가지치기 추천」은 노드를 안 고르면 꾸짖기만 했다.
     for (const t of ["변경 이력", "가지치기 추천", "노드 상세 보기"]) {
       expect(btn(t), `"${t}" 가 아직 있다`).toBeUndefined();
     }
+    // 깊이 알약도 없앴다 — 층을 오가는 길이 둘이면 어느 쪽이 진짜인지 알 수 없다.
+    expect(all(".depth-btn").length).toBe(0);
   });
 
-  it("이어지지 않은 노드를 세어 알리고, 잠시 감출 수 있다", async () => {
-    expect(host.querySelector(".graph-note").textContent).toContain("1개");
-    await click(host.querySelector(".graph-note-act"));
-    expect(html()).not.toContain("떠돌이개념");
+  it("안에 몇 개 더 있는지 배지로 알려준다", () => {
+    const badges = all(".g-fold").map((b) => b.textContent).sort();
+    // 수학 아래 5개(미적분·확통·경사·극한·베이즈), 과학 아래 2개(물리·등가원리)
+    expect(badges).toEqual(["2", "5"]);
   });
 });
 
-describe("접고 펴기", () => {
-  it("자식 있는 노드에만 손잡이가 붙는다", () => {
-    // doc·math·sci·calc·stat·phys = 6. 개념 넷과 떠돌이에는 없다.
-    expect(all(".g-fold").length).toBe(6);
+describe("들어가고 나오기", () => {
+  const label = (t) => all("span").find((s) => s.textContent === t);
+
+  it("교과군을 누르면 그 구획들로 들어간다", async () => {
+    await click(label("수학"));
+    expect(html()).toContain("미적분");
+    expect(html()).toContain("확률과 통계");
+    expect(html()).not.toContain("물리학");     // 남의 가지는 안 보인다
+    expect(html()).not.toContain("경사 하강법"); // 손자도 안 보인다
   });
 
-  it("다 펼친 상태에서는 전부 − 이다", () => {
-    expect(all(".g-fold").every((b) => b.textContent === "−")).toBe(true);
+  it("경로표시가 따라 늘어난다", async () => {
+    await click(label("수학"));
+    expect(all(".gcrumb-item").map((b) => b.textContent)).toEqual(["내 생기부", "수학"]);
   });
 
-  it("접으면 자손이 숨고 +N 이 붙는다", async () => {
-    await click(fold("2학년 미적분"));
-    expect(html()).not.toContain("경사 하강법");
-    expect(html()).not.toContain("극한");
-    expect(fold("2학년 미적분").textContent).toBe("+2");
-  });
-
-  it("접어도 살아남은 노드는 1px도 움직이지 않는다", async () => {
-    // 이 화면의 핵심 약속이다. 접을 때마다 재배치하면 방금 보던 자리를 잃는다.
-    const before = new Set(positions());
-    await click(fold("2학년 미적분"));
-    const moved = positions().filter((s) => !before.has(s));
-    expect(moved, `자리가 바뀐 노드 ${moved.length}개`).toEqual([]);
-  });
-
-  it("다시 펴면 그대로 돌아온다", async () => {
-    const before = positions();
-    await click(fold("2학년 미적분"));
-    await click(fold("2학년 미적분"));
-    expect(positions()).toEqual(before);
+  it("구획까지 내려가면 개념이 보인다", async () => {
+    await click(label("수학"));
+    await click(label("2학년 미적분"));
+    expect(all(".gcrumb-item").map((b) => b.textContent)).toEqual(["내 생기부", "수학", "2학년 미적분"]);
     expect(html()).toContain("경사 하강법");
+    expect(html()).toContain("극한");
   });
 
-  it("더블클릭으로도 접힌다", async () => {
-    const circle = all(".graph-canvas [style*='border-radius: 50%']")
-      .map((c) => c.parentElement)
-      .find((d) => d && d.textContent === "");
+  it("경로표시를 누르면 그 층으로 돌아간다", async () => {
+    await click(label("수학"));
+    await click(label("2학년 미적분"));
+    await click(all(".gcrumb-item")[0]);          // 「내 생기부」
+    expect(all(".gcrumb-item").length).toBe(1);
+    expect(html()).toContain("수학");
+    expect(html()).not.toContain("미적분");
+  });
+
+  it("말단 개념을 누르면 고르기만 하고 들어가지 않는다", async () => {
+    // 빈 화면으로 데려가면 길을 잃는다.
+    await click(label("수학"));
+    await click(label("2학년 미적분"));
+    const before = all(".gcrumb-item").length;
+    await click(label("경사 하강법"));
+    expect(all(".gcrumb-item").length).toBe(before);
+    expect(all(".gpanel").length).toBe(1);          // 패널은 열린다
+  });
+
+  /** 빈 배경을 끌지 않고 누르기만 하기. */
+  const tapBackground = async () => {
+    const canvas = host.querySelector(".graph-canvas");
     await act(async () => {
-      circle.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      canvas.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
+      canvas.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 0, clientX: 5, clientY: 5 }));
     });
     await settle();
-    // 어느 노드를 눌렀든 자식이 있는 노드였다면 +N 이 하나는 생긴다.
-    // (자식 없는 노드였다면 아무 일도 없어야 한다 — 둘 다 정상)
-    expect(html()).toBeTruthy();
-  });
-});
+  };
 
-describe("깊이 알약은 모드가 아니라 프리셋 명령이다", () => {
-  it("「과목」은 구획을 전부 접는다", async () => {
-    await click(pill("과목"));
-    expect(html()).not.toContain("경사 하강법");
-    expect(html()).not.toContain("베이즈");
-    expect(html()).toContain("미적분");
-    expect(all(".g-fold").filter((b) => b.textContent.startsWith("+")).length).toBe(3);
-  });
+  it("배경을 누르면 선택부터 놓고, 다시 누르면 한 층 위로", async () => {
+    // 두 단계인 까닭: 들어간 노드는 패널에도 서 있다. 보던 것을 놓기도 전에
+    // 층이 바뀌면 어디로 갔는지 알 수 없다.
+    await click(label("수학"));
+    expect(all(".gcrumb-item").length).toBe(2);
+    expect(all(".gpanel").length).toBe(1);
 
-  it("프리셋과 같으면 알약에 불이 켜진다", async () => {
-    await click(pill("과목"));
-    expect(pill("과목").getAttribute("aria-pressed")).toBe("true");
+    await tapBackground();
+    expect(all(".gpanel").length).toBe(0);         // 선택만 풀린다
+    expect(all(".gcrumb-item").length).toBe(2);    // 층은 그대로
+
+    await tapBackground();
+    expect(all(".gcrumb-item").length).toBe(1);    // 이제 위로
   });
 
-  it("손으로 하나만 펴면 불이 꺼진다 — 진리는 collapsed 하나다", async () => {
-    await click(pill("과목"));
-    await click(fold("2학년 미적분"));
-    expect(pill("과목").getAttribute("aria-pressed")).toBe("false");
-    expect(html()).toContain("경사 하강법");   // 편 가지만 돌아온다
-    expect(html()).not.toContain("베이즈");
-  });
-
-  it("「교과」는 구획까지 접는다", async () => {
-    await click(pill("교과"));
-    expect(html()).not.toContain("미적분");
-    expect(html()).toContain("수학");
+  it("뿌리에서 배경을 눌러도 더 갈 곳이 없다", async () => {
+    expect(all(".gcrumb-item").length).toBe(1);
+    await tapBackground();
+    await tapBackground();
+    expect(all(".gcrumb-item").length).toBe(1);
   });
 });
 
@@ -215,12 +230,13 @@ describe("검색", () => {
     expect(host.querySelector(".gsearch-count").textContent).toBe("1/1");
   });
 
-  it("접힌 가지 안의 노드도 찾아서 조상을 편다", async () => {
-    // 접기가 검색을 망가뜨리면 안 된다 — 이름을 정확히 알아도 못 찾게 된다.
-    await click(pill("교과"));
+  it("다른 층의 노드를 찾으면 그 층으로 데려간다", async () => {
+    // 초점이 검색을 망가뜨리면 안 된다 — 이름을 정확히 알아도 못 찾게 된다.
     expect(html()).not.toContain("베이즈 정리");
     await type("베이즈");
     expect(html()).toContain("베이즈 정리");
+    expect(all(".gcrumb-item").map((b) => b.textContent))
+      .toEqual(["내 생기부", "수학", "3학년 확률과 통계"]);
   });
 
   it("안 걸리면 0 이라고 말한다", async () => {
@@ -249,8 +265,8 @@ describe("옆 패널은 한 자리다", () => {
 
   it("둘러보기를 연 채 노드를 골라도 하나다 — 예전엔 둘이 섰다", async () => {
     await click(btn("둘러보기"));
-    const label = all("span").find((s) => s.textContent === "등가원리" || s.textContent === "극한");
-    if (label) await click(label);
+    const l = all("span").find((s) => s.textContent === "수학");
+    if (l) await click(l);
     expect(panels()).toBe(1);
     expect(host.querySelector(".gpanel-title").textContent).toBe("노드");
   });
@@ -258,9 +274,9 @@ describe("옆 패널은 한 자리다", () => {
 
 describe("노드 패널", () => {
   const openNode = async () => {
-    const label = all("span").find((s) => s.textContent === "등가원리" || s.textContent === "극한");
-    expect(label, "이름표를 못 찾았다").toBeTruthy();
-    await click(label);
+    const l = all("span").find((s) => s.textContent === "수학");
+    expect(l, "이름표를 못 찾았다").toBeTruthy();
+    await click(l);
   };
 
   it("구획 넷으로 나뉘고 출처·연결만 펴져 있다", async () => {
@@ -292,7 +308,7 @@ describe("노드 패널", () => {
     await openNode();
     const first = host.querySelector(".gpanel").textContent;
     // 고른 노드의 이름표는 큰 카드로 바뀌므로, 남아 있는 다른 이름표를 고른다.
-    const other = all("span").find((s) => ["수학", "과학", "베이즈 정리", "경사 하강법"].includes(s.textContent));
+    const other = all("span").find((s) => ["과학", "2학년 미적분", "3학년 확률과 통계"].includes(s.textContent));
     expect(other, "다른 이름표를 못 찾았다").toBeTruthy();
     await click(other);
     expect(all(".gpanel").length).toBe(1);
@@ -301,10 +317,10 @@ describe("노드 패널", () => {
 });
 
 describe("보던 자리를 기억한다", () => {
-  it("접힘을 sessionStorage 에 남긴다", async () => {
-    await click(pill("과목"));
+  it("어느 층에 있었는지 sessionStorage 에 남긴다", async () => {
+    const l = all("span").find((s) => s.textContent === "수학");
+    await click(l);
     await act(async () => { await new Promise((r) => setTimeout(r, 400)); });   // 디바운스
-    const saved = JSON.parse(sessionStorage.getItem("mbx_graph_view"));
-    expect(saved.collapsed.sort()).toEqual(["calc", "phys", "stat"]);
+    expect(JSON.parse(sessionStorage.getItem("mbx_graph_view")).focusId).toBe("math");
   });
 });
