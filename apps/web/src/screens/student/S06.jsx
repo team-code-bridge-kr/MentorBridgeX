@@ -518,7 +518,10 @@ export function S06({ onNav }) {
     setPrune({ nodeId: node.id, loading: true, error: "", items: [] });
     setResearch({});
     try {
-      const data = await api.pruning.recommend(node.id);
+      const data = await withLoading(
+        `'${node.label}' 에서 뻗어 갈 주제를 찾는 중이에요…`,
+        () => api.pruning.recommend(node.id),
+      );
       setPrune({
         nodeId: node.id,
         loading: false,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
+import { withLoading } from "../../components/LoadingDock.jsx";
 import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
@@ -16,13 +17,18 @@ export function S01({ onNav }) {
     setLocalErr("");
     if (!emailOk) { setLocalErr("올바른 이메일 형식을 입력하세요."); return; }
     if (pw.length < 4) { setLocalErr("비밀번호를 입력하세요."); return; }
-    try { await actions.signInPassword(email, pw); /* 게이팅이 자동으로 역할 홈으로 이동 */ }
-    catch (e) { setLocalErr(e.message); }
+    try {
+      await withLoading("로그인 중이에요…", () => actions.signInPassword(email, pw));
+      /* 게이팅이 자동으로 역할 홈으로 이동 */
+    } catch (e) { setLocalErr(e.message); }
   };
   const doGoogleLogin = async () => {
     setLocalErr("");
-    try { await actions.signInGoogle(); }
-    catch (e) { setLocalErr(e.message); }
+    try {
+      // 설정을 받아 온 뒤 구글로 **페이지를 통째로 넘긴다.** 그 사이가 비어 있으면
+      // 눌렸는지 알 수 없어 한 번 더 누르게 된다.
+      await withLoading("Google 로 이동 중이에요…", () => actions.signInGoogle());
+    } catch (e) { setLocalErr(e.message); }
   };
   const onKey = e => { if (e.key === "Enter" && !busy) doPasswordLogin(); };
   const errMsg = localErr || state.authError;

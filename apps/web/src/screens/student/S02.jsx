@@ -3,6 +3,7 @@ import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { TFI } from "../../components/ui.jsx";
 import api from "../../api/index.js";
+import { showLoading } from "../../components/LoadingDock.jsx";
 
 /**
  * S02 — Google OAuth 콜백
@@ -14,6 +15,8 @@ export function S02({ onNav }) {
 
   useEffect(() => {
     let cancelled = false;
+    // 구글에서 돌아와 토큰을 바꾸는 동안. 실패하면 아래에서 바로 내린다.
+    const doneLoading = showLoading("로그인을 마무리하는 중이에요…");
 
     (async () => {
       const params = new URLSearchParams(window.location.search);
@@ -22,16 +25,19 @@ export function S02({ onNav }) {
       const oauthErr = params.get("error");
 
       if (oauthErr) {
+        doneLoading();
         setErr(`Google 로그인 취소/실패: ${oauthErr}`);
         return;
       }
       if (!code) {
+        doneLoading();
         setErr("인증 코드가 없습니다. 다시 로그인해 주세요.");
         return;
       }
 
       const expected = sessionStorage.getItem("mbx_oauth_state");
       if (expected && state && expected !== state) {
+        doneLoading();
         setErr("잘못된 OAuth state 입니다. 다시 시도해 주세요.");
         return;
       }
@@ -49,10 +55,12 @@ export function S02({ onNav }) {
         onNav?.("S05", { replace: true });
       } catch (e) {
         if (!cancelled) setErr(e.message || "Google 로그인에 실패했습니다.");
+      } finally {
+        doneLoading();
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; doneLoading(); };
   }, [actions, onNav]);
 
   return (

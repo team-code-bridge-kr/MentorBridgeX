@@ -14,6 +14,7 @@ import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Notice } from "../../components/ui.jsx";
 import { PdfRegionViewer } from "../../components/pdf/PdfRegionViewer.jsx";
 import api from "../../api/index.js";
+import { showLoading } from "../../components/LoadingDock.jsx";
 
 const MAX_MB = 50;
 
@@ -42,12 +43,17 @@ export function S13({ onNav }) {
     setUploading(true);
     setErr("");
     setProgress("업로드 중…");
+    // 이 앱에서 가장 오래 걸리는 일이다(표본 19쪽에 56초). 화면을 떠나도
+    // 무슨 일이 도는지 보여야 한다.
+    let doneLoading = showLoading("생기부를 올리는 중이에요…");
     try {
       // 원본을 먼저 보관한다 — 파싱이 실패해도 학생이 올린 문서는 다시 볼 수 있어야 한다
       await api.documentFile.put(file).catch(() => {});
       const { jobId } = await api.ingest.uploadPdf(file);
       sessionStorage.setItem("mbx_pdf_job", jobId);
       setProgress("파싱 중… (텍스트·키워드 추출)");
+      doneLoading();
+      doneLoading = showLoading("생기부를 읽고 그래프를 만드는 중이에요…");
       const job = await api.jobs.wait(jobId);
       if (job.status !== "completed") {
         throw new Error(job.error || "PDF 처리에 실패했습니다.");
@@ -58,6 +64,7 @@ export function S13({ onNav }) {
       setErr(e.message || "업로드 실패");
       setProgress("");
     } finally {
+      doneLoading();
       setUploading(false);
     }
   };
