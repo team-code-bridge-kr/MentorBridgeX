@@ -35,6 +35,13 @@ async def init_neo4j() -> None:
         await session.run(
             "CREATE CONSTRAINT node_id IF NOT EXISTS FOR (n:Node) REQUIRE n.node_id IS UNIQUE"
         )
+        # 그래프는 라벨 하나(`:Node`)에 전부 들어 있고 학생을 가르는 것은 user_id
+        # 프로퍼티뿐이다. 이 인덱스가 없으면 한 학생의 스냅샷을 부를 때마다
+        # **모든 학생의 노드**를 훑는다 — 실측(160명·4,754개)에서 쿼리 계획이
+        # NodeByLabelScan + Filter 였다. 200개를 보려고 4,754개를 읽는 셈이고,
+        # 학생이 늘수록 정비례로 느려진다. node_id 유니크 제약은 노드 하나를
+        # 집어 올 때만 쓰이므로 이 스캔을 대신해 주지 못한다.
+        await session.run("CREATE INDEX node_user_id IF NOT EXISTS FOR (n:Node) ON (n.user_id)")
 
 
 def _to_datetime(value: Any) -> datetime:
