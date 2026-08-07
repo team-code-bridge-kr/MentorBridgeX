@@ -81,6 +81,42 @@ describe("focusViewOf — 한 층만", () => {
   });
 });
 
+describe("손님 — 다른 층에서 잠시 데려오기", () => {
+  it("딴 층 노드를 이 화면에 세운다", () => {
+    const v = focusViewOf(nodes, cm, "math", new Set(["eq"]));   // eq 는 과학 쪽
+    expect(v.guests.map((g) => g.id)).toEqual(["eq"]);
+    expect(v.positions.has("eq")).toBe(true);
+  });
+
+  it("이미 이 층에 있는 노드는 손님이 아니다", () => {
+    const v = focusViewOf(nodes, cm, "math", new Set(["calc", "math"]));
+    expect(v.guests).toEqual([]);
+  });
+
+  it("손님은 자식들 **뒤** 자리를 받는다 — 바깥에 서서 식구와 구별된다", () => {
+    const withGuest = focusViewOf(nodes, cm, "math", new Set(["eq"]));
+    const without = focusViewOf(nodes, cm, "math");
+    // 자식 자리는 손님이 와도 그대로여야 한다(손님 때문에 식구가 움직이면 안 된다).
+    for (const c of without.children) {
+      expect(withGuest.positions.get(c.id)).toEqual(without.positions.get(c.id));
+    }
+  });
+
+  it("손님 자리도 다른 것과 겹치지 않는다", () => {
+    const v = focusViewOf(nodes, cm, "math", new Set(["eq", "phys", "doc"]));
+    const seen = new Set([...v.positions.values()].map((p) => `${p.x},${p.y}`));
+    expect(seen.size).toBe(v.positions.size);
+  });
+
+  it("없는 id 는 조용히 무시한다", () => {
+    expect(focusViewOf(nodes, cm, "math", new Set(["사라진id"])).guests).toEqual([]);
+  });
+
+  it("손님을 안 주면 예전과 같다", () => {
+    expect(focusViewOf(nodes, cm, "math").guests).toEqual([]);
+  });
+});
+
 describe("ringSlots — 자리 나누기", () => {
   it("개수만큼 자리를 준다", () => {
     for (const n of [0, 1, 3, 10, 16, 40, 80]) {

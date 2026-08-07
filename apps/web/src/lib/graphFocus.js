@@ -32,8 +32,10 @@
 const RINGS = [
   { r: 27, cap: 10 },
   { r: 38, cap: 15 },
-  { r: 47, cap: 20 },
+  { r: 44, cap: 20 },
 ];
+/** 손님 고리 — 자식이 쓰는 가장 바깥(44)보다 밖이라 서로 섞이지 않는다. */
+const GUEST_R = 48.5;
 const CENTER = { x: 50, y: 50 };
 
 const pct = (v) => `${Math.max(4, Math.min(96, v)).toFixed(1)}%`;
@@ -102,25 +104,50 @@ export function pathTo(id, nodes) {
 }
 
 /**
- * 이번 화면 — 초점 노드와 그 자식들.
+ * 이번 화면 — 초점 노드와 그 자식들, 그리고 **불러온 손님**.
  *
- * @returns `{ focus, children, positions, missing }`
+ * ## 손님(`extraIds`)
+ *
+ * 다른 층에 있는 노드를 잠시 이 화면에 데려온다. 연결을 이을 때 쓴다 — 「연결
+ * 추가」에서 고른 노드가 딴 층에 있으면, 무엇과 잇는 중인지 눈으로 볼 수 없어서
+ * 이름만 보고 이어야 했다. 손님은 이 화면에만 잠깐 서는 것이고 초점을 옮기면
+ * 사라진다(자리를 옮긴 것이 아니라 데려와 보여 준 것뿐이다).
+ *
+ * 자리는 자식들 **뒤에** 이어 붙인다. 그래야 안쪽 고리부터 자식이 차고 손님이
+ * 바깥에 서서, 어느 것이 이 층의 식구인지 자리로도 구별된다.
+ *
+ * @returns `{ focus, children, guests, positions, missing }`
  *   - `positions` : `Map<id, {x,y}>` (백분율 문자열)
  *   - `missing`   : 초점 id 가 그래프에 없을 때 true (그래프가 바뀌면 생긴다)
  */
-export function focusViewOf(nodes, childMap, focusId) {
+export function focusViewOf(nodes, childMap, focusId, extraIds) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const focus = byId.get(focusId) || null;
-  if (!focus) return { focus: null, children: [], positions: new Map(), missing: true };
+  if (!focus) return { focus: null, children: [], guests: [], positions: new Map(), missing: true };
 
   const children = (childMap.get(focusId) || []).map((id) => byId.get(id)).filter(Boolean);
-  const slots = ringSlots(children.length);
+  const here = new Set([focus.id, ...children.map((c) => c.id)]);
+  const guests = [...(extraIds || [])]
+    .filter((id) => !here.has(id))
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  // 자식 자리는 **손님과 무관하게** 정한다. 손님 하나 데려왔다고 식구가 우르르
+  // 움직이면, 무엇과 잇는 중인지 보려다 보던 그림을 잃는다.
   const positions = new Map([[focus.id, { x: pct(CENTER.x), y: pct(CENTER.y) }]]);
-  children.forEach((c, i) => {
-    const s = slots[i];
-    positions.set(c.id, { x: pct(s.x), y: pct(s.y) });
+  ringSlots(children.length).forEach((s, i) => {
+    positions.set(children[i].id, { x: pct(s.x), y: pct(s.y) });
   });
-  return { focus, children, positions, missing: false };
+  // 손님은 자식보다 바깥 고리에 따로 선다.
+  const step = (Math.PI * 2) / Math.max(guests.length, 1);
+  guests.forEach((g, i) => {
+    const a = -Math.PI / 2 + step * i;
+    positions.set(g.id, {
+      x: pct(CENTER.x + GUEST_R * Math.cos(a)),
+      y: pct(CENTER.y + GUEST_R * Math.sin(a)),
+    });
+  });
+  return { focus, children, guests, positions, missing: false };
 }
 
 /**

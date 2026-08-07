@@ -38,6 +38,9 @@ const LABEL_EDGE_PAD = 90;
 // 사라져서, 무엇 옆에 있던 노드인지 알 수 없게 된다.
 const FOCUS_SCALE = 1.35;
 const FLY_MS = 380;
+// 층을 옮길 때 노드가 새 자리로 미끄러지는 시간. 재배치는 방향 감각을 잃기 쉬운
+// 동작이라, 즉시 튀면 "무엇이 어디로 갔는지"를 눈이 못 따라간다.
+const FOCUS_MS = 340;
 
 /**
  * 보던 자리 기억하기 — 접힘·배율·끌어 옮긴 위치.
@@ -128,8 +131,14 @@ const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connect
             onMouseDown={(e)=>onNodeDown(e,n)}
             onDoubleClick={drillableIds.has(n.id) ? (e)=>{ e.stopPropagation(); onDrill(n); } : undefined}
             onMouseEnter={()=>onHover(n.id)} onMouseLeave={()=>onHover(null)}
-            style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",transition:isDraggingThis?"none":"transform .2s, opacity .2s",opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
-            <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${meta.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:`2px solid rgba(255,255,255,.55)`}}>
+            className={`gnode${n.isGuest ? " is-guest" : ""}`}
+            style={{position:"absolute",left:pos.x,top:pos.y,transform:`translate(-50%,-50%) scale(${isActive?1.12:1})`,display:"flex",flexDirection:"column",alignItems:"center",cursor:isDraggingThis?"grabbing":"grab",
+                    // 층을 옮기면 자리가 바뀐다. 살아남은 노드(눌러서 들어간 그것)는
+                    // 제자리에서 가운데로 미끄러져, 어느 것이 어디로 갔는지 눈이 따라간다.
+                    // 끄는 중에는 전환을 끈다 — 손가락보다 늦게 따라오면 끈적하다.
+                    transition:isDraggingThis?"none":`left ${FOCUS_MS}ms cubic-bezier(.22,.8,.28,1), top ${FOCUS_MS}ms cubic-bezier(.22,.8,.28,1), transform .2s, opacity .2s`,
+                    opacity:dim?DIM_OPACITY:1,zIndex:isDraggingThis?Z.nodeDragging:isActive?Z.nodeActive:Z.node}}>
+            <div style={{width:n.size,height:n.size,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:isActive?`0 0 0 4px ${GRAPH_CANVAS.bg}, 0 0 0 7px ${meta.color}, 0 8px 24px ${meta.ring}`:`0 4px 12px rgba(15,23,42,.18)`,border:n.isGuest?`2px dashed ${meta.color}`:`2px solid rgba(255,255,255,.55)`}}>
               <NavIcon name={iconForNode(n)} size={n.size>50?24:n.size>40?19:15} color="#fff"/>
             </div>
           </div>
@@ -158,6 +167,15 @@ export function S06({ onNav }) {
    */
   const [focusId, setFocusId] = useState(() => readSaved()?.focusId ?? null);
 
+  /**
+   * 이 화면에 잠시 데려온 다른 층의 노드.
+   *
+   * 「연결 추가」에서 딴 층의 노드를 고르면 무엇과 잇는 중인지 눈으로 볼 수 없다.
+   * 골라 둔 동안만 화면에 세워 준다. 층을 옮기면 사라진다 — 자리를 옮긴 것이
+   * 아니라 데려와 보여 준 것뿐이다.
+   */
+  const [extraIds, setExtraIds] = useState(() => new Set());
+
   const childMap = useMemo(() => childMapOf(allNodes), [allNodes]);
   /** 들어갈 수 있는 노드 = 자식이 있는 노드. */
   const drillableIds = useMemo(() => new Set(childMap.keys()), [childMap]);
@@ -183,8 +201,8 @@ export function S06({ onNav }) {
   );
 
   const view0 = useMemo(
-    () => focusViewOf(allNodes, childMap, activeFocus),
-    [allNodes, childMap, activeFocus],
+    () => focusViewOf(allNodes, childMap, activeFocus, extraIds),
+    [allNodes, childMap, activeFocus, extraIds],
   );
   /** 뿌리 → 지금 초점까지의 길. 경로표시가 이걸 그린다. */
   const trail = useMemo(() => pathTo(activeFocus, allNodes), [activeFocus, allNodes]);
@@ -198,9 +216,10 @@ export function S06({ onNav }) {
   const nodes = useMemo(() => {
     if (!view0.focus) return [];
     const pos = view0.positions;
-    return [view0.focus, ...view0.children].map((n) => {
+    const guest = new Set(view0.guests.map((g) => g.id));
+    return [view0.focus, ...view0.children, ...view0.guests].map((n) => {
       const p = pos.get(n.id);
-      return p ? { ...n, x: p.x, y: p.y } : n;
+      return { ...n, ...(p ? { x: p.x, y: p.y } : null), isGuest: guest.has(n.id) };
     });
   }, [view0]);
 
@@ -212,14 +231,19 @@ export function S06({ onNav }) {
   /** 이 노드로 들어간다. 자식이 없으면 들어갈 데가 없어 아무 일도 안 한다. */
   const drillInto = useCallback((node) => {
     const target = drillTargetOf(node, childMap);
-    if (target) setFocusId(target);
+    if (target) { setFocusId(target); setExtraIds(new Set()); }
     return !!target;
   }, [childMap]);
+
+  /** 다른 층의 노드를 이 화면에 잠시 세운다(연결을 이을 때). */
+  const showGuest = useCallback((id) => {
+    setExtraIds((cur) => (!id || cur.has(id) ? cur : new Set([...cur, id])));
+  }, []);
 
   /** 한 층 위로. 뿌리면 더 갈 곳이 없다. */
   const goUp = useCallback(() => {
     const up = parentOf(activeFocus, allNodes);
-    if (up) setFocusId(up);
+    if (up) { setFocusId(up); setExtraIds(new Set()); }
     return !!up;
   }, [activeFocus, allNodes]);
 
@@ -229,7 +253,7 @@ export function S06({ onNav }) {
     if (!n) return;
     // 자식이 있으면 그 노드로 들어가고, 말단이면 그 부모 층에서 보여준다.
     const target = (childMap.get(id)?.length ?? 0) > 0 ? id : (n.parentId || rootId);
-    if (target) setFocusId(target);
+    if (target) { setFocusId(target); setExtraIds(new Set()); }
   }, [allNodes, childMap, rootId]);
 
   const [sel, setSel] = useState(null);
@@ -881,7 +905,7 @@ export function S06({ onNav }) {
                 type="button"
                 className={`gcrumb-item${i === trail.length - 1 ? " is-here" : ""}`}
                 aria-current={i === trail.length - 1 ? "true" : undefined}
-                onClick={() => { setFocusId(n.id); setSel(null); }}
+                onClick={() => { setFocusId(n.id); setExtraIds(new Set()); setSel(null); }}
               >
                 {n.label}
               </button>
@@ -1214,7 +1238,7 @@ export function S06({ onNav }) {
             {/* 캔버스에서 이름표를 누르면 바로 들어가지만, 패널에서 읽다가
                 "들어가 볼까" 싶어질 때의 자리도 있어야 한다. */}
             {!editing && !confirmDelete && drillableIds.has(sel.id) && sel.id !== activeFocus && (
-              <Btn v="ghost" s="sm" style={{marginTop:8,width:"100%"}} onClick={()=>setFocusId(sel.id)}>
+              <Btn v="ghost" s="sm" style={{marginTop:8,width:"100%"}} onClick={()=>{ setFocusId(sel.id); setExtraIds(new Set()); }}>
                 여기서부터 보기
               </Btn>
             )}
@@ -1282,13 +1306,17 @@ export function S06({ onNav }) {
                   open={openSections.has("links")}
                   onToggle={()=>toggleSection("links")}
                 >
+                  {/* **전체** 노드·전체 선을 넘긴다. 지금 층으로 걸러 넘기면
+                      다른 층에 있는 노드와는 이을 수 없고, 이미 이어 둔 연결조차
+                      목록에서 사라진다(있는 것을 없다고 말하는 셈이다). */}
                   <NodeConnections
                     node={sel}
-                    edges={edges}
-                    nodes={nodes}
+                    edges={allEdges}
+                    nodes={allNodes}
                     busy={busy}
                     onConnect={handleConnect}
                     onDisconnect={handleDisconnect}
+                    onPreview={showGuest}
                   />
                 </Section>
 

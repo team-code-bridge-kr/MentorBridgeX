@@ -212,9 +212,21 @@ export function NodeDeleteConfirm({ node, edgeCount, onConfirm, onCancel, busy }
  * 이 노드에 걸린 연결 목록. 하나씩 끊을 수 있고, 새로 이을 수도 있다.
  * 연결이 없으면 그래프에서 떨어진 점이 되므로, 비어 있을 때도 그 사실을 말한다.
  */
-export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, busy }) {
+/**
+ * 이 노드의 연결.
+ *
+ * `nodes`·`edges` 는 **그래프 전체**를 받는다. 지금 보고 있는 층으로 걸러 받으면
+ * 두 가지가 망가진다 — 다른 층의 노드와는 이을 수 없고, 이미 이어 둔 연결조차
+ * 목록에서 사라진다(있는 것을 없다고 말하는 셈이다).
+ *
+ * `onPreview(id)` 는 고른 노드를 캔버스에 잠시 세워 달라는 부탁이다. 딴 층에 있는
+ * 노드는 이름만 보고 이어야 하는데, 무엇과 잇는 중인지 눈으로 보이면 잘못 고른
+ * 것을 잇기 전에 알아챈다.
+ */
+export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, onPreview, busy }) {
   const [adding, setAdding] = useState(false);
   const [target, setTarget] = useState("");
+  const [q, setQ] = useState("");
 
   const linked = edges
     .filter((e) => e.from === node.id || e.to === node.id)
@@ -225,7 +237,17 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
     .filter((l) => l.other);
 
   const linkedIds = new Set(linked.map((l) => l.other.id));
-  const candidates = nodes.filter((n) => n.id !== node.id && !linkedIds.has(n.id));
+  const all = nodes.filter((n) => n.id !== node.id && !linkedIds.has(n.id));
+  // 후보가 200개 가까이 된다. 목록을 통째로 늘어놓으면 찾는 것이 스크롤 일이 되므로
+  // 이름으로 좁힌다. 고른 것은 좁히기와 무관하게 늘 목록에 남긴다 — 안 그러면
+  // 고른 뒤 글자를 지웠을 때 무엇을 골랐는지 화면에서 사라진다.
+  const t = q.trim();
+  const shown = (t ? all.filter((n) => n.label.includes(t)) : all).slice(0, 8);
+  const picked = target ? all.find((n) => n.id === target) : null;
+  const list = picked && !shown.some((n) => n.id === picked.id) ? [picked, ...shown] : shown;
+
+  const pick = (id) => { setTarget(id); onPreview?.(id); };
+  const close = () => { setAdding(false); setTarget(""); setQ(""); };
 
   return (
     <div>
@@ -233,24 +255,49 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
         <p style={{ fontSize: 12, fontWeight: 600, color: TDS.textTertiary, margin: 0 }}>
           연결 {linked.length}개
         </p>
-        {!adding && candidates.length > 0 && (
+        {!adding && all.length > 0 && (
           <Btn v="secondary" s="sm" onClick={() => setAdding(true)} disabled={busy}>연결 추가</Btn>
         )}
       </div>
 
       {adding && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          <select
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            style={{ ...field, flex: 1, minWidth: 0, cursor: "pointer" }}
-          >
-            <option value="">이을 노드 고르기</option>
-            {candidates.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-          </select>
-          <Btn v="primary" s="sm" disabled={!target || busy}
-            onClick={() => { onConnect(target); setTarget(""); setAdding(false); }}>잇기</Btn>
-          <Btn v="ghost" s="sm" onClick={() => { setAdding(false); setTarget(""); }}>취소</Btn>
+        <div style={{ marginBottom: 10 }}>
+          <input
+            className="inp"
+            style={{ height: 34, fontSize: 13 }}
+            placeholder={`이을 노드 찾기 (${all.length}개)`}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            autoFocus
+          />
+          <div className="gpick" role="listbox" aria-label="이을 노드">
+            {!list.length && (
+              <p style={{ fontSize: 12, color: TDS.textTertiary, margin: "8px 2px" }}>걸리는 이름이 없습니다.</p>
+            )}
+            {list.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                role="option"
+                aria-selected={target === n.id}
+                className={`gpick-row${target === n.id ? " is-on" : ""}`}
+                onClick={() => pick(n.id)}
+              >
+                <span className="gpick-name">{n.label}</span>
+                {n.section && n.section !== "기타" && <span className="gpick-where">{n.section}</span>}
+              </button>
+            ))}
+            {!t && all.length > shown.length && (
+              <p style={{ fontSize: 11.5, color: TDS.textTertiary, margin: "6px 2px 0" }}>
+                {all.length - shown.length}개 더 — 이름을 적어 좁히세요.
+              </p>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <Btn v="primary" s="sm" disabled={!target || busy}
+              onClick={() => { onConnect(target); close(); }}>잇기</Btn>
+            <Btn v="ghost" s="sm" onClick={close}>취소</Btn>
+          </div>
         </div>
       )}
 

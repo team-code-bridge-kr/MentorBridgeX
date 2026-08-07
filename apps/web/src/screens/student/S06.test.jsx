@@ -316,6 +316,72 @@ describe("노드 패널", () => {
   });
 });
 
+describe("연결 추가 — 후보는 그래프 전체", () => {
+  const openNode = async () => {
+    const l = all("span").find((s) => s.textContent === "수학");
+    await click(l);
+  };
+  const openConnect = async () => {
+    await openNode();
+    await click(btn("연결 추가"));
+  };
+
+  it("지금 층에 없는 노드도 후보에 뜬다", async () => {
+    // 예전에는 보고 있는 층으로 걸러 넘겨서, 다른 층 노드와는 이을 수 없었다.
+    await openConnect();
+    const input = host.querySelector(".gpick").previousElementSibling;
+    expect(input.getAttribute("placeholder")).toContain("개)");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, "베이즈");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    expect(all(".gpick-name").map((n) => n.textContent)).toContain("베이즈 정리");
+  });
+
+  it("고르면 그 노드가 캔버스에 잠시 선다", async () => {
+    await openConnect();
+    const input = host.querySelector(".gpick").previousElementSibling;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, "베이즈");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    const onCanvasBefore = all(".graph-canvas [style*='pointer-events: auto']").map((n) => n.textContent);
+    expect(onCanvasBefore).not.toContain("베이즈 정리");   // 아직 캔버스엔 없다
+    await click(all(".gpick-row")[0]);
+    // 이제 캔버스에 손님으로 서 있다 — 무엇과 잇는 중인지 눈으로 보인다.
+    const onCanvas = all(".graph-canvas [style*='pointer-events: auto']").map((n) => n.textContent);
+    expect(onCanvas).toContain("베이즈 정리");
+    expect(all(".gnode.is-guest").length).toBe(1);
+  });
+
+  it("층을 옮기면 손님은 돌아간다", async () => {
+    await openConnect();
+    const input = host.querySelector(".gpick").previousElementSibling;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    await act(async () => {
+      setter.call(input, "베이즈");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    await click(all(".gpick-row")[0]);
+    expect(all(".gnode.is-guest").length).toBe(1);
+    await click(all(".gcrumb-item")[0]);            // 뿌리로
+    expect(all(".gnode.is-guest").length).toBe(0);
+  });
+
+  it("후보 개수를 미리 알려주고 목록은 여덟 개까지만 편다", async () => {
+    await openConnect();
+    const input = host.querySelector(".gpick").previousElementSibling;
+    // 「수학」은 문서·미적분·확통과 이미 이어져 있으므로 후보는 나머지 전부다.
+    expect(input.getAttribute("placeholder")).toBe("이을 노드 찾기 (7개)");
+    expect(all(".gpick-row").length).toBeLessThanOrEqual(8);
+  });
+});
+
 describe("보던 자리를 기억한다", () => {
   it("어느 층에 있었는지 sessionStorage 에 남긴다", async () => {
     const l = all("span").find((s) => s.textContent === "수학");
