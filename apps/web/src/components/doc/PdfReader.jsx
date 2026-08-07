@@ -27,6 +27,7 @@ import {
 import { linksFrom, linksForPage, factsForPage } from "../../lib/pdfLinks.js";
 import { NavIcon } from "../NavIcon.jsx";
 import { API_BASE, getToken } from "../../api/client.js";
+import { showLoading } from "../LoadingDock.jsx";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -393,6 +394,13 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
     })();
     return () => { cancelled = true; };
   }, [doc, subjects]);
+
+  // 19쪽을 훑는 데 3~4초. 그동안 아무 말이 없으면 멈춘 줄 안다.
+  // showLoading 이 돌려주는 함수가 곧 정리 함수라 그대로 넘긴다.
+  useEffect(() => {
+    if (doc && pages) return undefined;
+    return showLoading(doc ? "생기부를 읽는 중이에요…" : "생기부를 여는 중이에요…");
+  }, [doc, pages]);
 
   const items = useMemo(() => (pages ? bindItems(pages, docs) : []), [pages, docs]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);

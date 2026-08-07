@@ -3,6 +3,8 @@ import TDS from "../../theme/tokens.js";
 import { Btn, Badge, Card } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
+import { withLoading } from "../../components/LoadingDock.jsx";
+import { eul } from "../../lib/josa.js";
 
 export function S20({ onNav }) {
   const [templates, setTemplates] = useState([]);
@@ -24,7 +26,10 @@ export function S20({ onNav }) {
     setBusy(tmpl.id);
     setErr("");
     try {
-      open(await api.forms.generate(tmpl.id));
+      open(await withLoading(
+        `${tmpl.title}${eul(tmpl.title)} 쓰는 중이에요…`,
+        () => api.forms.generate(tmpl.id),
+      ));
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -37,7 +42,10 @@ export function S20({ onNav }) {
     setBusy("upload");
     setErr("");
     try {
-      open(await api.forms.fillFromFile(file));
+      open(await withLoading(
+        "양식을 읽고 채우는 중이에요…",
+        () => api.forms.fillFromFile(file),
+      ));
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -97,7 +105,15 @@ export function S20({ onNav }) {
             <div style={{ fontSize: 13, color: TDS.textTertiary, marginBottom: 18, lineHeight: 1.6 }}>{tmpl.description}</div>
             {/* 카드 전체가 클릭 대상이라 버튼은 보조로 둔다 — 같은 무게의 파란
                 버튼이 여섯 개면 어디를 눌러야 할지 오히려 알기 어렵다 */}
-            <Btn v="secondary" s="sm" style={{ width: "100%" }} disabled={busy === tmpl.id}>
+            {/* 키보드로 다니는 사람에게는 이 단추가 유일한 길이다. 카드 클릭은
+                손을 위한 편의일 뿐이라 여기에도 같은 동작을 건다. */}
+            <Btn
+              v="secondary"
+              s="sm"
+              style={{ width: "100%" }}
+              disabled={busy === tmpl.id}
+              onClick={(e) => { e.stopPropagation(); if (!busy) generate(tmpl); }}
+            >
               {busy === tmpl.id ? "쓰는 중…" : "이 보고서 쓰기"}
             </Btn>
           </Card>

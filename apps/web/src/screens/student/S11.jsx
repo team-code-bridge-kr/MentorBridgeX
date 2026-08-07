@@ -4,6 +4,7 @@ import { TFI, Btn, Badge, Divider, Notice } from "../../components/ui.jsx";
 import { BookViewer } from "../../components/doc/BookViewer.jsx";
 import { PdfReader } from "../../components/doc/PdfReader.jsx";
 import api from "../../api/index.js";
+import { withLoading } from "../../components/LoadingDock.jsx";
 import { hasSubjectBlocks, subjectMarkers } from "../../lib/subjectBlocks.js";
 
 const AREA_META = [
@@ -150,7 +151,7 @@ export function S11({ onNav }) {
     setErr("");
     try {
       const before = docs;
-      await api.documents.splitSubjects();
+      await withLoading("생기부를 원본과 맞추는 중이에요…", () => api.documents.splitSubjects());
       const after = await api.documents.list();
       setDocs(after);
       setSplitMsg(describe(before, after));

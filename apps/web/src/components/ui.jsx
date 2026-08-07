@@ -118,8 +118,13 @@ export const Av = ({ name = "?", size = "sm", src }) => (
     ? <img className={`av av-${size}`} src={src} alt={name} style={{ objectFit: "cover" }} referrerPolicy="no-referrer" />
     : <div className={`av av-${size}`}>{name[0]}</div>
 );
-export const Card = ({ children, style, className = "" }) => (
-  <div className={`card card-p ${className}`} style={style}>{children}</div>
+/* onClick 을 받으면 카드 전체가 눌리는 자리가 된다. 예전에는 이 속성을 조용히
+   버려서, 카드에 onClick 을 준 화면이 **아무 반응도 하지 않았다**(양식 화면의
+   템플릿 카드가 그랬다). 다만 role="button" 은 붙이지 않는다 — 카드 안에 진짜
+   단추가 들어 있는 경우가 많고, 단추 안의 단추는 키보드로 쓸 수 없다.
+   손으로 누르는 편의는 여기서, 접근성은 카드 안의 단추가 맡는다. */
+export const Card = ({ children, style, className = "", onClick }) => (
+  <div className={`card card-p ${className}`} style={style} onClick={onClick}>{children}</div>
 );
 /* 숫자 색은 기본이 본문색이다. 카드마다 다른 색을 칠하면 색이 아무 뜻도
    갖지 못한다 — 조치가 필요할 때(tone="danger"/"warning")만 색을 쓴다. */

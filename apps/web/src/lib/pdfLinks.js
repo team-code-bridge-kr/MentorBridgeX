@@ -9,18 +9,9 @@
  * 전부 브라우저에서 돈다. 클릭할 때마다 서버를 부르지 않는다.
  */
 
-const packed = (s) => (s || "").replace(/\s+/g, "");
+import { josa } from "./josa.js";
 
-/**
- * 받침에 맞는 조사. `'수학' 가 적혀` 처럼 어긋나면 규칙이 어설퍼 보이고,
- * 근거 문구가 어설퍼 보이면 연결 자체를 안 믿는다.
- */
-function josa(word, withFinal, without) {
-  const c = (word || "").charCodeAt((word || "").length - 1);
-  const hangul = c >= 0xac00 && c <= 0xd7a3;
-  // 한글이 아니면(영문·숫자) 받침 있는 쪽이 대체로 자연스럽다: 'AI'이, 'C++'이
-  return !hangul || (c - 0xac00) % 28 !== 0 ? withFinal : without;
-}
+const packed = (s) => (s || "").replace(/\s+/g, "");
 
 /** 과목명이 본문에 실제로 적혀 있는가. 두 글자 이름은 우연이 너무 흔하다. */
 const MIN_SUBJECT_LEN = 2;

@@ -7,6 +7,7 @@ import { visualEdgesOf } from "../../theme/graphView.js";
 import { Btn, Badge, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
+import { showLoading, withLoading } from "../../components/LoadingDock.jsx";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { LinkSuggestions } from "../../components/graph/LinkSuggestions.jsx";
@@ -158,6 +159,12 @@ export function S06({ onNav }) {
     for (const e of allEdges) { linked.add(e.from); linked.add(e.to); }
     return allNodes.filter((n) => !linked.has(n.id)).length;
   }, [allNodes, allEdges]);
+
+  // 그래프를 불러오는 동안. 노드 200개면 눈에 띄게 걸린다.
+  useEffect(() => {
+    if (!loading) return undefined;
+    return showLoading("지식 그래프를 불러오는 중이에요…");
+  }, [loading]);
 
   const nodeById = id => nodes.find(n=>n.id===id);
   const edgesOf = id => edges.filter(e=>e.from===id||e.to===id);
@@ -586,7 +593,7 @@ export function S06({ onNav }) {
           onClick={async () => {
             setRestruct({ busy: true, msg: "" });
             try {
-              const r = await api.graph.rebuild();
+              const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
               await actions.loadGraph(state.session?.user?.id);
               setRestruct({
                 busy: false,
