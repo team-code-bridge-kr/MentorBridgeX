@@ -23,10 +23,14 @@ const MAX_LINKS = 8;
 /**
  * 한 항목에서 뻗어 나가는 연결.
  *
+ * 근거는 문장이 아니라 **조각**으로 넘긴다: `{ lead, term, tail }`.
+ * 화면이 가운데 낱말을 알약으로 그려야 하는데, 통째로 문자열이면 따옴표를 찾아
+ * 자르는 수밖에 없고 그 낱말에 따옴표가 들어 있으면 어긋난다.
+ *
  * @param source 기준 항목 {id, kind, subject, grade, text}
  * @param items  후보 전부(같은 모양)
  * @param keywords 이 학생의 그래프 노드 이름들 — 자기 생기부에서 뽑힌 말이다
- * @returns [{ itemId, why }]
+ * @returns [{ itemId, why: { lead, term, tail } }]
  */
 export function linksFrom(source, items, keywords = []) {
   if (!source) return [];
@@ -42,7 +46,7 @@ export function linksFrom(source, items, keywords = []) {
   if (source.subject) {
     for (const it of items) {
       if (it.subject === source.subject && it.grade !== source.grade) {
-        add(it, `같은 과목 ${it.grade || "다른 학년"} 기록`);
+        add(it, { lead: `같은 과목 ${it.grade || "다른 학년"} 기록`, term: "", tail: "" });
       }
     }
   }
@@ -54,7 +58,7 @@ export function linksFrom(source, items, keywords = []) {
       if (it.kind !== "세특" || !it.subject) continue;
       if (it.subject.length < MIN_SUBJECT_LEN) continue;
       if (!src.includes(packed(it.subject))) continue;
-      add(it, `이 기록에 '${it.subject}'${josa(it.subject, "이", "가")} 적혀 있습니다`);
+      add(it, { lead: "이 기록에 ", term: it.subject, tail: `${josa(it.subject, "이", "가")} 적혀 있습니다` });
     }
   }
   // 반대 방향 — 세특에서 보면 그 과목을 언급한 수상·창체가 붙는다
@@ -64,7 +68,11 @@ export function linksFrom(source, items, keywords = []) {
       if (it.kind === "세특") continue;
       if (source.subject.length < MIN_SUBJECT_LEN) continue;
       if (!packed(it.text).includes(name)) continue;
-      add(it, `${it.kind} 기록에 '${source.subject}'${josa(source.subject, "이", "가")} 적혀 있습니다`);
+      add(it, {
+        lead: `${it.kind} 기록에 `,
+        term: source.subject,
+        tail: `${josa(source.subject, "이", "가")} 적혀 있습니다`,
+      });
     }
   }
 
@@ -77,7 +85,7 @@ export function linksFrom(source, items, keywords = []) {
     if (out.has(it.id) || it.id === source.id) continue;
     const body = packed(it.text);
     const hit = mine.find((t) => body.includes(packed(t)));
-    if (hit) add(it, `'${hit}'${josa(hit, "이", "가")} 두 기록에 함께 나옵니다`);
+    if (hit) add(it, { lead: "", term: hit, tail: `${josa(hit, "이", "가")} 두 기록에 함께 나옵니다` });
   }
 
   return [...out.entries()].slice(0, MAX_LINKS).map(([itemId, why]) => ({ itemId, why }));

@@ -325,7 +325,16 @@ function LinkCard({ item, why, target, onJump }) {
         </span>
       </div>
       <p className="rd-card-body">{item.text}</p>
-      <div className="rd-why"><i aria-hidden="true" />{why}</div>
+      {/* 근거의 가운데 낱말은 알약으로 세운다. 따옴표로 감싸면 본문 글자와
+          섞여 어느 말이 근거인지 한눈에 안 들어온다(탐구 피드와 같은 규칙). */}
+      <div className="rd-why">
+        <i aria-hidden="true" />
+        <span>
+          {why.lead}
+          {why.term && <b className="rd-why-term">{why.term}</b>}
+          {why.tail}
+        </span>
+      </div>
     </button>
   );
 }
@@ -618,7 +627,8 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
             </button>
             {selRegion && (
               <button type="button" className="rd-back" onClick={() => setSel(null)}>
-                <NavIcon name="chevronLeft" size={14} /> 이 쪽 기록 모두 보기
+                {/* "이 쪽" 은 어느 쪽인지 안 말한다. 지금 보고 있는 쪽을 적는다. */}
+                <NavIcon name="chevronLeft" size={14} /> {shownNos.join("–")}쪽 기록 모두 보기
               </button>
             )}
           </div>
