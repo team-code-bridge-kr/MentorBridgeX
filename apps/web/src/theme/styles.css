@@ -3180,7 +3180,10 @@ tr:hover td { background:var(--surface-container-low); }
   background:var(--bg1); box-shadow:var(--surface-2);
 }
 .rd-controls > span { flex:0 0 auto; font-size:12.5px; color:var(--ts); font-variant-numeric:tabular-nums; min-width:70px; text-align:center; }
-.rd-controls > button {
+/* 쪽 넘김 화살표만 동그란 28px 이다. 토글까지 `> button` 으로 싸잡으면 글자
+   단추가 28px 로 눌려 **글자만 알약 밖으로 삐져나온다**(실제로 그랬다).
+   더 구체적인 선택자라 .rd-controls-toggle 의 padding 을 이겨 버린다. */
+.rd-controls > button:not(.rd-controls-toggle) {
   flex:0 0 auto; width:28px; height:28px; border:none; border-radius:9999px;
   background:transparent; color:var(--ts); font-size:16px; line-height:1; cursor:pointer;
 }
@@ -3188,9 +3191,13 @@ tr:hover td { background:var(--surface-container-low); }
 .rd-controls > button:hover:not(:disabled) { background:var(--bg2); color:var(--primary); }
 .rd-controls-sep { flex:0 0 auto; width:1px; height:16px; margin:0 2px; background:var(--brd); }
 .rd-controls-toggle {
-  flex:0 0 auto; white-space:nowrap; padding:4px 11px; border:none; border-radius:9999px; background:transparent;
-  font-size:12px; font-weight:600; color:var(--tt); cursor:pointer;
+  flex:0 0 auto; width:auto; height:28px; white-space:nowrap;
+  display:inline-flex; align-items:center; padding:0 13px;
+  border:none; border-radius:9999px; background:transparent;
+  font-family:inherit; font-size:12.5px; font-weight:600; color:var(--tt); cursor:pointer;
+  transition:background .14s, color .14s;
 }
+.rd-controls-toggle:hover { background:var(--bg2); color:var(--ts); }
 .rd-controls-toggle.is-on { background:rgba(27,95,217,.1); color:#1B5FD9; }
 
 /* ── 기다리는 동안 뜨는 알림 ─────────────────────────────
