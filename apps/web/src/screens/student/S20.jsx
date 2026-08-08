@@ -7,6 +7,9 @@ import { withLoading } from "../../components/LoadingDock.jsx";
 import { FormTabs } from "../../components/forms/FormTabs.jsx";
 import { eul } from "../../lib/josa.js";
 
+/** 서버가 글자를 뽑을 수 있는 것들. `accept` 속성과 같은 목록이다. */
+const ACCEPT_RE = /\.(pdf|txt|md|markdown)$/i;
+
 export function S20({ onNav }) {
   const [templates, setTemplates] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -40,6 +43,12 @@ export function S20({ onNav }) {
 
   const fill = async (file) => {
     if (!file) return;
+    // 한글·워드 안내는 여기서 한다. 상자에 미리 적어 두면 세 줄짜리 주의문이
+    // 늘 서 있는데, 정작 그 말이 필요한 사람은 .hwp 를 끌어다 놓은 순간이다.
+    if (!ACCEPT_RE.test(file.name)) {
+      setErr("한글(.hwp)·워드(.docx)는 PDF 로 저장해 올려 주세요. PDF · txt · md 만 읽을 수 있습니다.");
+      return;
+    }
     setBusy("upload");
     setErr("");
     try {
@@ -60,9 +69,6 @@ export function S20({ onNav }) {
       {/* "생성 이력 보기" 단추는 탭이 대신한다 — 목록으로 가는 길이 화면
           안쪽 작은 단추 하나뿐이면 매번 찾아야 한다. */}
       <FormTabs active="S20" onNav={onNav} />
-      <div className="sec-sub" style={{ margin: "0 0 18px" }}>
-        생기부에 적힌 내용을 근거로 씁니다. 기록에 없는 것은 지어내지 않습니다.
-      </div>
       {err && <div className="form-err">{err}</div>}
 
       {/* 학교가 준 양식을 그대로 채운다. 우리가 만든 여섯 가지 말고 실제로
@@ -74,17 +80,15 @@ export function S20({ onNav }) {
         onDrop={(e) => { e.preventDefault(); setDrag(false); fill(e.dataTransfer.files?.[0]); }}
         onClick={() => !busy && fileRef.current?.click()}
       >
-        <NavIcon name="exportIco" size={22} color={TDS.blue500} />
-        <div>
-          <div className="form-drop-title">
-            {busy === "upload" ? "양식을 읽고 채우는 중…" : "학교에서 받은 양식 올리기"}
-          </div>
-          <div className="form-drop-sub">
-            물음 항목을 찾아 생기부 기록으로 채웁니다 · PDF · txt · md (5MB 이하)
-            <br />
-            한글(.hwp)·워드(.docx)는 PDF 로 저장해 올려 주세요. 올린 파일은 보관하지 않습니다.
-          </div>
+        <span className="form-drop-ic"><NavIcon name="exportIco" size={22} color={TDS.blue500} /></span>
+        <div className="form-drop-title">
+          {busy === "upload" ? "양식을 읽고 채우는 중…" : "학교에서 받은 양식 올리기"}
         </div>
+        <div className="form-drop-sub">물음 항목을 찾아 생기부 기록으로 채웁니다</div>
+        {/* 형식·크기·보관 여부는 셋 다 남긴다. 앞의 둘은 올리기 전에 알아야
+            헛수고를 안 하고, 마지막은 약속이라 지울 수 없다. 크기를 줄여
+            줄글에서 빼면 세 줄이 한 줄로 접힌다. */}
+        <div className="form-drop-meta">PDF · txt · md · 5MB 이하 · 보관하지 않습니다</div>
         <input
           ref={fileRef}
           type="file"
@@ -94,8 +98,10 @@ export function S20({ onNav }) {
         />
       </div>
 
-      <div className="sec-sub" style={{ margin: "26px 0 12px" }}>또는 자주 쓰는 보고서로 시작하기</div>
-      <div className="grid3 g-16" style={{ gap: 16 }}>
+      {/* "또는 자주 쓰는 보고서로 시작하기" 를 지웠다. 카드 다섯 장이 이미
+          보고서 이름을 달고 있어서, 그 위의 한 줄은 보이는 것을 한 번 더
+          말할 뿐이었다. */}
+      <div className="grid3 g-16" style={{ gap: 16, marginTop: 22 }}>
         {templates.map((tmpl) => (
           <Card key={tmpl.id} style={{ cursor: "pointer" }} onClick={() => !busy && generate(tmpl)}>
             <div className="row-between mb8" style={{ marginBottom: 10 }}>

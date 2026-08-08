@@ -3091,17 +3091,25 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .cdock-full:hover { background:var(--bg2); }
 
-/* 양식 올리는 자리 — 학교가 준 양식을 그대로 채운다 */
+/* 양식 올리는 자리 — 학교가 준 양식을 그대로 채운다.
+   아이콘을 왼쪽에 세우고 글을 오른쪽에 흘리면, 세 줄짜리 주의문 옆에서
+   아이콘만 덩그러니 뜬다. 파일을 **떨어뜨리는 자리**라 가운데로 모은다 —
+   가운데 정렬이면 끌어다 놓을 지점이 어디인지도 같이 말해 준다. */
 .form-drop {
-  display:flex; align-items:center; gap:14px;
-  padding:18px 20px; border-radius:18px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:22px 20px; border-radius:18px; cursor:pointer;
   border:1.5px dashed rgba(9,105,218,.35); background:rgba(9,105,218,.035);
   transition:border-color .14s, background .14s;
 }
 .form-drop:hover, .form-drop.is-over { border-color:var(--primary); background:rgba(9,105,218,.07); }
 .form-drop.is-busy { cursor:default; opacity:.7; }
-.form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
-.form-drop-sub { font-size:12px; line-height:1.7; color:var(--tt); word-break:keep-all; }
+.form-drop-ic {
+  width:42px; height:42px; border-radius:12px; margin-bottom:10px;
+  display:grid; place-items:center; background:rgba(9,105,218,.1);
+}
+.form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:4px; }
+.form-drop-sub { font-size:13px; color:var(--ts); word-break:keep-all; }
+.form-drop-meta { font-size:11.5px; color:var(--tt); margin-top:7px; word-break:keep-all; }
 
 /* ── 보고서 목록·상세 ──────────────────────────────────────
    예전에는 세 화면이 각각 회색 제목 띠와 손으로 짠 머리 줄을 이고 있었다.
