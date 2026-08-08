@@ -18,6 +18,7 @@ import { NavIcon } from "../NavIcon.jsx";
 import api from "../../api/index.js";
 import { RenameField } from "../dashboard/RenameField.jsx";
 import mbxLogo from "../../assets/brand/mbx_logo.png";
+import tcbLogo from "../../assets/brand/TeamCodeBridge_Logo_White_Web.png";
 import { ChatDock } from "../assistant/ChatDock.jsx";
 import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 
@@ -388,11 +389,12 @@ export function VoiceDock({ onNav, screen }) {
         aria-label={recording ? `녹음 중 ${fmt(sec)}` : menu ? "닫기" : "빠른 실행"}
         aria-expanded={menu}
       >
+        {/* 펼쳐 있어도 로고 그대로다. ✕ 로 갈아 끼우면 방금 누른 것이 사라지고
+            낯선 단추가 그 자리에 앉은 것처럼 보인다 — 같은 그림이 눌린 채로
+            남아 있어야 "이게 아까 그거" 라는 게 이어진다. */}
         {recording
           ? <><span className="vdock-dot" /><span className="vdock-fab-time">{fmt(sec)}</span></>
-          : menu || open || chatOpen
-            ? <NavIcon name="close" size={21} color="#fff" />
-            : <img src={mbxLogo} alt="" className="fab-logo" />}
+          : <img src={mbxLogo} alt="" className="fab-logo" />}
       </button>
 
       {/* 펼침 차림표 — 위로 하나씩 솟는다. 이름표를 왼쪽에 함께 둔다.
@@ -407,7 +409,7 @@ export function VoiceDock({ onNav, screen }) {
             onClick={() => { setMenu(false); setOpen(false); setChatOpen(true); }}
           >
             <span className="fab-label">Bridge AI 에게 묻기</span>
-            <span className="fab-dot"><NavIcon name="sparkle" size={19} color="#fff" /></span>
+            <span className="fab-dot"><img src={tcbLogo} alt="" className="fab-tcb" /></span>
           </button>
           <button
             type="button"

@@ -2334,15 +2334,15 @@ tr:hover td { background:var(--surface-container-low); }
     drop-shadow(0 0 5px rgba(9,105,218,.85))
     drop-shadow(0 5px 12px rgba(30,45,120,.34));
 }
-/* 펼쳤을 때 이 단추가 하는 일은 "닫기" 하나다. 그때는 판이 있어야 어디를
-   눌러야 닫히는지 보인다 — 항목과 같은 파랑이면 세 번째 항목처럼 보이므로
-   어둡게 눌러 물러앉힌다. */
-.vdock-fab.is-open {
-  width:54px; height:54px;
-  background:linear-gradient(135deg, #2b3350 0%, #1e2440 100%);
-  box-shadow:0 6px 16px rgba(15,23,42,.28);
+/* 펼쳤을 때도 같은 로고다. 판을 깔고 ✕ 로 갈아 끼우면 방금 누른 그림이
+   사라져, 눌러서 연 것과 새로 생긴 단추가 이어지지 않는다. 대신 **살짝
+   눌러 넣어** 지금 열려 있다는 것만 표시한다. */
+.vdock-fab.is-open { transform:scale(.9); }
+.vdock-fab.is-open:hover { transform:scale(.94); }
+.vdock-fab.is-open .fab-logo {
+  /* 후광을 걷고 그림자를 낮춘다 — 떠 있던 것이 눌려 내려앉은 만큼만. */
+  filter:drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 2px 5px rgba(30,45,120,.28));
 }
-.vdock-fab.is-open:hover { transform:translateY(-1px); }
 .vdock-fab.is-rec {
   width:auto; min-width:54px; padding:0 16px;
   background:var(--danger);
@@ -3002,11 +3002,15 @@ tr:hover td { background:var(--surface-container-low); }
   display:grid; place-items:center; color:#fff;
   transition:transform .14s, box-shadow .14s;
 }
-/* 색은 하는 일을 가른다 — AI 는 본문과 같은 파랑·인디고, 녹음은 보라. */
-.fab-ai .fab-dot    { background:linear-gradient(135deg, var(--blue-500) 0%, #4f57e0 100%);
+/* 녹음이 파랑·인디고를 쓴다 — 앱 전체에서 강조는 이 파랑 하나이고, 둘 중
+   자주 누르는 쪽이 그 색을 가져야 한다. Bridge AI 는 팀 로고를 얹으므로
+   색이 아니라 **그림**으로 구분된다. 로고는 흰색 판본이라 판은 먹색이다. */
+.fab-ai .fab-dot    { background:linear-gradient(135deg, #2b3350 0%, #171c33 100%);
+                      box-shadow:0 6px 16px rgba(15,23,42,.28); }
+.fab-voice .fab-dot { background:linear-gradient(135deg, var(--blue-500) 0%, #4f57e0 100%);
                       box-shadow:0 6px 16px rgba(79,87,224,.26); }
-.fab-voice .fab-dot { background:linear-gradient(135deg, #7c4ddb 0%, #4f57e0 100%);
-                      box-shadow:0 6px 16px rgba(124,77,219,.26); }
+/* 로고는 정사각형 여백을 품고 있어 판 안에서 실제보다 작아 보인다. 조금 키운다. */
+.fab-tcb { width:30px; height:30px; object-fit:contain; display:block; }
 .fab-item:hover .fab-dot { transform:translateY(-2px) scale(1.04); }
 .fab-item:focus-visible .fab-dot { outline:2px solid var(--primary); outline-offset:3px; }
 @keyframes fabIn { from { opacity:0; transform:translateY(10px) scale(.9); } to { opacity:1; transform:none; } }
