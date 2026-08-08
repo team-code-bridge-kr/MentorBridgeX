@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
 import { withLoading } from "../../components/LoadingDock.jsx";
+import { takeSignOutReason } from "../../lib/sessionExpiry.js";
 import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
@@ -10,6 +11,9 @@ export function S01({ onNav }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [localErr, setLocalErr] = useState("");
+  // 왜 로그인 화면으로 왔는지. 아무 말 없이 뜨면 고장으로 읽힌다.
+  // 한 번 읽고 지운다 — 다음에 또 뜨면 거짓말이 된다.
+  const [signedOut] = useState(takeSignOutReason);
   const busy = state.authLoading;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -108,6 +112,10 @@ export function S01({ onNav }) {
             <div style={{flex:1,height:1,background:TDS.borderDefault}} />
           </div>
 
+          {/* 시간이 지나 나간 것은 오류가 아니다. 빨간 상자로 겁주지 않는다. */}
+          {signedOut && !errMsg && (
+            <div className="login-note">{signedOut}</div>
+          )}
           {errMsg && (
             <div style={{marginBottom:14,padding:"10px 12px",borderRadius:10,background:"rgba(240,68,68,.08)",border:`1px solid rgba(240,68,68,.25)`,color:TDS.danger,fontSize:13,fontWeight:500}}>
               {errMsg}

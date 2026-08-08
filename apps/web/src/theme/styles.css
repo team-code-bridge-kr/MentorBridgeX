@@ -3253,3 +3253,10 @@ tr:hover td { background:var(--surface-container-low); }
   to   { opacity:1; transform:translate(-50%, -50%); }
 }
 @media (prefers-reduced-motion:reduce) { .ldock.is-center { animation:none; } }
+
+/* 시간이 지나 나갔을 때의 안내 — 오류가 아니라 알림이다 */
+.login-note {
+  margin-bottom:14px; padding:10px 12px; border-radius:10px;
+  background:rgba(9,105,218,.06); border:1px solid rgba(9,105,218,.22);
+  color:var(--primary); font-size:13px; font-weight:500; line-height:1.55;
+}

@@ -10,6 +10,8 @@ export const API_BASE =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "";
 // API_BASE 가 비어있으면 vite.config.js 의 /v1 프록시가 처리합니다 (로컬 개발 시).
 
+import { expireSession } from "../lib/sessionExpiry.js";
+
 const TOKEN_KEY = "mbx_token";
 const SESSION_KEY = "mbx_session";
 
@@ -106,6 +108,13 @@ export async function request(path, opts = {}) {
       err.code = String(res.status);
       throw err;
     }
+  }
+
+  // 토큰을 들려 보냈는데 401 이면 그 토큰은 이제 못 쓴다. 시간이 지났거나
+  // 서버가 먼저 끊은 것이다. 화면에 오류만 뿌리지 말고 로그인으로 내보낸다 —
+  // 여태는 "유효하지 않은 토큰입니다" 만 뜨고 로그인한 것처럼 남아 있었다.
+  if (res.status === 401 && auth && getToken()) {
+    expireSession();
   }
 
   if (!res.ok) {

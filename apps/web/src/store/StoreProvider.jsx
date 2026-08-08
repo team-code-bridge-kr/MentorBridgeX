@@ -5,6 +5,7 @@ import { reducer } from "./reducer.js";
 import { _uid } from "../utils/time.js";
 import api from "../api/index.js";
 import { saveSession, loadSession, clearSession } from "../api/client.js";
+import { armExpiry, clearTimer, SESSION_EXPIRED } from "../lib/sessionExpiry.js";
 
 const StoreCtx = createContext(null);
 
@@ -16,6 +17,12 @@ export const useStore = () => {
 
 function initState(base) {
   const session = loadSession();
+  // 이미 시간이 지난 토큰으로 들어오면 로그인한 것처럼 시작하지 않는다.
+  // (여기서 지워도 로그인 화면의 안내는 armExpiry 가 남긴 것이 뜬다)
+  if (session && !armExpiry(session.token)) {
+    clearSession();
+    return base;
+  }
   return session ? { ...base, session } : base;
 }
 
@@ -32,6 +39,19 @@ export function StoreProvider({ children }) {
   useEffect(() => {
     if (state.session) saveSession(state.session);
   }, [state.session]);
+
+  // 로그인 시간이 다 되면 스스로 나간다. 토큰이 바뀔 때마다 알람을 다시 건다.
+  useEffect(() => {
+    armExpiry(state.session?.token);
+    return clearTimer;
+  }, [state.session?.token]);
+
+  // 미리 잰 알람이든 401 이든, 끝났다는 신호는 한 곳으로 모인다.
+  useEffect(() => {
+    const onExpired = () => { clearSession(); dispatch({ type: "SIGN_OUT" }); };
+    window.addEventListener(SESSION_EXPIRED, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED, onExpired);
+  }, []);
 
   const actions = useMemo(() => ({
     async signInPassword(email, password) {
