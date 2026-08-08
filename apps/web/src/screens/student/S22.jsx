@@ -1,6 +1,22 @@
+/**
+ * S22 — 보고서 상세
+ *
+ * 예전 모습의 문제가 둘이었다.
+ *
+ * 1. **본문이 마크다운 그대로였다.** `# 세특 요약 보고서`, `## 컴퓨터 과학과…`
+ *    가 기호째 뿌려져서, 학생이 보는 건 제목이 아니라 `#` 이라는 글자였다.
+ *    자기 보고서인데 남의 코드처럼 보인다.
+ * 2. **혼자 다른 옷을 입고 있었다.** 회색 제목 띠, 손으로 짠 머리 줄, 640px
+ *    본문 — 탐구 피드·생기부와 나란히 놓으면 다른 앱 화면 같았다.
+ *
+ * 본문은 조각으로 갈라 요소로 그리고, 껍데기는 탭 띠로 통일한다.
+ */
+
 import { useState, useEffect } from "react";
-import TDS from "../../theme/tokens.js";
 import { Back, Btn } from "../../components/ui.jsx";
+import { FormTabs } from "../../components/forms/FormTabs.jsx";
+import { Markdown } from "../../components/forms/Markdown.jsx";
+import { useLoading } from "../../components/LoadingDock.jsx";
 import api from "../../api/index.js";
 
 // 만든 경로를 사람 말로. `upload`, `setuk` 같은 내부 이름을 그대로 보이면
@@ -34,6 +50,9 @@ export function S22({ onNav }) {
     return () => { cancelled = true; };
   }, [formId]);
 
+  // 문구는 알림에 맡긴다. 화면마다 다른 말로 적으면 같은 기다림이 달라 보인다.
+  useLoading(Boolean(formId) && !doc && !err, "보고서를 불러오는 중이에요…");
+
   const save = async () => {
     try {
       const d = await api.forms.patch(formId, { content });
@@ -46,8 +65,12 @@ export function S22({ onNav }) {
 
   if (!formId) {
     return (
-      <div className="content">
-        <Btn v="primary" onClick={() => onNav("S20")}>템플릿에서 생성</Btn>
+      <div className="rs-wrap">
+        <FormTabs active="S21" onNav={onNav} />
+        <div className="empty">
+          <div className="empty-title">열어 볼 보고서를 고르지 않았습니다</div>
+          <Btn v="primary" onClick={() => onNav("S21")}>내 보고서 보기</Btn>
+        </div>
       </div>
     );
   }
@@ -55,36 +78,58 @@ export function S22({ onNav }) {
   const usedNodes = doc?.used_nodes || [];
 
   return (
-    <div className="content" style={{ maxWidth: 760, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+    <div className="rs-wrap">
+      <FormTabs active="S21" onNav={onNav} />
+
+      <div className="form-head">
         <Back onClick={() => onNav("S21")} label="목록" />
-        <div style={{ flex: 1, fontSize: 20, fontWeight: 700 }}>{doc?.title || "양식"}</div>
-        <Btn v="ghost" s="sm" onClick={() => (editing ? save() : setEditing(true))}>{editing ? "저장" : "편집"}</Btn>
+        <h1 className="form-title">{doc?.title || "보고서"}</h1>
+        <Btn v="secondary" s="sm" onClick={() => (editing ? save() : setEditing(true))}>
+          {editing ? "저장" : "편집"}
+        </Btn>
       </div>
-      {err && <div style={{ color: TDS.danger }}>{err}</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
-        <div className="card card-p">
+
+      {err && <div className="form-err">{err}</div>}
+
+      <div className="form-detail">
+        <div className="card card-p form-body">
           {editing
-            ? <textarea className="inp" rows={14} value={content} onChange={(e) => setContent(e.target.value)} style={{ fontFamily: "inherit", lineHeight: 1.8 }} />
-            : <div style={{ fontSize: 14, color: TDS.textSecondary, lineHeight: 1.85, whiteSpace: "pre-line" }}>{content}</div>}
+            ? (
+              <>
+                {/* 편집은 원문 그대로다 — 보이는 대로 고치게 만들면 `##` 이
+                    사라져 다음에 열 때 제목이 문단으로 내려앉는다. */}
+                <div className="form-edit-hint">마크다운으로 적습니다. ## 은 소제목, - 는 글머리표입니다.</div>
+                {/* `.inp` 은 height:40px 인 한 줄 입력이다. 여기에 textarea 를
+                    걸어 두어서, 편집을 누르면 스무 줄짜리 보고서가 한 줄 칸에
+                    갇혀 있었다. 여러 줄 입력은 `.textarea` 다. */}
+                <textarea
+                  className="textarea form-edit"
+                  rows={20}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
+              </>
+              )
+            : <Markdown text={content} dropLeadingTitle />}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+        <aside className="form-side">
           <div className="card card-p">
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>사용된 노드 ({usedNodes.length}개)</div>
-            {usedNodes.map((n) => (
-              <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${TDS.bgTertiary}` }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: TDS.blue500 }} />
-                <span style={{ fontSize: 13, color: TDS.textSecondary }}>{n}</span>
-              </div>
-            ))}
-            {!usedNodes.length && <div style={{ fontSize: 12, color: TDS.textTertiary }}>그래프 노드가 없습니다</div>}
+            <div className="form-side-t">사용된 노드 {usedNodes.length}개</div>
+            {usedNodes.length
+              ? (
+                <ul className="form-nodes">
+                  {usedNodes.map((n) => <li key={n}><span className="form-node-dot" />{n}</li>)}
+                </ul>
+                )
+              : <div className="form-side-empty">그래프 노드가 없습니다</div>}
           </div>
           <div className="card card-p">
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>어떻게 만들었나</div>
-            <div style={{ fontSize: 13, color: TDS.textTertiary }}>{TEMPLATE_LABEL[doc?.template_id] || doc?.template_id}</div>
-            <div style={{ fontSize: 12, color: TDS.textDisabled, marginTop: 4 }}>생성: {(doc?.created_at || "").slice(0, 10)}</div>
+            <div className="form-side-t">어떻게 만들었나</div>
+            <div className="form-side-v">{TEMPLATE_LABEL[doc?.template_id] || doc?.template_id}</div>
+            <div className="form-side-empty">생성 {(doc?.created_at || "").slice(0, 10)}</div>
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

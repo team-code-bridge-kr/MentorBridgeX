@@ -4,6 +4,7 @@ import { Btn, Badge, Card } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
 import { withLoading } from "../../components/LoadingDock.jsx";
+import { FormTabs } from "../../components/forms/FormTabs.jsx";
 import { eul } from "../../lib/josa.js";
 
 export function S20({ onNav }) {
@@ -55,14 +56,14 @@ export function S20({ onNav }) {
   };
 
   return (
-    <div className="content">
-      <div className="row-between mb24" style={{ marginBottom: 24 }}>
-        <div className="sec-sub" style={{ marginBottom: 0 }}>
-          생기부에 적힌 내용을 근거로 씁니다. 기록에 없는 것은 지어내지 않습니다.
-        </div>
-        <Btn v="secondary" s="sm" onClick={() => onNav("S21")}>생성 이력 보기</Btn>
+    <div className="rs-wrap">
+      {/* "생성 이력 보기" 단추는 탭이 대신한다 — 목록으로 가는 길이 화면
+          안쪽 작은 단추 하나뿐이면 매번 찾아야 한다. */}
+      <FormTabs active="S20" onNav={onNav} />
+      <div className="sec-sub" style={{ margin: "0 0 18px" }}>
+        생기부에 적힌 내용을 근거로 씁니다. 기록에 없는 것은 지어내지 않습니다.
       </div>
-      {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
+      {err && <div className="form-err">{err}</div>}
 
       {/* 학교가 준 양식을 그대로 채운다. 우리가 만든 여섯 가지 말고 실제로
           내야 하는 건 대개 학교 양식이다 — 그걸 못 채우면 여기까지 온 뜻이 없다. */}

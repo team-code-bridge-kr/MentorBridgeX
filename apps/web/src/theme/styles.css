@@ -3103,6 +3103,69 @@ tr:hover td { background:var(--surface-container-low); }
 .form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:3px; }
 .form-drop-sub { font-size:12px; line-height:1.7; color:var(--tt); word-break:keep-all; }
 
+/* ── 보고서 목록·상세 ──────────────────────────────────────
+   예전에는 세 화면이 각각 회색 제목 띠와 손으로 짠 머리 줄을 이고 있었다.
+   탐구 피드 옆에 놓으면 다른 앱처럼 보였다 — 같은 밑줄 탭과 같은 카드로 맞춘다. */
+.form-err { color:var(--danger); font-size:13px; margin-bottom:12px; }
+
+/* 목록 한 줄이 카드 하나. 카드 안에서 실선으로 가르면 표가 되고, 표는
+   "훑는 것"이지 "고르는 것"이 아니다. */
+.form-row {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:15px 18px; cursor:pointer; font-family:inherit;
+}
+.form-row-ic {
+  flex:0 0 auto; width:36px; height:36px; border-radius:11px;
+  display:grid; place-items:center; background:rgba(9,105,218,.08);
+}
+.form-row-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.form-row .rs-article-title { display:block; }
+.form-row .rs-article-meta { margin-bottom:0; gap:6px; }
+
+/* 상세 머리 줄 — 뒤로·제목·편집이 한 줄에 선다 */
+.form-head { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+.form-title {
+  flex:1; min-width:0; margin:0;
+  font-size:19px; font-weight:700; color:var(--tp); letter-spacing:-.02em;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.form-detail { display:grid; grid-template-columns:minmax(0,1fr) 268px; gap:16px; align-items:start; }
+.form-body { padding:26px 30px; }
+.form-side { display:flex; flex-direction:column; gap:12px; }
+.form-side-t { font-size:13px; font-weight:700; color:var(--tp); margin-bottom:10px; }
+.form-side-v { font-size:13px; color:var(--ts); }
+.form-side-empty { font-size:12px; color:var(--tt); margin-top:4px; }
+.form-nodes { list-style:none; margin:0; padding:0; }
+.form-nodes li {
+  display:flex; align-items:center; gap:8px; padding:6px 0;
+  font-size:13px; color:var(--ts); line-height:1.5;
+  border-bottom:1px solid var(--bg3);
+}
+.form-nodes li:last-child { border-bottom:none; }
+.form-node-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--blue-500); }
+.form-edit-hint { font-size:12px; color:var(--tt); margin-bottom:10px; }
+/* 보고서는 스무 줄이 넘는다. 화면 높이만큼은 펼쳐 두어야 고칠 자리를 찾는다. */
+.form-edit { font-family:inherit; line-height:1.85; min-height:min(62vh, 620px); }
+@media (max-width:900px) {
+  .form-detail { grid-template-columns:1fr; }
+  .form-body { padding:20px; }
+}
+
+/* ── 보고서 본문 ──
+   AI 가 돌려주는 마크다운을 요소로 그린다. 글은 읽으라고 있는 것이라
+   문단 사이가 넉넉해야 하고, 소제목은 앞 문단과 붙지 않아야 한다. */
+.md { font-size:14.5px; line-height:1.9; color:var(--ts); }
+.md > :first-child { margin-top:0; }
+.md-h { color:var(--tp); letter-spacing:-.02em; line-height:1.45; }
+.md-h1 { font-size:19px; font-weight:800; margin:30px 0 12px; }
+.md-h2 { font-size:16.5px; font-weight:700; margin:28px 0 10px; }
+.md-h3 { font-size:14.5px; font-weight:700; margin:22px 0 8px; }
+.md-h4 { font-size:14px; font-weight:700; margin:18px 0 6px; }
+.md-p { margin:0 0 14px; word-break:keep-all; }
+.md-list { margin:0 0 14px; padding-left:20px; }
+.md-list li { margin-bottom:6px; word-break:keep-all; }
+.md strong { color:var(--tp); font-weight:700; }
+
 /* ── 리더 2차 — 위 띠를 걷고, 판은 고를 때만 ────────────────
    조작은 문서 아래 떠 있는 알약 하나뿐이다. 늘 보이는 띠를 두면 읽는 자리가
    그만큼 줄고, 정작 자주 쓰는 것은 쪽 넘김 하나다. */
