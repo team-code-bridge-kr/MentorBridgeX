@@ -16,8 +16,10 @@ import { useEffect, useState } from "react";
 import mbxLogo from "../assets/brand/mbx_logo.png";
 
 const EVENT = "mbx:loading";
-let pending = [];  // [{ id, message }]
+let pending = [];  // [{ id, message, center?, note? }]
 let nextId = 1;
+// 끝난 소식이 스스로 사라지기까지. 읽을 만큼은 두되, 다음 일을 가리지 않는다.
+const NOTE_MS = 6000;
 
 function publish() {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: [...pending] }));
@@ -38,6 +40,26 @@ export function showLoading(message = "잠시만요…", { center = false } = {}
     pending = pending.filter((p) => p.id !== id);
     publish();
   };
+}
+
+/**
+ * 다 된 뒤 잠깐 알리는 한 줄.
+ *
+ * "층을 다시 세웠습니다 — 교과 10개…" 같은 결과를 화면 위에 따로 띠로 붙이면,
+ * 같은 일의 **진행(아래 알림)과 결과(위 띠)가 서로 다른 자리**에서 나온다.
+ * 눈이 두 군데를 오가야 하고 모양도 제각각이다. 같은 자리에서 이어 받는다.
+ */
+export function showNote(message, { ms = NOTE_MS } = {}) {
+  const id = nextId;
+  nextId += 1;
+  pending.push({ id, message, note: true });
+  publish();
+  const drop = () => {
+    pending = pending.filter((p) => p.id !== id);
+    publish();
+  };
+  setTimeout(drop, ms);
+  return drop;
 }
 
 /**
@@ -82,11 +104,15 @@ export function LoadingDock() {
   }, []);
 
   if (!items.length) return null;
-  // 여럿이 겹치면 마지막에 시작한 것을 보여준다 — 방금 누른 것이 궁금하다.
-  const { message, center } = items[items.length - 1];
+  // 도는 일이 있으면 그것이 먼저다. 끝난 소식보다 지금 도는 것이 급하다.
+  // 도는 일이 없을 때만 마지막 소식을 보여준다.
+  const running = items.filter((i) => !i.note);
+  const { message, center, note } = (running.length ? running : items)[
+    (running.length ? running : items).length - 1
+  ];
 
   return (
-    <div className={`ldock${center ? " is-center" : ""}`} role="status" aria-live="polite">
+    <div className={`ldock${center ? " is-center" : ""}${note ? " is-note" : ""}`} role="status" aria-live="polite">
       <span className="ldock-logo">
         <img src={mbxLogo} alt="" />
       </span>

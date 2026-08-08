@@ -3278,3 +3278,8 @@ tr:hover td { background:var(--surface-container-low); }
   background:rgba(9,105,218,.06); border:1px solid rgba(9,105,218,.22);
   color:var(--primary); font-size:13px; font-weight:500; line-height:1.55;
 }
+/* 다 된 뒤의 한 줄 — 도는 표시(고리)만 걷고 나머지는 그대로. 같은 일의 진행과
+   결과가 같은 자리에서 이어져야 눈이 두 군데를 오가지 않는다. */
+.ldock.is-note .ldock-logo::after { display:none; }
+.ldock.is-note .ldock-logo img { animation:none; opacity:1; }
+.ldock.is-note { border-color:rgba(22,163,74,.28); }

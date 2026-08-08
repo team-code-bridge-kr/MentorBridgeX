@@ -12,7 +12,7 @@ import { LABEL_FONT, LABEL_H, placeLabels } from "../../lib/graphLabels.js";
 import { Btn, Badge } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 import api from "../../api/index.js";
-import { showLoading, withLoading } from "../../components/LoadingDock.jsx";
+import { showLoading, showNote, withLoading } from "../../components/LoadingDock.jsx";
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
@@ -827,14 +827,16 @@ export function S06({ onNav }) {
     try {
       const r = await withLoading("그래프 층을 다시 세우는 중이에요…", () => api.graph.rebuild());
       await actions.loadGraph(state.session?.user?.id);
-      setRestruct({
-        busy: false,
-        msg: r.changed
+      setRestruct({ busy: false, msg: "" });
+      // 진행을 알리던 그 자리에서 결과도 알린다.
+      showNote(
+        r.changed
           ? `층을 다시 세웠습니다 — 교과 ${r.families}개, 구획 ${r.sections}개, 선 ${r.edges_added}개 새로 이음.`
           : "이미 생기부와 같은 모양입니다.",
-      });
+      );
     } catch (e) {
-      setRestruct({ busy: false, msg: e.message });
+      setRestruct({ busy: false, msg: "" });
+      showNote(e.message);
     }
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [actions, state.session?.user?.id]);
@@ -844,9 +846,10 @@ export function S06({ onNav }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      {restruct.msg
-        ? <div className="graph-note">{restruct.msg}</div>
-        : noLayers ? (
+      {/* 결과 한 줄("층을 다시 세웠습니다 …")은 아래 알림이 맡는다. 진행은
+          아래에서 알리고 결과는 위에서 알리면 눈이 두 군데를 오간다.
+          여기 남는 것은 **누를 것이 있는 안내**뿐이다. */}
+      {noLayers ? (
           // 층이 없으면 들어갈 곳도 없다. 화면이 그 사실을 말해 주지 않으면
           // 학생은 "기능이 고장 났다"고 읽는다 — 실제로 그렇게 읽혔다.
           // 실측: 계정 165개 중 층이 있는 것은 17개뿐이다.
@@ -856,14 +859,14 @@ export function S06({ onNav }) {
               {restruct.busy ? "세우는 중…" : "층 세우기"}
             </button>
           </div>
-        ) : strayCount > 0 && (
+      ) : strayCount > 0 && (
           <div className="graph-note">
             이어지지 않은 노드 <strong>{strayCount}개</strong> — 어느 층에도 안 붙어 있어 여기서는 안 보입니다.
             <button type="button" className="graph-note-act" disabled={restruct.busy} onClick={rebuildLayers}>
               {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
             </button>
           </div>
-        )}
+      )}
       {/* 툴바 — 늘 쓰는 것만 밖에 두고 나머지는 「더보기」 안으로.
           예전에는 열 개가 한 줄에 늘어서서 무엇이 중요한지 알 수 없었고,
           좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
