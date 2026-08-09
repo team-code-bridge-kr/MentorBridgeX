@@ -3107,6 +3107,21 @@ tr:hover td { background:var(--surface-container-low); }
   width:42px; height:42px; border-radius:12px; margin-bottom:10px;
   display:grid; place-items:center; background:rgba(9,105,218,.1);
 }
+/* 보고서 카드의 "이 보고서 쓰기".
+   회색 단추가 살짝 더 회색이 되는 것으로는 눌리는 자리인지 알기 어렵다.
+   카드 어디를 훑든 파랗게 차오르게 해서, 이 카드가 지금 손 아래 있다는
+   것과 누르면 무엇이 될지를 같이 말한다.
+   카드 hover 로도 걸어 둔다 — 카드 전체가 클릭 대상이라, 제목 위에
+   손이 있는데 단추만 회색으로 남으면 두 곳이 따로 노는 것처럼 보인다. */
+.tmpl-card .btn-secondary:hover,
+.tmpl-card:hover .btn-secondary {
+  background:var(--primary); border-color:var(--primary); color:#fff;
+}
+.tmpl-card .btn-secondary:disabled,
+.tmpl-card:hover .btn-secondary:disabled {
+  background:var(--bg3); border-color:var(--brd); color:var(--tt); cursor:default;
+}
+
 .form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:4px; }
 .form-drop-sub { font-size:13px; color:var(--ts); word-break:keep-all; }
 
