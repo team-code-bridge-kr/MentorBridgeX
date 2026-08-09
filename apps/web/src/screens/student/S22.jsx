@@ -12,7 +12,7 @@
  * 본문은 조각으로 갈라 요소로 그리고, 껍데기는 탭 띠로 통일한다.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Back, Btn } from "../../components/ui.jsx";
 import { FormTabs } from "../../components/forms/FormTabs.jsx";
 import { Markdown } from "../../components/forms/Markdown.jsx";
@@ -30,11 +30,30 @@ const TEMPLATE_LABEL = {
   service: "봉사활동 에세이",
 };
 
+/** 접기 전에 보여 줄 구획 수. 세특은 27구획까지 나와서 옆 판이 본문보다 길어진다. */
+const SOURCE_PREVIEW = 10;
+
+/**
+ * 학년 순으로 세운다.
+ *
+ * 저장된 차례는 생기부를 마지막으로 고친 순서라, 3학년 한 과목이 1학년들
+ * 앞에 오는 식으로 섞여 있다. 값이 맞아도 뒤죽박죽이면 또 지어낸 것처럼
+ * 보인다. 학년이 없는 영역(자율활동·수상경력…)은 뒤로 보낸다.
+ */
+function byGrade(list) {
+  const grade = (s) => Number(/^(\d)학년/.exec(s)?.[1] ?? 99);
+  return [...list]
+    .map((s, i) => [s, i])
+    .sort((a, b) => grade(a[0]) - grade(b[0]) || a[1] - b[1])
+    .map(([s]) => s);
+}
+
 export function S22({ onNav }) {
   const [editing, setEditing] = useState(false);
   const [doc, setDoc] = useState(null);
   const [content, setContent] = useState("");
   const [err, setErr] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const formId = sessionStorage.getItem("mbx_form_id");
 
   useEffect(() => {
@@ -75,7 +94,8 @@ export function S22({ onNav }) {
     );
   }
 
-  const usedNodes = doc?.used_nodes || [];
+  const sources = useMemo(() => byGrade(doc?.used_nodes || []), [doc]);
+  const shown = expanded ? sources : sources.slice(0, SOURCE_PREVIEW);
 
   return (
     <div className="rs-wrap">
@@ -120,13 +140,21 @@ export function S22({ onNav }) {
           <div className="card card-p">
             <div className="form-side-t">무엇을 근거로 썼나</div>
             <div className="form-side-lead">
-              이 보고서는 아래 생기부 구획에 적힌 내용만으로 썼습니다.
+              이 보고서는 아래 생기부 {sources.length ? `${sources.length}구획` : "구획"}에 적힌
+              내용만으로 썼습니다.
             </div>
-            {usedNodes.length
+            {sources.length
               ? (
-                <ul className="form-nodes">
-                  {usedNodes.map((n) => <li key={n}><span className="form-node-dot" />{n}</li>)}
-                </ul>
+                <>
+                  <ul className="form-nodes">
+                    {shown.map((n) => <li key={n}><span className="form-node-dot" />{n}</li>)}
+                  </ul>
+                  {sources.length > SOURCE_PREVIEW && (
+                    <button type="button" className="form-side-more" onClick={() => setExpanded((v) => !v)}>
+                      {expanded ? "접기" : `${sources.length - SOURCE_PREVIEW}개 더 보기`}
+                    </button>
+                  )}
+                </>
                 )
               : (
                 <div className="form-side-empty">

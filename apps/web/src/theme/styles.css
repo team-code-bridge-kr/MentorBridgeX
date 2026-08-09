@@ -3156,6 +3156,11 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .form-nodes li:last-child { border-bottom:none; }
 .form-node-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--blue-500); }
+.form-side-more {
+  margin-top:8px; padding:0; border:none; background:none; cursor:pointer; font-family:inherit;
+  font-size:12px; font-weight:600; color:var(--primary);
+}
+.form-side-more:hover { text-decoration:underline; }
 .form-edit-hint { font-size:12px; color:var(--tt); margin-bottom:10px; }
 /* 보고서는 스무 줄이 넘는다. 화면 높이만큼은 펼쳐 두어야 고칠 자리를 찾는다. */
 .form-edit { font-family:inherit; line-height:1.85; min-height:min(62vh, 620px); }
