@@ -3151,9 +3151,6 @@ tr:hover td { background:var(--surface-container-low); }
 .rs-head { display:flex; align-items:flex-end; gap:16px; margin-bottom:16px; }
 .rs-head .rs-tabs { flex:1; min-width:0; margin-bottom:0; }
 .rs-head > .btn { flex:0 0 auto; margin-bottom:6px; }
-/* 한 줄로 읽히게 폭을 잡는다 — 화면 끝까지 늘어나면 "…옮겨 적은 글만 /
-   남습니다." 처럼 마지막 두 글자만 다음 줄로 떨어진다. */
-.voice-lead { margin:0 0 16px; max-width:66ch; word-break:keep-all; }
 /* 목록 줄은 눌러서 여는 게 아니라 오른쪽 단추로 연다(줄 안에 단추가 둘이라
    줄 전체를 단추로 만들 수 없다). 손 모양을 띄우지 않는다. */
 .voice-row { cursor:default; }
