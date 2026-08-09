@@ -9,6 +9,8 @@ import { eul } from "../../lib/josa.js";
 
 /** 서버가 글자를 뽑을 수 있는 것들. `accept` 속성과 같은 목록이다. */
 const ACCEPT_RE = /\.(pdf|txt|md|markdown)$/i;
+/** 서버가 받는 한계와 같은 값(_FORM_MAX_BYTES). */
+const MAX_BYTES = 5 * 1024 * 1024;
 
 export function S20({ onNav }) {
   const [templates, setTemplates] = useState([]);
@@ -49,11 +51,17 @@ export function S20({ onNav }) {
       setErr("한글(.hwp)·워드(.docx)는 PDF 로 저장해 올려 주세요. PDF · txt · md 만 읽을 수 있습니다.");
       return;
     }
+    // 크기도 여기서 본다. 서버도 막지만, 5MB 를 다 올려 보낸 뒤 듣는 것과
+    // 고르자마자 듣는 것은 기다리는 시간이 다르다.
+    if (file.size > MAX_BYTES) {
+      setErr("5MB 이하 파일만 올릴 수 있습니다. 필요한 쪽만 따로 저장해 올려 주세요.");
+      return;
+    }
     setBusy("upload");
     setErr("");
     try {
       open(await withLoading(
-        "양식을 읽고 채우는 중이에요…",
+        "양식을 읽고 채우는 중이에요… 올린 파일은 보관하지 않습니다.",
         () => api.forms.fillFromFile(file),
       ));
     } catch (e) {
@@ -84,11 +92,11 @@ export function S20({ onNav }) {
         <div className="form-drop-title">
           {busy === "upload" ? "양식을 읽고 채우는 중…" : "학교에서 받은 양식 올리기"}
         </div>
-        <div className="form-drop-sub">물음 항목을 찾아 생기부 기록으로 채웁니다</div>
-        {/* 형식·크기·보관 여부는 셋 다 남긴다. 앞의 둘은 올리기 전에 알아야
-            헛수고를 안 하고, 마지막은 약속이라 지울 수 없다. 크기를 줄여
-            줄글에서 빼면 세 줄이 한 줄로 접힌다. */}
-        <div className="form-drop-meta">PDF · txt · md · 5MB 이하 · 보관하지 않습니다</div>
+        {/* 형식·크기 줄을 지웠다. 대신 걸리는 순간에 말한다 — 아래 fill() 이
+            확장자와 크기를 먼저 보고, 안 되면 그 자리에서 이유를 띄운다.
+            "올린 파일은 보관하지 않습니다" 는 파일이 실제로 오가는 동안,
+            즉 채우는 중 알림에 붙여 두었다. */}
+        <div className="form-drop-sub">원하는 양식이 없으면 새로 업로드 해보세요!</div>
         <input
           ref={fileRef}
           type="file"

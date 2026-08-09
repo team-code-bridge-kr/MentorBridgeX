@@ -3109,7 +3109,6 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .form-drop-title { font-size:14.5px; font-weight:700; color:var(--tp); margin-bottom:4px; }
 .form-drop-sub { font-size:13px; color:var(--ts); word-break:keep-all; }
-.form-drop-meta { font-size:11.5px; color:var(--tt); margin-top:7px; word-break:keep-all; }
 
 /* ── 보고서 목록·상세 ──────────────────────────────────────
    예전에는 세 화면이 각각 회색 제목 띠와 손으로 짠 머리 줄을 이고 있었다.
