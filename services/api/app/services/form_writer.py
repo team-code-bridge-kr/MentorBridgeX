@@ -25,6 +25,7 @@ import logging
 import re
 
 from app.schemas.documents import DocumentSection, SectionType
+from app.services.node_evidence import SECTION_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +59,27 @@ _BLANK = re.compile(r"[_＿]{3,}|\(\s*\)|\[\s*\]")
 _LIMIT = re.compile(r"\(?\s*(\d{2,4})\s*자\s*(이내|내외|이하|까지)?\s*\)?")
 
 
-def evidence_of(
+def _head_of(section: DocumentSection) -> str:
+    """구획 이름. 학년·과목이 있으면 "1학년 국어", 없으면 영역 이름.
+
+    예전에는 없을 때 `str(section_type)` 을 썼다 — 그러면 `[club]` 이 되어
+    프롬프트에도 화면에도 내부 이름이 그대로 나갔다. 학생이 볼 자리이고,
+    글을 쓰는 모델도 "club" 보다 "동아리활동" 을 정확히 읽는다.
+    """
+    named = " ".join(x for x in [section.period_id, section.subject_id] if x)
+    return named or SECTION_LABELS.get(section.section_type, str(section.section_type))
+
+
+def evidence_blocks(
     sections: list[DocumentSection], types: tuple[SectionType, ...] | None = None
-) -> str:
-    """근거로 넘길 생기부 글. 영역을 정하지 않으면 전부에서 고르게 모은다."""
+) -> list[tuple[str, str]]:
+    """근거로 넘길 (구획 이름, 글) 목록. 영역을 정하지 않으면 전부에서 고르게 모은다.
+
+    이름을 따로 돌려주는 이유가 있다. 화면은 "무엇을 근거로 썼는지" 를 보여
+    줘야 하는데, 여태는 그래프 노드 앞 열두 개를 그냥 집어 보여 주고 있었다 —
+    보고서와 아무 상관 없는 목록이라 학생 눈에는 지어낸 값으로 보였다.
+    실제로 넘어간 구획만 여기서 나온다. 글자 수에 걸려 잘린 것은 빠진다.
+    """
     wanted = [
         s for s in sections
         if s.content and s.content != "(작성 시작)" and (types is None or s.section_type in types)
@@ -75,7 +93,7 @@ def evidence_of(
     for s in wanted:
         buckets.setdefault(str(s.section_type), []).append(s)
 
-    out: list[str] = []
+    out: list[tuple[str, str]] = []
     total = 0
     while buckets and total < MAX_EVIDENCE:
         progressed = False
@@ -84,17 +102,37 @@ def evidence_of(
                 buckets.pop(key)
                 continue
             s = buckets[key].pop(0)
-            head = " ".join(x for x in [s.period_id, s.subject_id] if x) or str(s.section_type)
+            head = _head_of(s)
             block = f"[{head}]\n{s.content.strip()}"
             if total + len(block) > MAX_EVIDENCE:
                 buckets.pop(key)
                 continue
-            out.append(block)
+            out.append((head, block))
             total += len(block)
             progressed = True
         if not progressed:
             break
-    return "\n\n".join(out)
+    return out
+
+
+def evidence_text(blocks: list[tuple[str, str]]) -> str:
+    return "\n\n".join(b for _, b in blocks)
+
+
+def evidence_sources(blocks: list[tuple[str, str]]) -> list[str]:
+    """화면에 보여 줄 구획 이름. 같은 이름이 두 번 나오면 한 번만 남긴다."""
+    seen: list[str] = []
+    for head, _ in blocks:
+        if head not in seen:
+            seen.append(head)
+    return seen
+
+
+def evidence_of(
+    sections: list[DocumentSection], types: tuple[SectionType, ...] | None = None
+) -> str:
+    """근거로 넘길 생기부 글."""
+    return evidence_text(evidence_blocks(sections, types))
 
 
 def find_prompts(text: str) -> list[str]:

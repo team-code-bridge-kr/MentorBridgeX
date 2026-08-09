@@ -113,21 +113,29 @@ export function S22({ onNav }) {
             : <Markdown text={content} dropLeadingTitle />}
         </div>
 
+        {/* "어떻게 만들었나" 카드를 없앴다. 거기 적힌 두 줄(양식 이름·만든 날)은
+            바로 위 제목과 목록에 이미 있는 말이라, 칸만 하나 더 차지하고 있었다.
+            남길 만한 것은 만든 날 하나뿐이라 이 판 아래에 한 줄로 붙인다. */}
         <aside className="form-side">
           <div className="card card-p">
-            <div className="form-side-t">사용된 노드 {usedNodes.length}개</div>
+            <div className="form-side-t">무엇을 근거로 썼나</div>
+            <div className="form-side-lead">
+              이 보고서는 아래 생기부 구획에 적힌 내용만으로 썼습니다.
+            </div>
             {usedNodes.length
               ? (
                 <ul className="form-nodes">
                   {usedNodes.map((n) => <li key={n}><span className="form-node-dot" />{n}</li>)}
                 </ul>
                 )
-              : <div className="form-side-empty">그래프 노드가 없습니다</div>}
-          </div>
-          <div className="card card-p">
-            <div className="form-side-t">어떻게 만들었나</div>
-            <div className="form-side-v">{TEMPLATE_LABEL[doc?.template_id] || doc?.template_id}</div>
-            <div className="form-side-empty">생성 {(doc?.created_at || "").slice(0, 10)}</div>
+              : (
+                <div className="form-side-empty">
+                  근거를 찾지 못했습니다. 생기부를 올리면 그 내용으로 다시 쓸 수 있습니다.
+                </div>
+                )}
+            <div className="form-side-foot">
+              {TEMPLATE_LABEL[doc?.template_id] || doc?.template_id} · {(doc?.created_at || "").slice(0, 10)}
+            </div>
           </div>
         </aside>
       </div>

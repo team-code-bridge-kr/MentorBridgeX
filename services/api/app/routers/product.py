@@ -59,35 +59,30 @@ FORM_TEMPLATES: list[FormTemplateOut] = [
         title="세특 요약 보고서",
         category="세특",
         description="교과 학습 내용과 탐구 활동을 체계적으로 정리",
-        uses=892,
     ),
     FormTemplateOut(
         id="club",
         title="동아리 활동 보고서",
         category="동아리",
         description="동아리 활동 내용과 본인의 역할을 서술",
-        uses=567,
     ),
     FormTemplateOut(
         id="career",
         title="진로 포트폴리오",
         category="진로",
         description="진로 탐색 과정과 준비 현황을 종합",
-        uses=423,
     ),
     FormTemplateOut(
         id="reading",
         title="독서 감상문",
         category="독서",
         description="읽은 책의 핵심 내용과 본인의 생각을 연결",
-        uses=345,
     ),
     FormTemplateOut(
         id="service",
         title="봉사활동 에세이",
         category="봉사",
         description="봉사 경험을 통한 성장을 서술",
-        uses=289,
     ),
 ]
 
@@ -237,9 +232,14 @@ async def _save_form(
     template_id: str,
     title: str,
     content: str,
-    nodes: list[str],
+    sources: list[str],
 ) -> FormDocOut:
-    """만든 양식을 저장한다. 템플릿 생성과 올린 양식 채우기가 함께 쓴다."""
+    """만든 양식을 저장한다. 템플릿 생성과 올린 양식 채우기가 함께 쓴다.
+
+    `used_nodes` 칸에 근거로 쓴 **생기부 구획** 이름을 넣는다. 이름은 예전
+    것을 그대로 둔다 — 마이그레이션 도구가 없어 칸을 새로 만들 수 없고,
+    담기는 뜻은 처음부터 "이 문서가 무엇에서 나왔는가" 하나였다.
+    """
     now = _now()
     fid = str(uuid4())
 
@@ -253,7 +253,7 @@ async def _save_form(
             "template_id": template_id,
             "title": title,
             "content": content,
-            "used_nodes": nodes,
+            "used_nodes": sources,
             "status": "완료",
             "created_at": now,
             "updated_at": now,
@@ -268,7 +268,7 @@ async def _save_form(
         template_id=template_id,
         title=title,
         content=content,
-        used_nodes=json.dumps(nodes, ensure_ascii=False),
+        used_nodes=json.dumps(sources, ensure_ascii=False),
         status="완료",
         created_at=now,
         updated_at=now,
@@ -285,17 +285,19 @@ async def _write_form(
     description: str,
     name: str,
     sections: list,
-) -> tuple[str, str]:
-    """양식 본문을 쓴다. 돌려주는 값은 (본문, 무엇으로 썼는지).
+) -> tuple[str, str, list[str]]:
+    """양식 본문을 쓴다. 돌려주는 값은 (본문, 무엇으로 썼는지, 근거로 쓴 구획).
 
     예전에는 그래프 노드 이름을 문장 틀에 끼워 넣었다. "○○ 학생은 빅데이터를
     중심으로 A, B, C에 대해 탐구하였습니다" — 누구에게나 들어맞는 문장이라
     그대로 낼 수 없고, 결국 학생이 처음부터 다시 썼다. 이제 저장된 생기부 글을
     근거로 쓴다.
     """
-    evidence = form_writer.evidence_of(
+    blocks = form_writer.evidence_blocks(
         sections, form_writer.SECTION_FOR_TEMPLATE.get(template_id)
     )
+    evidence = form_writer.evidence_text(blocks)
+    sources = form_writer.evidence_sources(blocks)
     adapter = get_graph_analyze_adapter()
     if adapter is not None and evidence:
         try:
@@ -303,10 +305,10 @@ async def _write_form(
                 form_writer.report_prompt(title, description, name, evidence)
             )
             if text:
-                return text, f"claude:{adapter.model}"
+                return text, f"claude:{adapter.model}", sources
         except Exception as exc:  # noqa: BLE001 — 못 썼다고 화면이 죽으면 안 된다
             logger.warning("양식 작성 실패, 근거만 모아 넘김: %s", exc)
-    return form_writer.fallback_report(title, name, evidence), "evidence_only"
+    return form_writer.fallback_report(title, name, evidence), "evidence_only", sources
 
 
 # ── Comments ──────────────────────────────────────────────────
@@ -577,7 +579,9 @@ async def fill_form(
         )
 
     sections = await DocumentService().list_sections(session, user.id)
-    evidence = form_writer.evidence_of(sections)
+    blocks = form_writer.evidence_blocks(sections)
+    evidence = form_writer.evidence_text(blocks)
+    sources = form_writer.evidence_sources(blocks)
     adapter = get_graph_analyze_adapter()
     writer = "evidence_only"
     content = ""
@@ -595,13 +599,12 @@ async def fill_form(
         listed = "\n\n".join(f"## {p}\n\n" for p in prompts)
         content = f"# {name}\n\n항목은 찾았지만 지금은 채우지 못했습니다.\n\n{listed}"
 
-    snap = await get_graph_store().get_snapshot(user.id)
-    nodes = [n.label for n in snap.nodes][:12]
     logger.info(
-        "양식 채움 user=%s file=%s 항목=%d writer=%s", user.id, name, len(prompts), writer
+        "양식 채움 user=%s file=%s 항목=%d writer=%s 근거=%d구획",
+        user.id, name, len(prompts), writer, len(sources),
     )
     return await _save_form(
-        session, user, template_id="upload", title=name, content=content, nodes=nodes
+        session, user, template_id="upload", title=name, content=content, sources=sources
     )
 
 
@@ -636,20 +639,21 @@ async def generate_form(
     if not tmpl:
         raise AppError("FORM_TEMPLATE_NOT_FOUND", "템플릿을 찾을 수 없습니다.", 404)
 
-    snap = await get_graph_store().get_snapshot(user.id)
-    nodes = [n.label for n in snap.nodes][:12]
     sections = await DocumentService().list_sections(session, user.id)
-    content, writer = await _write_form(
+    content, writer, sources = await _write_form(
         tmpl.id, tmpl.title, tmpl.description, user.display_name, sections
     )
-    logger.info("양식 생성 user=%s template=%s writer=%s", user.id, tmpl.id, writer)
+    logger.info(
+        "양식 생성 user=%s template=%s writer=%s 근거=%d구획",
+        user.id, tmpl.id, writer, len(sources),
+    )
     return await _save_form(
         session,
         user,
         template_id=tmpl.id,
         title=body.title or f"{tmpl.title} — {user.display_name}",
         content=content,
-        nodes=nodes,
+        sources=sources,
     )
 
 

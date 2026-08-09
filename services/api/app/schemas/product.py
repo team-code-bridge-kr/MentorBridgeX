@@ -39,11 +39,13 @@ class NotificationOut(BaseModel):
 
 
 class FormTemplateOut(BaseModel):
+    # `uses`(사용 892회) 를 뺐다. 아무도 세지 않는 숫자였다 — 손으로 적어 둔
+    # 상수라 몇 명이 쓰든 892 였다. 학생이 무엇을 고를지는 자기 기록이
+    # 정하는 것이지 남이 몇 번 썼는지가 정할 일도 아니다.
     id: str
     title: str
     category: str
     description: str
-    uses: int = 0
 
 
 class FormDocOut(BaseModel):

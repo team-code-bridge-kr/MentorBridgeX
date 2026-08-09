@@ -104,9 +104,10 @@ export function S20({ onNav }) {
       <div className="grid3 g-16" style={{ gap: 16, marginTop: 22 }}>
         {templates.map((tmpl) => (
           <Card key={tmpl.id} style={{ cursor: "pointer" }} onClick={() => !busy && generate(tmpl)}>
-            <div className="row-between mb8" style={{ marginBottom: 10 }}>
+            {/* "사용 892회" 를 지웠다. 아무도 세지 않는 숫자였다 — 서버에
+                손으로 적어 둔 상수라 몇 명이 쓰든 892 였다. */}
+            <div style={{ marginBottom: 10 }}>
               <Badge t="blue" pill>{tmpl.category}</Badge>
-              <span style={{ fontSize: 12, color: TDS.textTertiary }}>사용 {(tmpl.uses || 0).toLocaleString()}회</span>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{tmpl.title}</div>
             <div style={{ fontSize: 13, color: TDS.textTertiary, marginBottom: 18, lineHeight: 1.6 }}>{tmpl.description}</div>
