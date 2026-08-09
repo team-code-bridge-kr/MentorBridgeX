@@ -3202,6 +3202,10 @@ tr:hover td { background:var(--surface-container-low); }
 .rs-narrow > * { max-width:760px; }
 
 /* 계정 삭제 — 되돌릴 수 없는 화면이라 급히 지나가지 못하게 생겼어야 한다 */
+/* 생기부 편집기의 머리 — 제목 아래 저장 시각이 한 줄 더 붙는다 */
+.doc-head-name { flex:1; min-width:0; }
+.doc-head-name .form-title { font-size:18px; }
+
 .del-warn-t { font-weight:700; margin-bottom:8px; }
 .del-warn-list { margin:0; padding-left:18px; font-size:13px; line-height:1.9; }
 .del-confirm { margin:16px 0; }

@@ -26,11 +26,8 @@ export function S24({ onNav }) {
   const report = async (c) => { await actions.reportComment(c.id, "부적절한 내용"); };
 
   return (
-    <div className="content">
-      <div className="row-between mb16" style={{marginBottom:16}}>
-        <div className="sec-sub" style={{marginBottom:0}}>교사·본인이 남긴 코멘트를 확인하세요</div>
-        <span style={{fontSize:13,color:TDS.textTertiary}}>{comments.length}개</span>
-      </div>
+    <div className="rs-wrap rs-narrow">
+      <h1 className="rs-title">멘토링</h1>
 
       {/* 새 코멘트 작성 */}
       <Card className="mb16" style={{marginBottom:16}}>

@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Notice } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Notice } from "../../components/ui.jsx";
 import { PdfRegionViewer } from "../../components/pdf/PdfRegionViewer.jsx";
 import api from "../../api/index.js";
 import { showLoading } from "../../components/LoadingDock.jsx";
@@ -70,11 +70,12 @@ export function S13({ onNav }) {
   };
 
   return (
-    <div className="content" style={{ maxWidth: file ? 1000 : 560, margin: "0 auto" }}>
-      <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>PDF 업로드</div>
-      <div style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 24 }}>
-        생활기록부 PDF를 업로드하면 텍스트·키워드를 추출하고 그래프에 반영합니다
+    <div className={`rs-wrap${file ? "" : " rs-narrow"}`}>
+      <div className="form-head">
+        <Back onClick={() => onNav("S11")} label="생기부" />
+        <h1 className="form-title">생기부 올리기</h1>
       </div>
+      <p className="sec-sub">올리면 글을 뽑아 영역별로 나누고, 그래프에 이어 붙입니다.</p>
       <div className="card card-p" style={{ marginBottom: 16 }}>
         <div
           style={{
@@ -125,7 +126,7 @@ export function S13({ onNav }) {
       )}
 
       {progress && <Notice type="info" style={{ marginBottom: 12 }}>{progress}</Notice>}
-      {err && <div style={{ color: TDS.danger, marginBottom: 12, fontSize: 13 }}>{err}</div>}
+      {err && <div className="form-err">{err}</div>}
       {/* 보관 정책이 바뀌면 이 문구도 반드시 같이 바꿀 것 — 사용자에게 하는 약속이다 */}
       <Notice type="info" style={{ marginBottom: 20 }}>
         올린 PDF 원본은 <strong>본인만 열람</strong>할 수 있게 보관되어 ‘생기부 문서’에서

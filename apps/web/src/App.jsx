@@ -76,6 +76,16 @@ function AppShell() {
     pathToScreen(location.pathname) ||
     (session ? homeScreenForRole(session.user.role, session.user.grade) : "S01");
 
+  /* 없앤 화면의 옛 주소로 들어오면 이어받은 화면이 뜬다. 그런데 주소창에는
+     죽은 경로가 그대로 남아서, 그 자리를 즐겨찾기 하거나 남에게 보내면
+     없는 화면 주소가 계속 돌아다닌다. 자리를 옮겨 준 김에 주소도 고친다. */
+  useEffect(() => {
+    const canonical = screenToPath(screen);
+    if (location.pathname !== canonical && pathToScreen(location.pathname) === screen) {
+      navigate(canonical, { replace: true });
+    }
+  }, [screen, location.pathname, navigate]);
+
   const nav = useCallback((id, opts = {}) => {
     if (opts.preview) setPreview(true);
     else setPreview(false);

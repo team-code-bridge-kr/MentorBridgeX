@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "../../store/StoreProvider.jsx";
 import TDS from "../../theme/tokens.js";
-import { TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
+import { Back, TFI, Btn, Badge, Av, Card, StatCard, Notice, Divider } from "../../components/ui.jsx";
 import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function S09({ onNav }) {
@@ -17,9 +17,12 @@ export function S09({ onNav }) {
     finally { setBusy(false); }
   };
   return (
-    <div className="content" style={{maxWidth:540,margin:"0 auto"}}>
-      <div style={{fontSize:22,fontWeight:700,marginBottom:6}}>시드 키워드 추가</div>
-      <div style={{fontSize:14,color:TDS.textTertiary,marginBottom:24}}>새로운 키워드를 추가하여 그래프를 확장합니다 ({kws.length}/20)</div>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
+        <Back onClick={()=>onNav("S06")} label="그래프" />
+        <h1 className="form-title">시드 키워드 추가</h1>
+      </div>
+      <p className="sec-sub">낱말을 넣으면 그 낱말에서 뻗어 나가는 가지를 만들어 봅니다 ({kws.length}/20)</p>
       <div className="card card-p" style={{marginBottom:16}}>
         <div style={{display:"flex",gap:8,marginBottom:16}}>
           <input className="inp" style={{flex:1}} placeholder="키워드 입력..." value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addKw()} disabled={busy} />

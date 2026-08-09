@@ -11,7 +11,7 @@
  */
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Btn, Notice } from "../../components/ui.jsx";
+import { Back, Btn, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 
 export function S23({ onNav }) {
@@ -49,15 +49,18 @@ export function S23({ onNav }) {
   };
 
   return (
-    <div className="content" style={{ maxWidth: 700, margin: "0 auto" }}>
-      <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>가지치기 / 확장 추천</div>
-      <div style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 16 }}>
-        ML(Mock)이 추천한 키워드 {loading ? "…" : recs.length}개
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
+        <Back onClick={() => onNav("S06")} label="그래프" />
+        <h1 className="form-title">가지치기 추천</h1>
       </div>
+      {/* "ML(Mock)이 추천한" 이라고 적혀 있었다. 학생이 알 말도 아니고,
+          Mock 이라는 글자는 "이건 진짜가 아니다" 로 읽힌다. */}
+      <p className="sec-sub">덜어 낼 만한 가지와 더 뻗을 만한 가지 {loading ? "…" : recs.length}개</p>
       <Notice type="info" style={{ marginBottom: 20 }}>
         채택하면 그래프에 키워드 노드가 추가됩니다.
       </Notice>
-      {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
+      {err && <div className="form-err">{err}</div>}
       <div className="card card-p" style={{ marginBottom: 16 }}>
         {!loading && !recs.length && (
           <div style={{ fontSize: 13, color: TDS.textTertiary, padding: 12 }}>추천이 없습니다. 그래프에 시드를 먼저 추가해 보세요.</div>

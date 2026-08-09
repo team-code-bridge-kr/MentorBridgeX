@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Btn, Notice } from "../../components/ui.jsx";
+import { Back, Btn, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 import { useLoading } from "../../components/LoadingDock.jsx";
 
@@ -66,22 +66,28 @@ export function S14({ onNav }) {
 
   if (!jobId) {
     return (
-      <div className="content" style={{ maxWidth: 720, margin: "0 auto" }}>
-        <Notice type="warning">최근 PDF 작업이 없습니다.</Notice>
-        <Btn v="primary" s="md" style={{ marginTop: 16 }} onClick={() => onNav("S13")}>PDF 업로드로 이동</Btn>
+      <div className="rs-wrap rs-narrow">
+        <div className="empty">
+          <div className="empty-title">검토할 작업이 없습니다</div>
+          <div className="empty-sub">생기부를 올리면 나눈 결과를 여기서 확인합니다.</div>
+          <Btn v="primary" s="md" onClick={() => onNav("S13")}>생기부 올리기</Btn>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="content" style={{ maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6 }}>PDF 파싱 결과 검토</div>
-      <div style={{ fontSize: 14, color: TDS.textTertiary, marginBottom: 20 }}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
+        <Back onClick={() => onNav("S11")} label="생기부" />
+        <h1 className="form-title">나눈 결과 확인</h1>
+      </div>
+      <p className="sec-sub">
         {job
           ? `${job.result?.page_count ?? "?"}페이지 · 키워드 ${tokens.length}개 · 영역 ${job.result?.sections_parsed ?? 0}개`
           : ""}
-      </div>
-      {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
+      </p>
+      {err && <div className="form-err">{err}</div>}
       {job?.status === "failed" && <Notice type="danger">{job.error || "처리 실패"}</Notice>}
 
       {!!(job?.result?.section_titles || []).length && (

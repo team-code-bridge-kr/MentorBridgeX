@@ -92,11 +92,11 @@ export function S12({ onNav }) {
   return (
     <div style={{ display: "flex", height: "100%" }}>
       <div style={{ flex: 1, padding: 28, overflowY: "auto", background: TDS.bgSecondary }}>
-        <div className="row g-12 mb24" style={{ gap: 12, marginBottom: 24 }}>
-          <Back label="목록" onClick={() => onNav("S11")} />
-          <div>
+        <div className="form-head">
+          <Back label="생기부" onClick={() => onNav("S11")} />
+          <div className="doc-head-name">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: TDS.textPrimary }}>{meta.t}</div>
+              <h1 className="form-title">{meta.t}</h1>
               {/* 과목이 있으면 그게 이 문서의 이름이다 — 영역명보다 먼저 눈에 띄어야 한다. */}
               {subject && <span className="subj-pill">{subject}</span>}
             </div>
