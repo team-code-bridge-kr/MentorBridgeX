@@ -3201,6 +3201,19 @@ tr:hover td { background:var(--surface-container-low); }
    상세 화면들. 표가 아니라 글에 가까운 화면에만 붙인다. */
 .rs-narrow > * { max-width:760px; }
 
+/* 계정 삭제 — 되돌릴 수 없는 화면이라 급히 지나가지 못하게 생겼어야 한다 */
+.del-warn-t { font-weight:700; margin-bottom:8px; }
+.del-warn-list { margin:0; padding-left:18px; font-size:13px; line-height:1.9; }
+.del-confirm { margin:16px 0; }
+.del-confirm .inp-label { margin-bottom:8px; font-weight:500; }
+.del-hint { margin-top:8px; font-size:12px; color:var(--tt); }
+.del-actions { display:flex; gap:8px; justify-content:flex-end; }
+.del-alt { margin:20px 0 0; font-size:12.5px; color:var(--tt); line-height:1.7; }
+.del-alt-link {
+  border:none; background:none; padding:0; cursor:pointer; font-family:inherit;
+  font-size:12.5px; font-weight:600; color:var(--primary); text-decoration:underline;
+}
+
 .review-act { display:flex; flex-direction:column; gap:10px; align-items:stretch; }
 .review-later {
   border:none; background:none; padding:0; cursor:pointer; font-family:inherit;

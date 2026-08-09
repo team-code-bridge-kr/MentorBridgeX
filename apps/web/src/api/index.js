@@ -938,6 +938,21 @@ const api = {
     },
   },
 
+  account: {
+    /**
+     * 계정과 딸린 모든 기록을 지운다. 되돌릴 수 없다.
+     *
+     * 서버가 이메일을 다시 확인한다 — 화면에서만 막으면 주소창으로 부르는
+     * 것을 막을 수 없다.
+     */
+    async remove(email) {
+      return request(
+        `/v1/students/me/account?confirm_email=${encodeURIComponent(email)}`,
+        { method: "DELETE" },
+      );
+    },
+  },
+
   // ══ 탐구주제 피드 (✅ LIVE) ═════════════════════════════
   // 백엔드: services/api/app/features/research/
   research: {

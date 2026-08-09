@@ -4,27 +4,20 @@ import { S03 } from "./student/S03.jsx";
 import { S04 } from "./student/S04.jsx";
 import { S05 } from "./student/S05.jsx";
 import { S06 } from "./student/S06.jsx";
-import { S07 } from "./student/S07.jsx";
-import { S08 } from "./student/S08.jsx";
 import { S09 } from "./student/S09.jsx";
-import { S10 } from "./student/S10.jsx";
 import { S11 } from "./student/S11.jsx";
 import { S12 } from "./student/S12.jsx";
 import { S13 } from "./student/S13.jsx";
 import { S14 } from "./student/S14.jsx";
 import { S15 } from "./student/S15.jsx";
 import { S17 } from "./student/S17.jsx";
-import { S18 } from "./student/S18.jsx";
-import { S19 } from "./student/S19.jsx";
 import { S20 } from "./student/S20.jsx";
 import { S21 } from "./student/S21.jsx";
 import { S22 } from "./student/S22.jsx";
 import { S23 } from "./student/S23.jsx";
 import { S24 } from "./student/S24.jsx";
 import { S25 } from "./student/S25.jsx";
-import { S26 } from "./student/S26.jsx";
 import { S28 } from "./student/S28.jsx";
-import { S29 } from "./student/S29.jsx";
 import { S30 } from "./student/S30.jsx";
 import { S31 } from "./student/S31.jsx";
 import { S32 } from "./student/S32.jsx";
@@ -80,17 +73,16 @@ import { Placeholder } from "../components/Placeholder.jsx";
 export function renderScreen(id, onNav) {
   const M={
     S01:<S01 onNav={onNav}/>,S02:<S02 onNav={onNav}/>,S03:<S03 onNav={onNav}/>,S04:<S04 onNav={onNav}/>,
-    S05:<S05 onNav={onNav}/>,S06:<S06 onNav={onNav}/>,S07:<S07 onNav={onNav}/>,
-    S08:<S08 onNav={onNav}/>,S09:<S09 onNav={onNav}/>,
-    S10:<S10 onNav={onNav}/>,S11:<S11 onNav={onNav}/>,
+    S05:<S05 onNav={onNav}/>,S06:<S06 onNav={onNav}/>,
+    S09:<S09 onNav={onNav}/>,
+    S11:<S11 onNav={onNav}/>,
     S12:<S12 onNav={onNav}/>,S13:<S13 onNav={onNav}/>,
     S14:<S14 onNav={onNav}/>,S15:<S15 onNav={onNav}/>,
     S17:<S17 onNav={onNav}/>,
-    S18:<S18 onNav={onNav}/>,S19:<S19 onNav={onNav}/>,
     S20:<S20 onNav={onNav}/>,S21:<S21 onNav={onNav}/>,
     S22:<S22 onNav={onNav}/>,S23:<S23 onNav={onNav}/>,
-    S24:<S24 onNav={onNav}/>,S25:<S25 onNav={onNav}/>,S26:<S26 onNav={onNav}/>,
-    S28:<S28 onNav={onNav}/>,S29:<S29 onNav={onNav}/>,
+    S24:<S24 onNav={onNav}/>,S25:<S25 onNav={onNav}/>,
+    S28:<S28 onNav={onNav}/>,
     S30:<S30 onNav={onNav}/>,S31:<S31 onNav={onNav}/>,
     S32:<S32 onNav={onNav}/>,
     S40:<S40 onNav={onNav}/>,S41:<S41 onNav={onNav}/>,S42:<S42 onNav={onNav}/>,S43:<S43 onNav={onNav}/>,S44:<S44 onNav={onNav}/>,
@@ -124,7 +116,7 @@ export function renderScreen(id, onNav) {
 ────────────────────────────────────────────────────────────── */
 /* 역할 공용 화면: 음성·양식·알림·설정 등은 학생/교사가 함께 사용 →
    어느 역할로 로그인해도 접근 가능하고, 현재 로그인한 역할의 레이아웃(사이드바)로 표시 */
-const SHARED_SCREENS = ["S15","S17","S18","S19","S20","S21","S22","S25","S26","S30","S31","S32"];
+const SHARED_SCREENS = ["S15","S17","S20","S21","S22","S25","S30","S31","S32"];
 function getLayout(s, sessionRole){
   if(["S01","S03","S04","A00"].includes(s))return "full";
   // 공용 화면(음성·양식·알림·설정)은 현재 로그인한 역할의 레이아웃으로 표시

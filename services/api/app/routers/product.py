@@ -30,7 +30,7 @@ from app.db.postgres import (
 from app.dependencies import get_current_user, get_db_session
 from app.errors import AppError
 from app.parsers.pdf_extractor import extract_text_from_pdf_bytes
-from app.services import form_writer
+from app.services import account_deletion, form_writer
 from app.services.document_service import DocumentService
 from app.schemas.product import (
     CommentCreate,
@@ -92,6 +92,7 @@ comments_router = APIRouter(prefix="/v1/students/me/comments", tags=["comments"]
 notifications_router = APIRouter(prefix="/v1/students/me/notifications", tags=["notifications"])
 forms_router = APIRouter(prefix="/v1/students/me/forms", tags=["forms"])
 settings_router = APIRouter(prefix="/v1/students/me/settings", tags=["settings"])
+account_router = APIRouter(prefix="/v1/students/me/account", tags=["account"])
 voice_router = APIRouter(prefix="/v1/students/me/voice", tags=["voice"])
 stats_router = APIRouter(prefix="/v1/students/me/stats", tags=["stats"])
 
@@ -713,6 +714,34 @@ async def patch_form(
     await session.commit()
     await session.refresh(row)
     return _form_out(row)
+
+
+# ── Account ───────────────────────────────────────────────────
+
+
+@account_router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_account(
+    confirm_email: str,
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> None:
+    """계정과 딸린 모든 기록을 지운다. 되돌릴 수 없다.
+
+    자기 이메일을 다시 적게 한다. 되돌릴 수 없는 일에는 "정말요?" 한 번보다
+    **직접 쓰는 한 줄**이 낫다 — 확인 창은 눈을 감고도 눌리지만, 자기 주소를
+    옮겨 적으려면 무엇을 지우는지 한 번은 읽어야 한다.
+    """
+    if (confirm_email or "").strip().lower() != (user.email or "").lower():
+        raise AppError(
+            "ACCOUNT_CONFIRM_MISMATCH",
+            "이메일이 맞지 않습니다. 로그인한 계정의 이메일을 그대로 적어 주세요.",
+            400,
+        )
+    if is_offline_demo():
+        raise AppError("ACCOUNT_DELETE_UNAVAILABLE", "데모 모드에서는 지울 수 없습니다.", 503)
+
+    assert session is not None
+    await account_deletion.delete_account(session, user.id)
 
 
 # ── Settings ──────────────────────────────────────────────────

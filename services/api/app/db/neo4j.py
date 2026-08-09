@@ -237,6 +237,25 @@ class Neo4jGraphStore:
             record = await result.single()
             return bool(record and record["deleted"] > 0)
 
+    async def delete_all_for_user(self, user_id: str) -> int:
+        """이 사람의 노드를 통째로 지운다. 계정 삭제가 쓴다.
+
+        `DETACH DELETE` 라서 붙어 있던 선도 함께 사라진다 — 선만 남으면 어디에도
+        닿지 않는 관계가 그래프에 떠 있게 된다.
+        """
+        driver = get_neo4j_driver()
+        async with driver.session() as session:
+            result = await session.run(
+                """
+                MATCH (n:Node {user_id: $user_id})
+                DETACH DELETE n
+                RETURN count(n) AS deleted
+                """,
+                user_id=user_id,
+            )
+            record = await result.single()
+            return int(record["deleted"]) if record else 0
+
     # ── Embeddings (F1-12) ────────────────────────────────────────────────────
 
     async def store_embedding(self, user_id: str, node_id: str, vector: list[float]) -> None:
