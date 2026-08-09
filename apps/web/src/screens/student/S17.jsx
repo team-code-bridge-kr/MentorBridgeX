@@ -1,6 +1,22 @@
+/**
+ * S17 — 녹음 검토
+ *
+ * 옮겨 적은 글을 학생이 한 번 읽고 고치는 자리. 여기서 "완료"를 눌러야
+ * 목록에서 검토 대기가 내려간다.
+ *
+ * 옛 모습의 문제:
+ * 1. 회색 제목 띠가 "보고서 검토" 라고 적혀 있었다. 이건 보고서가 아니라
+ *    **녹음**이다 — 화면 이름부터 다른 물건을 가리키고 있었다.
+ * 2. 편집 상자가 `.inp`(height:40px, 한 줄 입력)여서, 여덟 줄짜리 전사를
+ *    한 줄 칸에서 고쳐야 했다. 보고서 화면과 똑같은 자리에서 났던 잘못이다.
+ * 3. "완료"가 늘 파랗게 켜져 있었다. 옮긴 글이 없어도 누를 수 있어서,
+ *    빈 녹음이 검토를 마친 것으로 목록에서 내려갔다.
+ */
+
 import { useState, useEffect } from "react";
-import TDS from "../../theme/tokens.js";
 import { Back, Btn } from "../../components/ui.jsx";
+import { useLoading } from "../../components/LoadingDock.jsx";
+import { notifyActivityChanged } from "../../hooks/useRecentActivity.js";
 import api from "../../api/index.js";
 
 export function S17({ onNav }) {
@@ -8,7 +24,8 @@ export function S17({ onNav }) {
   const [text, setText] = useState("");
   const [keywords, setKeywords] = useState([]);
   const [title, setTitle] = useState("");
-  const [sttMode, setSttMode] = useState("");
+  const [meta, setMeta] = useState(null);
+  const [loaded, setLoaded] = useState(false);
   const [err, setErr] = useState("");
   const sessionId = sessionStorage.getItem("mbx_voice_session");
 
@@ -22,56 +39,117 @@ export function S17({ onNav }) {
         setText(s.transcript || "");
         setKeywords(s.keywords || []);
         setTitle(s.t);
-        setSttMode(s.stt_mode || "");
+        setMeta({ date: s.date, dur: s.dur, ppl: s.ppl, st: s.st });
       } catch (e) {
         if (!cancelled) setErr(e.message);
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => { cancelled = true; };
   }, [sessionId]);
 
-  const save = async () => {
-    if (!sessionId) return;
+  useLoading(Boolean(sessionId) && !loaded, "녹음을 불러오는 중이에요…");
+
+  const save = async ({ done = false } = {}) => {
+    if (!sessionId) return false;
     try {
       await api.voice.patchSession(sessionId, {
         transcript: text,
         keywords,
-        status: "완료",
+        ...(done ? { status: "완료" } : {}),
       });
       setEditing(false);
+      notifyActivityChanged();
+      return true;
     } catch (e) {
       setErr(e.message);
+      return false;
     }
   };
 
+  if (!sessionId) {
+    return (
+      <div className="rs-wrap">
+        <div className="empty">
+          <div className="empty-title">열어 볼 녹음을 고르지 않았습니다</div>
+          <Btn v="primary" onClick={() => onNav("S15")}>음성 세션 보기</Btn>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="content" style={{ maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+    <div className="rs-wrap">
+      <div className="form-head">
         <Back onClick={() => onNav("S15")} label="목록" />
-        <div style={{ fontSize: 20, fontWeight: 700 }}>{title || "보고서 검토·승인"}</div>
-        {sttMode && <span style={{ fontSize: 12, color: TDS.textTertiary }}>STT: {sttMode}</span>}
+        <h1 className="form-title">{title || "녹음"}</h1>
+        <Btn v="secondary" s="sm" onClick={() => (editing ? save() : setEditing(true))}>
+          {editing ? "저장" : "편집"}
+        </Btn>
       </div>
-      {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
-      <div className="card card-p" style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: TDS.textPrimary }}>음성 전사 결과</div>
-          <Btn v="ghost" s="sm" onClick={() => (editing ? save() : setEditing(true))}>{editing ? "저장" : "편집"}</Btn>
+
+      {err && <div className="form-err">{err}</div>}
+
+      <div className="form-detail">
+        <div className="card card-p form-body">
+          {editing
+            ? (
+              <>
+                <div className="form-edit-hint">
+                  잘못 들은 낱말만 고치면 됩니다. 없던 말을 새로 적지는 마세요.
+                </div>
+                {/* `.inp` 은 한 줄 입력이다. 여러 줄은 `.textarea`. */}
+                <textarea
+                  className="textarea form-edit"
+                  rows={16}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                />
+              </>
+              )
+            : text
+              ? <p className="md-p" style={{ whiteSpace: "pre-wrap" }}>{text}</p>
+              : (
+                <div className="form-side-empty">
+                  옮겨 적은 글이 없습니다. 말소리를 알아듣지 못했거나 녹음이 너무 짧았습니다.
+                </div>
+                )}
         </div>
-        {editing
-          ? <textarea className="inp" rows={8} value={text} onChange={(e) => setText(e.target.value)} />
-          : <div style={{ fontSize: 14, color: TDS.textSecondary, lineHeight: 1.7, padding: 12, background: TDS.bgSecondary, borderRadius: 8, whiteSpace: "pre-wrap" }}>{text || "전사 결과가 없습니다."}</div>}
-      </div>
-      <div className="card card-p" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>추출된 키워드</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {(keywords.length ? keywords : ["(없음)"]).map((k) => (
-            <div key={k} style={{ padding: "5px 12px", background: TDS.blue50, borderRadius: 20, fontSize: 13, color: TDS.blue500, fontWeight: 500 }}>{k}</div>
-          ))}
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <Btn v="secondary" s="md" fw onClick={() => onNav("S15")}>나중에 확인</Btn>
-        <Btn v="primary" s="md" fw onClick={async () => { await save(); onNav("S15"); }}>완료</Btn>
+
+        <aside className="form-side">
+          <div className="card card-p">
+            <div className="form-side-t">키워드 {keywords.length}개</div>
+            {keywords.length
+              ? (
+                <div className="vdock-kws" style={{ marginTop: 8 }}>
+                  {keywords.map((k) => <span key={k} className="vdock-kw">{k}</span>)}
+                </div>
+                )
+              : <div className="form-side-empty">옮겨 적은 글에서 뽑을 낱말을 찾지 못했습니다.</div>}
+            {meta && (
+              <div className="form-side-foot">
+                {meta.date} · {meta.dur} · 참여자 {meta.ppl}명
+              </div>
+            )}
+          </div>
+
+          {/* 두 단추는 나란히 두지 않는다 — "나중에 확인"과 "완료"는 되돌릴 수
+              있는 정도가 달라서, 같은 크기로 붙여 두면 잘못 누르기 쉽다. */}
+          <div className="card card-p review-act">
+            <Btn
+              v="primary" s="md" fw
+              disabled={!text.trim()}
+              title={text.trim() ? undefined : "옮겨 적은 글이 없어 검토를 마칠 수 없습니다"}
+              onClick={async () => { if (await save({ done: true })) onNav("S15"); }}
+            >
+              검토 마치기
+            </Btn>
+            <button type="button" className="review-later" onClick={() => onNav("S15")}>
+              나중에 하기
+            </button>
+          </div>
+        </aside>
       </div>
     </div>
   );
