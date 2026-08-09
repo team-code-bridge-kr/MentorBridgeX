@@ -45,7 +45,8 @@ export function S30({ onNav }) {
   const initial = (name || "?")[0];
 
   return (
-    <div className="content">
+    <div className="rs-wrap">
+        <h1 className="rs-title">설정</h1>
         <div className="card card-p" style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: TDS.blue500, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 30, fontWeight: 700, flexShrink: 0 }}>{initial}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -59,8 +60,21 @@ export function S30({ onNav }) {
           <Btn v="secondary" s="sm" onClick={() => onNav("S31")}>프로필 편집</Btn>
         </div>
 
-        <div className="tab-pill-wrap" style={{ marginBottom: 20 }}>
-          {tabs.map((t) => <div key={t} className={`tab-pill${activeTab === t ? " active" : ""}`} onClick={() => setActiveTab(t)}>{t}</div>)}
+        {/* 알약 탭을 밑줄 탭으로. 같은 "가르기"를 화면마다 다른 모양으로
+            하면 학생은 그것이 같은 조작인 줄 모른다. */}
+        <div className="rs-tabs" role="tablist" aria-label="설정" style={{ marginBottom: 20 }}>
+          {tabs.map((t) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t}
+              className={`rs-tab${activeTab === t ? " on" : ""}`}
+              onClick={() => setActiveTab(t)}
+            >
+              {t}
+            </button>
+          ))}
         </div>
         {msg && <Notice type="info" style={{ marginBottom: 12 }}>{msg}</Notice>}
 
@@ -85,7 +99,7 @@ export function S30({ onNav }) {
               <div className="grid2" style={{ gap: 8 }}>
                 {[
                   { ic: "📊", t: "활동 통계", s: "S28" }, { ic: "💬", t: "코멘트 목록", s: "S24" },
-                  { ic: "🔔", t: "알림 목록", s: "S25" }, { ic: "📝", t: "양식", s: "S20" },
+                  { ic: "🔔", t: "알림 목록", s: "S25" }, { ic: "📝", t: "보고서 작성", s: "S20" },
                   { ic: "🎯", t: "관심 설정 다시 하기", s: "S03" },
                 ].map((item) => (
                   <div key={item.t} onClick={() => onNav(item.s)} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: 10, background: TDS.bgSecondary, cursor: "pointer", border: `1px solid ${TDS.borderDefault}` }}>

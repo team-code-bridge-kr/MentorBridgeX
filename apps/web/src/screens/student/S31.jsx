@@ -31,10 +31,10 @@ export function S31({ onNav }) {
   const email = profile?.email || user?.email || "";
 
   return (
-    <div className="content">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
         <Back onClick={() => onNav("S30")} label="설정" />
-        <div style={{ fontSize: 20, fontWeight: 700 }}>계정 정보</div>
+        <h1 className="form-title">계정 정보</h1>
       </div>
       <div className="card card-p" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 20, marginBottom: 20, borderBottom: `1px solid ${TDS.borderDefault}` }}>

@@ -34,23 +34,30 @@ export function S25() {
   const shown = items.filter((n) => (tab === "전체" ? true : tab === "안 읽음" ? !n.read : n.read));
 
   return (
-    <div className="content">
-      <div className="row-between mb16" style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 10, alignItems: "center" }}>
-          <div className="sec-sub" style={{ marginBottom: 0 }}>
-            {unread > 0 ? `읽지 않은 알림 ${unread}개` : "새 알림이 없습니다"}
-          </div>
-          {unread > 0 && <span className="badge-num">{unread}</span>}
+    <div className="rs-wrap">
+      {/* 탭이 개수를 이고 있으므로 위에 "읽지 않은 알림 N개" 를 따로 쓸
+          필요가 없다. 알약 탭도 밑줄 탭으로 바꿔 다른 화면과 맞춘다. */}
+      {/* 사이드바 아래 유틸에서 오는 화면이라 메뉴에 불이 들어오지 않는다.
+          제목이 없으면 여기가 어디인지 알 길이 없다. */}
+      <h1 className="rs-title">알림</h1>
+      <div className="rs-head">
+        <div className="rs-tabs" role="tablist" aria-label="알림">
+          {[["전체", items.length], ["안 읽음", unread], ["읽음", items.length - unread]].map(([t, c]) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              className={`rs-tab${tab === t ? " on" : ""}`}
+              onClick={() => setTab(t)}
+            >
+              {t} {c}
+            </button>
+          ))}
         </div>
         <Btn v="secondary" s="sm" onClick={markAll} disabled={!unread}>모두 읽음 처리</Btn>
       </div>
-      {err && <div style={{ color: TDS.danger }}>{err}</div>}
-
-      <div className="tab-pill-wrap" style={{ marginBottom: 16 }}>
-        {[["전체", items.length], ["안 읽음", unread], ["읽음", items.length - unread]].map(([t, c]) => (
-          <div key={t} className={`tab-pill${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>{t} ({c})</div>
-        ))}
-      </div>
+      {err && <div className="form-err">{err}</div>}
 
       {!shown.length && (
         <Empty
@@ -59,7 +66,8 @@ export function S25() {
         />
       )}
 
-      {shown.map((n) => (
+      <div className="rs-list">
+        {shown.map((n) => (
         <div
           key={n.id}
           className={`notif-item${n.read ? " read" : ""}`}
@@ -78,7 +86,8 @@ export function S25() {
           </div>
           <span className="notif-time">{n.time}</span>
         </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

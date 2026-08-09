@@ -11,10 +11,10 @@ export function S18({ onNav }) {
     {name:"김철수",role:"참여자",status:"초대됨"},
   ]);
   return (
-    <div className="content" style={{maxWidth:560,margin:"0 auto"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
         <Back onClick={()=>onNav("S15")} label="목록" />
-        <div style={{fontSize:20,fontWeight:700}}>참여자 관리</div>
+        <h1 className="form-title">참여자 관리</h1>
       </div>
       <div className="card card-p" style={{marginBottom:16}}>
         <div style={{fontSize:13,fontWeight:700,marginBottom:12}}>참여자 ({participants.length}명)</div>

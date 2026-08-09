@@ -16,10 +16,10 @@ import { NavIcon } from "../../components/NavIcon.jsx";
 
 export function S08({ onNav }) {
   return (
-    <div className="content" style={{maxWidth:640,margin:"0 auto"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
         <Back onClick={()=>onNav("S06")} label="그래프" />
-        <div style={{fontSize:20,fontWeight:700}}>엣지 상세</div>
+        <h1 className="form-title">엣지 상세</h1>
       </div>
       <div className="card card-p" style={{marginBottom:16}}>
         <div style={{display:"flex",alignItems:"center",gap:16,padding:"12px 0",borderBottom:`1px solid ${TDS.borderDefault}`,marginBottom:16}}>

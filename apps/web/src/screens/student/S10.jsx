@@ -24,10 +24,10 @@ export function S10({ onNav }) {
     {icon:"🎙️",t:"음성 반영",d:"물리 토론 녹음 노드 5개 반영",time:"2026-01-12 11:00"},
   ];
   return (
-    <div className="content" style={{maxWidth:700,margin:"0 auto"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
         <Back onClick={()=>onNav("S06")} label="그래프" />
-        <div style={{fontSize:20,fontWeight:700}}>그래프 변경 이력</div>
+        <h1 className="form-title">그래프 변경 이력</h1>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         {["전체","노드","엣지","ML","수동"].map(f=><Btn key={f} v={f==="전체"?"primary":"secondary"} s="sm">{f}</Btn>)}

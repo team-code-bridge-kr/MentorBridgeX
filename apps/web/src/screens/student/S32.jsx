@@ -9,10 +9,10 @@ export function S32({ onNav }) {
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState(false);
   return (
-    <div className="content" style={{maxWidth:540,margin:"0 auto"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+    <div className="rs-wrap rs-narrow">
+      <div className="form-head">
         <Back onClick={()=>onNav("S30")} label="설정" />
-        <div style={{fontSize:20,fontWeight:700}}>계정 삭제 요청</div>
+        <h1 className="form-title">계정 삭제 요청</h1>
       </div>
       {step===0 && (
         <>

@@ -16,11 +16,12 @@ export function S28() {
   const sectionDone = (s.sections || []).filter((sec) => (sec.pct ?? 0) > 0).length;
 
   return (
-    <div className="content">
-      <div className="sec-sub mb24" style={{ marginBottom: 24 }}>
-        그래프·코멘트·양식·음성 실데이터 기준 · 대시보드에 있던 누적 통계는 이곳으로 모았습니다
-      </div>
-      {err && <div style={{ color: TDS.danger }}>{err}</div>}
+    <div className="rs-wrap">
+      <h1 className="rs-title">통계</h1>
+      {/* "실데이터 기준 · 대시보드에 있던 통계는 이곳으로 모았습니다" 를
+          지웠다. 앞은 당연한 말이고(지어낸 숫자를 보여줄 리 없다), 뒤는
+          우리가 화면을 옮긴 사정이지 학생이 알 일이 아니다. */}
+      {err && <div className="form-err">{err}</div>}
       <div className="stat-row mb24" style={{ marginBottom: 24 }}>
         <StatCard label="총 노드" value={`${s.node_count}개`} sub={`엣지 ${s.edge_count}`} />
         <StatCard label="텍스트 영역" value={`${sectionDone} / 8`} sub={sectionDone === 8 ? "모든 영역 입력됨" : `${8 - sectionDone}개 미작성`} />
