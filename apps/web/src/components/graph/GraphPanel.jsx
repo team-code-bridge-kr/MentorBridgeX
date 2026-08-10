@@ -13,10 +13,24 @@
 import { NavIcon } from "../NavIcon.jsx";
 import TDS from "../../theme/tokens.js";
 
-export function GraphPanel({ title, onClose, children }) {
+/**
+ * @param onBack  있으면 머리에 뒤로 가기가 선다. 파고들어 온 층에서 한 겹
+ *   나가는 길이다 — 닫기(✕)는 판만 닫고 층은 그대로 두므로, 두 일을 한
+ *   단추로 겸할 수 없다. 여태 나가는 길은 위쪽 경로표시뿐이었는데, 판을 읽는
+ *   동안 눈은 오른쪽에 있어서 거기까지 되짚어 올라가야 했다.
+ * @param backLabel 어디로 나가는지. 이름 없이 갈매기만 두면 어디로 가는지 모른다.
+ */
+export function GraphPanel({ title, onClose, onBack, backLabel, children }) {
   return (
     <aside className="gpanel">
       <div className="gpanel-head">
+        {onBack && (
+          <button type="button" className="gpanel-back" onClick={onBack}
+            title={`${backLabel || "위"}(으)로 나가기`}>
+            <NavIcon name="chevronLeft" size={15} color={TDS.primary} />
+            <span>{backLabel || "위로"}</span>
+          </button>
+        )}
         <span className="gpanel-title">{title}</span>
         <button type="button" className="gpanel-x" onClick={onClose} aria-label="닫기">
           <NavIcon name="close" size={14} color={TDS.textSecondary} />

@@ -3042,6 +3042,18 @@ tr:hover td { background:var(--surface-container-low); }
   padding-bottom:104px;
 }
 .gpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
+/* 뒤로 가기 — 판을 읽는 동안 눈은 오른쪽에 있다. 나가는 길이 위쪽 경로표시뿐이면
+   거기까지 되짚어 올라가야 한다. 판 안에도 같은 길을 둔다. */
+.gpanel-back {
+  display:inline-flex; align-items:center; gap:4px; flex:0 1 auto; min-width:0;
+  padding:5px 10px 5px 7px; border-radius:9999px; cursor:pointer; font-family:inherit;
+  border:1px solid var(--brd); background:var(--bg2);
+  font-size:12px; font-weight:700; color:var(--primary);
+}
+.gpanel-back span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gpanel-back:hover { background:var(--blue-50); border-color:var(--primary); }
+/* 뒤로 가기가 서면 제목은 자리를 양보한다 — 둘 다 늘어나면 ✕ 가 밀린다 */
+.gpanel-back + .gpanel-title { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }
 .gpanel-x {
   width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center;

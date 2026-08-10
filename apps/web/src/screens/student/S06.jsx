@@ -1256,7 +1256,13 @@ export function S06({ onNav }) {
 
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
-          <GraphPanel title="노드" onClose={closePanel}>
+          <GraphPanel
+            title="노드"
+            onClose={closePanel}
+            /* 뿌리 층에서는 나갈 데가 없다 — 없는 길을 단추로 세우지 않는다. */
+            onBack={trail.length > 1 ? () => { setSel(null); goUp(); } : undefined}
+            backLabel={trail.length > 1 ? trail[trail.length - 2].label : ""}
+          >
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
