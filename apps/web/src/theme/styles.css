@@ -2897,29 +2897,37 @@ tr:hover td { background:var(--surface-container-low); }
   background:transparent;
 }
 /* 「더보기」 차림표.
-   글자만 세 덩이 놓여 있어서 어디까지가 한 항목인지, 눌리기는 하는지 알 수
-   없었다. 옆의 검색창과 같은 재질(옅은 판 + 테두리 + 둥근 모서리)로 각각을
-   상자에 담는다 — 같은 도구띠에 선 것들이 같은 옷을 입는다.
+   글자만 덩이로 놓여 있어서 어디까지가 한 항목인지, 눌리기는 하는지 알 수
+   없었다. 활동 기록(.act-glass)과 **같은 재질**로 담는다 — 흰 반투명 판에
+   부드러운 그림자, 테두리는 빛처럼 옅게. 회색 판에 1px 선을 두르면 같은
+   앱에서 혼자 딱딱하다.
    설명은 공용 `.pop-item-hint`(이름 옆 짧은 곁말)로는 안 된다. 여기 설명은
    문장이라 아래로 내려놓아야 읽힌다. */
 /* 공용 팝오버는 한 줄짜리 항목을 전제한 230px 다. 여기 설명은 문장이라
    그 폭에서는 네 줄로 접혀 읽는 데 품이 든다. */
-.pop:has(.gpop-item) { min-width:330px; }
+.pop:has(.gpop-item) { min-width:330px; padding:10px; }
 .gpop-item {
-  display:flex; align-items:flex-start; gap:10px; width:100%;
-  padding:11px 12px; border-radius:12px;
-  border:1px solid var(--brd); background:var(--bg3);
-  transition:border-color .14s, background .14s;
+  display:flex; align-items:flex-start; gap:11px; width:100%;
+  padding:12px 14px; border-radius:16px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 6px 18px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.7);
+  transition:transform .14s, box-shadow .14s, background .14s;
 }
 .pop-list .gpop-item + .gpop-item { margin-top:8px; }
-.gpop-item:hover:not(:disabled) { border-color:var(--primary); background:var(--blue-50); }
-.gpop-item:disabled { opacity:.6; cursor:default; }
-.gpop-ic {
-  flex:0 0 auto; width:30px; height:30px; border-radius:9px;
-  display:grid; place-items:center; background:var(--bg1);
-  border:1px solid var(--brd);
+.gpop-item:hover:not(:disabled) {
+  background:rgba(255,255,255,.95);
+  box-shadow:0 10px 26px rgba(15,23,42,.11), inset 0 1px 0 rgba(255,255,255,.8);
+  transform:translateY(-1px);
 }
-.gpop-item:hover:not(:disabled) .gpop-ic { border-color:transparent; }
+.gpop-item:disabled { opacity:.55; cursor:default; box-shadow:none; }
+.gpop-ic {
+  flex:0 0 auto; width:32px; height:32px; border-radius:9999px;
+  display:grid; place-items:center; background:rgba(9,105,218,.09);
+}
+/* 판이 반투명이라 뒤가 비친다. 팝오버 자체에도 옅은 바탕을 깔아 글자 뒤로
+   캔버스의 점 격자가 지나가지 않게 한다. */
+.pop:has(.gpop-item) { background:linear-gradient(180deg, #f7f9ff 0%, #eef2fb 100%); }
 .gpop-body { flex:1; min-width:0; }
 .gpop-t { display:block; font-size:13.5px; font-weight:700; color:var(--tp); }
 .gpop-hint {
