@@ -2938,6 +2938,21 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .nlink-hint-skip:hover { color:var(--tp); text-decoration:underline; }
 
+/* 「추천 받기」 — 칸을 가득 채운 알약.
+   이 칸에서 할 일이 그것 하나뿐이라 오른쪽 구석에 작게 둘 이유가 없었다. */
+.prune-go {
+  display:block; width:100%; margin-bottom:12px;
+  height:38px; border-radius:9999px; cursor:pointer; font-family:inherit;
+  border:1px solid var(--brd); background:var(--bg1);
+  font-size:13px; font-weight:700; color:var(--tp);
+  transition:background .14s, border-color .14s, color .14s;
+}
+.prune-go:hover:not(:disabled) { background:var(--primary); border-color:var(--primary); color:#fff; }
+.prune-go:disabled { color:var(--tt); cursor:default; }
+
+/* 원문으로 가는 길 — 출처 문장 아래에 선다 */
+.node-open { margin-top:8px; }
+
 /* 코멘트 쓰는 칸 — 한 줄 입력(.inp)과 겹쳐 눌려 있었다 */
 .gcomment-write { min-height:72px; margin-top:2px; font-size:12.5px; }
 

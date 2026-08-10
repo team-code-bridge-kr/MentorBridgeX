@@ -210,10 +210,47 @@ def _snippet(sentence: str, start: int, end: int) -> tuple[str, int, int]:
     return text, start + offset, end + offset
 
 
+def _own_section(node: GraphNode, sections: list[DocumentSection]) -> DocumentSection | None:
+    """이 노드가 곧 어떤 구획인가(뼈대 노드). 그 구획을 돌려준다."""
+    section_id = str((node.external_refs or {}).get("section_id") or "")
+    if not section_id:
+        return None
+    return next((s for s in sections if s.id == section_id), None)
+
+
 def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
-    """노드 이름이 적힌 문장을 생기부에서 찾는다."""
+    """노드 이름이 적힌 문장을 생기부에서 찾는다.
+
+    구획 노드(1학년 국어 …)는 이름을 찾을 것이 없다 — **자기 자신이 출처**다.
+    그때는 그 구획의 첫 문장들을 그대로 돌려준다. 예전에는 이 경우 화면이
+    출처 칸을 통째로 비우고 "생기부에서 이 글 열기" 만 세웠는데, 노드마다
+    출처 칸의 생김새가 달라져서 무엇을 보는 자리인지 매번 다시 읽어야 했다.
+    """
     patterns = patterns_of(node)
     origin = origin_of(node)
+
+    own = _own_section(node, sections)
+    if own is not None:
+        sentences = [s for s in _sentences(own.content) if s.strip()]
+        quotes = [
+            NodeEvidenceQuote(
+                section_type=str(own.section_type),
+                section_label=_label(own),
+                text=s,
+                # 강조할 자리가 없다. 이 구획 전체가 출처이지 어느 낱말이 아니다.
+                match_start=0,
+                match_end=0,
+            )
+            for s in sentences[:QUOTE_LIMIT]
+        ]
+        return NodeEvidence(
+            node_id=node.id,
+            label=node.label,
+            origin=origin,
+            quotes=quotes,
+            total=len(sentences),
+        )
+
     if not patterns or not sections:
         return NodeEvidence(node_id=node.id, label=node.label, origin=origin, quotes=[], total=0)
 

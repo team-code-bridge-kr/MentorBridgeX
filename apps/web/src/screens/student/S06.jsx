@@ -1339,9 +1339,13 @@ export function S06({ onNav }) {
                   open={openSections.has("evidence")}
                   onToggle={()=>toggleSection("evidence")}
                 >
-                  {/* 생기부 구획 노드는 출처를 찾을 것이 없다 — 자기 자신이 출처다.
-                      문장을 뒤지는 대신 그 글로 데려간다. */}
-                  {sel.sectionId ? (
+                  {/* 노드가 무엇이든 **같은 모양**으로 보여준다. 예전에는 구획
+                      노드일 때 출처 칸을 통째로 비우고 "이 글 열기" 만 세웠는데,
+                      노드마다 이 칸의 생김새가 달라져서 무엇을 보는 자리인지 매번
+                      다시 읽어야 했다. 구획 노드는 자기 자신이 출처이므로 서버가
+                      그 구획의 문장을 돌려준다. 원문으로 가는 길은 그 아래에. */}
+                  <NodeEvidence nodeId={sel.id} label={sel.label} />
+                  {sel.sectionId && (
                     <button
                       type="button"
                       className="node-open"
@@ -1354,8 +1358,6 @@ export function S06({ onNav }) {
                     >
                       생기부에서 이 글 열기 →
                     </button>
-                  ) : (
-                    <NodeEvidence nodeId={sel.id} label={sel.label} />
                   )}
                 </Section>
 
@@ -1381,14 +1383,18 @@ export function S06({ onNav }) {
                   open={openSections.has("prune")}
                   onToggle={()=>toggleSection("prune")}
                 >
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <p style={{fontSize:12,color:TDS.textTertiary,margin:0,lineHeight:1.5,wordBreak:"keep-all"}}>
-                이 노드에서 뻗어 갈 주제를 찾아 줍니다.
-              </p>
-              <Btn v="secondary" s="sm" disabled={!!prune?.loading} onClick={()=>runPrune(sel)}>
-                {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시" : "추천 받기"}
-              </Btn>
-            </div>
+            {/* 안내문을 지웠다. 칸 이름이 이미 "다음 탐구" 이고 단추에 "추천
+                받기" 라고 적혀 있어서, 그 사이의 한 줄은 같은 말을 세 번째로
+                하고 있었다. 단추는 칸을 가득 채운다 — 이 칸에서 할 일이 그것
+                하나뿐이라 구석에 작게 둘 이유가 없다. */}
+            <button
+              type="button"
+              className="prune-go"
+              disabled={!!prune?.loading}
+              onClick={()=>runPrune(sel)}
+            >
+              {prune?.loading ? "생성 중…" : prune?.items?.length ? "다시 추천 받기" : "추천 받기"}
+            </button>
 
             {prune?.loading && (
               <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:12}}>
