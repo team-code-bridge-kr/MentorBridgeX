@@ -2240,7 +2240,18 @@ tr:hover td { background:var(--surface-container-low); }
 }
 
 /* 제목 + 검색을 한 줄에. 설명문은 두지 않는다. */
+/* 녹음 한 줄의 아이콘 판. 최근 활동은 아이콘만 두지만 여기는 상태(검토
+   대기/완료)가 한눈에 보여야 해서 판을 깐다 — 손대야 하는 것만 주황이다. */
+.ra-ic {
+  flex:none; width:34px; height:34px; border-radius:11px;
+  display:grid; place-items:center; background:var(--blue-50);
+}
+.ra-ic.is-todo { background:var(--warningbg); }
+.ra-badge.is-todo { background:var(--warningbg); color:var(--warning); }
+
 .act-head { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+/* 제목 옆에 검색이 아니라 단추가 서는 화면(음성 세션)에서는 단추를 오른쪽 끝으로 */
+.act-head > .btn { margin-left:auto; }
 .act-title { flex:none; font-size:26px; font-weight:700; color:var(--tp); letter-spacing:-.02em; }
 .act-search {
   flex:1; min-width:0; display:flex; align-items:center; gap:9px;

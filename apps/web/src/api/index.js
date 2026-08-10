@@ -820,6 +820,15 @@ const api = {
       return mapVoice(data);
     },
     /**
+     * ✅ LIVE — DELETE /v1/students/me/voice/sessions/{id}
+     *
+     * 소리는 애초에 저장하지 않으므로 여기서 사라지는 것은 옮겨 적은 글이다.
+     */
+    async removeSession(id) {
+      await request(`/v1/students/me/voice/sessions/${id}`, { method: "DELETE" });
+      return { id };
+    },
+    /**
      * ✅ LIVE — 받아쓰기. 저장하지 않고 인식 결과 문장만 돌려준다.
      * AI 입력창의 마이크가 쓴다 (녹음 세션과 별개).
      */

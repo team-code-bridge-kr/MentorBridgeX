@@ -1024,6 +1024,41 @@ async def patch_voice_session(
     return _voice_out(row)
 
 
+@voice_router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_voice_session(
+    session_id: str,
+    user: UserRow | MemoryUser = Depends(get_current_user),
+    session: AsyncSession | None = Depends(get_db_session),
+) -> None:
+    """녹음을 지운다.
+
+    지울 길이 아예 없었다. 잘못 눌러 생긴 0초짜리 녹음, 시험 삼아 한 녹음이
+    목록에 그대로 쌓이는데 학생이 치울 방법이 없었다 — 자기 기록인데.
+
+    소리는 애초에 저장하지 않으므로 여기서 사라지는 것은 **옮겨 적은 글**이다.
+    되돌릴 수 없다.
+    """
+    if is_offline_demo():
+        rows = getattr(get_memory_db(), "voice", {})
+        row = rows.get(session_id)
+        if not row or row["user_id"] != user.id:
+            raise AppError("VOICE_NOT_FOUND", "음성 세션을 찾을 수 없습니다.", 404)
+        rows.pop(session_id, None)
+        return
+
+    assert session is not None
+    result = await session.execute(
+        select(VoiceSessionRow).where(
+            VoiceSessionRow.id == session_id, VoiceSessionRow.user_id == user.id
+        )
+    )
+    row = result.scalar_one_or_none()
+    if not row:
+        raise AppError("VOICE_NOT_FOUND", "음성 세션을 찾을 수 없습니다.", 404)
+    await session.delete(row)
+    await session.commit()
+
+
 @voice_router.post("/sessions/{session_id}/transcribe", response_model=VoiceSessionOut)
 async def transcribe_voice_session(
     session_id: str,
