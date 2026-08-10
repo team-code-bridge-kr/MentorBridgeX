@@ -22,6 +22,54 @@ import api from "../../api/index.js";
 const SECTIONS = SUBJECT_LEGEND.map((s) => s.label);
 const NO_SECTION = "기타";
 
+/**
+ * 노드 고르기 — 찾아서 누른다.
+ *
+ * 기본 `<select>` 를 썼었다. 운영체제가 그리는 목록이라 판 안의 다른 것들과
+ * 테두리·글자·모서리가 전부 어긋났고, 무엇보다 **찾을 수가 없었다** — 노드가
+ * 백 개면 스크롤로 훑는 수밖에 없다.
+ *
+ * 고르기와 잇기를 한 번에 한다. 예전에는 고른 뒤 「잇기」를 또 눌러야 했는데,
+ * 목록에서 이름을 누르는 것 자체가 이미 "이걸로 하겠다" 는 뜻이다.
+ */
+function NodePicker({ nodes, placeholder, onPick, onCancel }) {
+  const [q, setQ] = useState("");
+  const packed = q.trim().replace(/\s+/g, "").toLowerCase();
+  const hits = packed
+    ? nodes.filter((n) => n.label.replace(/\s+/g, "").toLowerCase().includes(packed))
+    : nodes;
+
+  return (
+    <div className="npick">
+      <input
+        className="nform-input"
+        autoFocus
+        value={q}
+        placeholder={placeholder}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+          // 하나만 남았으면 엔터로 바로 잇는다 — 찾아 놓고 또 누르게 하지 않는다.
+          if (e.key === "Enter") { e.preventDefault(); if (hits.length === 1) onPick(hits[0].id); }
+        }}
+      />
+      <div className="npick-list">
+        {hits.length === 0 && <p className="npick-empty">찾는 이름이 없습니다.</p>}
+        {hits.slice(0, 40).map((n) => (
+          <button key={n.id} type="button" className="npick-item" onClick={() => onPick(n.id)}>
+            <NavIcon name="link" size={12} color={TDS.textTertiary} />
+            <span>{n.label}</span>
+          </button>
+        ))}
+        {hits.length > 40 && (
+          <p className="npick-empty">{hits.length - 40}개 더 있습니다. 이름을 더 적어 좁혀 보세요.</p>
+        )}
+      </div>
+      <button type="button" className="npick-cancel" onClick={onCancel}>취소</button>
+    </div>
+  );
+}
+
 export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCancel, busy }) {
   const editing = mode === "edit";
   const [label, setLabel] = useState("");
@@ -165,16 +213,24 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
           한 폼에서 이름도 고치고 연결도 바꾸면 무엇을 저장하는지 흐려진다. */}
       {!editing && (
         <div className="nform-row">
-          <label className="nform-label" htmlFor="node-parent">어디에 연결할까요 <span>선택</span></label>
-          <select
-            id="node-parent"
-            className="nform-input nform-select"
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-          >
-            <option value="">연결 없이 두기</option>
-            {nodes.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-          </select>
+          <label className="nform-label">어디에 연결할까요 <span>선택</span></label>
+          {parentId ? (
+            <div className="nform-tags">
+              <span className="nform-tag">
+                {nodes.find((n) => n.id === parentId)?.label || "고른 노드"}
+                <button type="button" aria-label="연결 없이 두기" onClick={() => setParentId("")}>
+                  <NavIcon name="close" size={11} color={TDS.textTertiary} />
+                </button>
+              </span>
+            </div>
+          ) : (
+            <NodePicker
+              nodes={nodes}
+              placeholder="이을 노드 이름 (비워 두면 따로 둡니다)"
+              onPick={(id) => setParentId(id)}
+              onCancel={() => setParentId("")}
+            />
+          )}
         </div>
       )}
 
@@ -237,7 +293,6 @@ export function NodeDeleteConfirm({ node, edgeCount, onConfirm, onCancel, busy }
  */
 export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, busy }) {
   const [adding, setAdding] = useState(false);
-  const [target, setTarget] = useState("");
   const [hints, setHints] = useState({ loading: true, items: [] });
   const [skipped, setSkipped] = useState(() => new Set());
 
@@ -276,20 +331,12 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
       </div>
 
       {adding && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          <select
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            className="nform-input nform-select"
-            style={{ flex: 1, minWidth: 0 }}
-          >
-            <option value="">이을 노드 고르기</option>
-            {candidates.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
-          </select>
-          <Btn v="primary" s="sm" disabled={!target || busy}
-            onClick={() => { onConnect(target); setTarget(""); setAdding(false); }}>잇기</Btn>
-          <Btn v="ghost" s="sm" onClick={() => { setAdding(false); setTarget(""); }}>취소</Btn>
-        </div>
+        <NodePicker
+          nodes={candidates}
+          placeholder="이을 노드 이름"
+          onPick={(id) => { onConnect(id); setAdding(false); }}
+          onCancel={() => setAdding(false)}
+        />
       )}
 
       {!linked.length && !adding && (

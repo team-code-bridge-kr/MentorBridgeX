@@ -2929,6 +2929,30 @@ tr:hover td { background:var(--surface-container-low); }
 .nform-chip:hover { border-color:var(--primary); color:var(--primary); }
 .nform-chip.on { background:var(--primary); border-color:var(--primary); color:#fff; }
 
+/* 노드 고르기 — 기본 select 대신 찾아서 누른다.
+   운영체제가 그리는 목록은 판 안의 다른 것들과 어긋나고, 무엇보다 노드가
+   백 개면 스크롤로 훑는 수밖에 없다. */
+.npick { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.npick-list {
+  max-height:200px; overflow-y:auto;
+  display:flex; flex-direction:column; gap:2px;
+  border:1px solid var(--brd); border-radius:12px; padding:5px;
+  background:var(--bg2);
+}
+.npick-item {
+  display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+  padding:8px 10px; border:none; border-radius:9px; background:transparent;
+  cursor:pointer; font-family:inherit; font-size:12.5px; color:var(--tp);
+}
+.npick-item span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.npick-item:hover { background:var(--blue-50); color:var(--primary); }
+.npick-empty { margin:0; padding:10px; font-size:12px; color:var(--tt); line-height:1.6; }
+.npick-cancel {
+  align-self:flex-start; border:none; background:none; padding:0; cursor:pointer;
+  font-family:inherit; font-size:12px; font-weight:600; color:var(--tt);
+}
+.npick-cancel:hover { color:var(--tp); text-decoration:underline; }
+
 /* 다른 이름 — 하나씩 담긴 것이 눈에 보여야 몇 개인지 셀 수 있다 */
 .nform-tags { display:flex; flex-wrap:wrap; gap:6px; }
 .nform-tag {
