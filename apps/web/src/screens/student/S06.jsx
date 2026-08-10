@@ -918,29 +918,34 @@ export function S06({ onNav }) {
           좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
       <div className="toolbar toolbar-graph">
         <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
-        {/* 경로표시 — 어디에 있는지와 어떻게 나가는지가 같은 줄에 있다.
-            재배치는 **모드**를 만들고, 모드에는 나가는 길이 반드시 있어야 한다.
-            깊이 알약(교과/과목/개념)은 없앴다 — 층을 오가는 길이 둘이면 어느 쪽이
-            진짜인지 알 수 없고, 이제 층은 초점 하나로 정해진다. */}
-        <nav className="gcrumb" aria-label="현재 위치">
-          {trail.map((n, i) => (
-            <span key={n.id}>
-              {i > 0 && <span className="gcrumb-sep" aria-hidden>›</span>}
-              <button
-                type="button"
-                className={`gcrumb-item${i === trail.length - 1 ? " is-here" : ""}`}
-                aria-current={i === trail.length - 1 ? "true" : undefined}
-                onClick={() => { setFocusId(n.id); setSel(null); }}
-              >
-                {n.label}
-              </button>
+
+        {/* 검색창을 탐구 피드와 같은 알약으로, 도구띠 한가운데에 둔다.
+            예전에는 오른쪽 끝에 240px 짜리 작은 칸으로 붙어 있었다 — 같은 일을
+            하는 칸이 화면마다 다르게 생기면 같은 앱으로 안 읽힌다. */}
+        <div className="feed-search is-inline gsearch" role="search">
+          <NavIcon name="search" size={17} color="var(--tt)"/>
+          <input
+            className="feed-search-input"
+            placeholder="노드 검색"
+            aria-label="노드 검색"
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); stepMatch(e.shiftKey?-1:1); } }}
+          />
+          {q.trim() && (
+            <span className="gsearch-nav">
+              <span className="gsearch-count">{matchCount ? `${Math.min(searchIdx, matchCount-1)+1}/${matchCount}` : "0"}</span>
+              <button type="button" onClick={()=>stepMatch(-1)} disabled={!matchCount} aria-label="이전 결과">↑</button>
+              <button type="button" onClick={()=>stepMatch(1)} disabled={!matchCount} aria-label="다음 결과">↓</button>
             </span>
-          ))}
-        </nav>
+          )}
+        </div>
+
+        {/* "둘러보기" 를 "확장하기" 로. 여기서 하는 일은 구경이 아니라 빈 곳을
+            찾아 **가지를 늘리는** 것이다. */}
         <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
-          <NavIcon name="search" size={15} color={TDS.textSecondary}/> 둘러보기
+          <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 확장하기
         </Btn>
-        <div style={{flex:1}} />
         {/* ref 는 감싸는 div 가 든다 — `Btn` 은 ref 를 넘겨주지 않는 함수 컴포넌트다.
             Popover 는 앵커 **안쪽** 클릭만 걸러 내면 되므로 감싼 것으로 충분하다. */}
         <div style={{position:"relative"}} ref={moreRef}>
@@ -976,23 +981,28 @@ export function S06({ onNav }) {
             </div>
           </Popover>
         </div>
-        <div className="search-wrap" style={{width:240}}>
-          <NavIcon name="graph" size={15} color={TDS.textTertiary}/>
-          <input
-            placeholder="노드 검색..."
-            value={q}
-            onChange={e=>setQ(e.target.value)}
-            onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); stepMatch(e.shiftKey?-1:1); } }}
-          />
-          {q.trim() && (
-            <span className="gsearch-nav">
-              <span className="gsearch-count">{matchCount ? `${Math.min(searchIdx, matchCount-1)+1}/${matchCount}` : "0"}</span>
-              <button type="button" onClick={()=>stepMatch(-1)} disabled={!matchCount} aria-label="이전 결과">↑</button>
-              <button type="button" onClick={()=>stepMatch(1)} disabled={!matchCount} aria-label="다음 결과">↓</button>
-            </span>
-          )}
-        </div>
       </div>
+
+      {/* 경로표시는 제 줄로 내렸다. 도구띠에 함께 두면 층이 깊어질수록 길어져서
+          검색창을 밀어냈다. 뿌리 층에서는 세우지 않는다 — "내 생기부" 한 칸만
+          있는 경로는 길이 아니라 이름이다. */}
+      {trail.length > 1 && (
+        <nav className="gcrumb" aria-label="현재 위치">
+          {trail.map((n, i) => (
+            <span key={n.id}>
+              {i > 0 && <span className="gcrumb-sep" aria-hidden>›</span>}
+              <button
+                type="button"
+                className={`gcrumb-item${i === trail.length - 1 ? " is-here" : ""}`}
+                aria-current={i === trail.length - 1 ? "true" : undefined}
+                onClick={() => { setFocusId(n.id); setSel(null); }}
+              >
+                {n.label}
+              </button>
+            </span>
+          ))}
+        </nav>
+      )}
       {/* 캔버스 + 패널. 좁은 화면에서 세로로 나뉘어야 하므로 인라인이 아니라
           클래스로 둔다 — 인라인 스타일에는 @media 를 걸 수 없다. */}
       <div className="gbody">
@@ -1195,20 +1205,18 @@ export function S06({ onNav }) {
             {/* 줌 컨트롤 — 휠/드래그와 같은 상태를 쓴다 */}
             {/* 오른쪽 아래는 녹음 도크가 쓰는 자리다. 겹치지 않게 왼쪽에 둔다 —
                 두 조작부가 같은 모서리에 있으면 어느 쪽을 누르는지 헷갈린다. */}
-            <div data-graph-panel style={{position:"absolute",bottom:16,left:16,zIndex:Z.panel,display:"flex",flexDirection:"column",gap:6}}>
+            <div data-graph-panel className="gzoom" style={{zIndex:Z.panel}}>
               {[
                 { key:"in",    text:"+", title:"확대",       onClick:()=>zoomByButton(ZOOM.step) },
                 { key:"out",   text:"−", title:"축소",       onClick:()=>zoomByButton(1/ZOOM.step) },
                 { key:"reset", text:"⤾", title:"보이는 것에 맞추기", onClick:fitView },
               ].map(b=>(
-                <button key={b.key} title={b.title} onClick={b.onClick}
-                  style={{...OVERLAY_SURFACE,borderRadius:12,width:36,height:36,padding:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:b.key==="reset"?15:18,fontWeight:600,color:OVERLAY_TEXT.secondary}}>
+                <button key={b.key} type="button" title={b.title} onClick={b.onClick}
+                  className={`gzoom-b${b.key === "reset" ? " is-fit" : ""}`}>
                   {b.text}
                 </button>
               ))}
-              <div style={{...OVERLAY_SURFACE,borderRadius:10,padding:"4px 0",textAlign:"center",fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,fontVariantNumeric:"tabular-nums"}}>
-                {Math.round(view.scale*100)}%
-              </div>
+              <div className="gzoom-pct">{Math.round(view.scale*100)}%</div>
             </div>
           </div>
         </div>
