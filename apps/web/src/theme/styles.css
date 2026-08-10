@@ -3253,22 +3253,18 @@ tr:hover td { background:var(--surface-container-low); }
 /* ── 패널 안의 접히는 구획 ────────────────────────────────
    탭이 아니라 디스클로저다. 접혀 있어도 제목과 개수가 남으므로 "무엇이 있는지"는
    늘 보인다 — 탭은 그 사실 자체를 감춘다. */
-.gsec { border-top:1px solid var(--surface-container); }
-.gsec:first-child { border-top:none; }
-.gsec-hd {
-  display:flex; align-items:center; gap:7px; width:100%;
-  padding:11px 0; border:none; background:transparent; cursor:pointer;
-  font-family:inherit; text-align:left;
+/* 접었다 펴는 방식을 그만두었다. 구획이 넷뿐이고 저마다 짧아, 접어서 아낄
+   자리보다 무엇이 있는지 보려고 네 번 누르는 품이 더 든다. 접힌 것은 **없는
+   것처럼** 읽혀서 출처가 일곱 문장 있어도 그냥 지나쳤다.
+   대신 구획 사이를 벌리고 머리글을 세워, 접지 않아도 어디부터 어디까지가
+   한 덩이인지 보이게 한다. */
+.gsec { border-top:1px solid var(--surface-container); padding-top:16px; margin-top:16px; }
+.gsec:first-child { border-top:none; padding-top:0; margin-top:0; }
+.gsec-title {
+  margin:0 0 10px; font-size:12px; font-weight:800; color:var(--tt);
+  letter-spacing:.04em;
 }
-.gsec-hd svg { flex-shrink:0; transform:rotate(-90deg); transition:transform .16s ease; }
-.gsec-hd[aria-expanded="true"] svg { transform:rotate(0deg); }
-.gsec-title { font-size:13px; font-weight:700; color:var(--ts); }
-.gsec-count {
-  margin-left:auto; font-size:11.5px; font-weight:700; color:var(--tt);
-  font-variant-numeric:tabular-nums;
-}
-.gsec-hd:hover .gsec-title { color:var(--tp); }
-.gsec-body { padding-bottom:14px; }
+.gsec-body { padding-bottom:0; }
 
 /* 그래프 전체 확장 추천 한 줄 */
 .gsug {

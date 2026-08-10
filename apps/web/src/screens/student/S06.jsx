@@ -265,23 +265,6 @@ export function S06({ onNav }) {
   // 툴바의 「더보기」 — 자주 안 쓰는 것들을 여기로 넣었다.
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef(null);
-  /**
-   * 노드 패널에서 펴 둔 구획.
-   *
-   * **노드별이 아니라 구획별로** 기억한다. 코멘트를 안 쓰는 학생은 한 번 접으면
-   * 노드를 옮겨 다녀도 계속 접혀 있어야 한다 — 노드마다 따로 기억하면 새 노드를
-   * 고를 때마다 접었던 것이 되살아난다.
-   */
-  const [openSections, setOpenSections] = useState(
-    () => new Set(readSaved()?.sections ?? ["evidence", "links"]),
-  );
-  const toggleSection = useCallback((key) => {
-    setOpenSections((cur) => {
-      const next = new Set(cur);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }, []);
   const [commentDraft, setCommentDraft] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -441,12 +424,12 @@ export function S06({ onNav }) {
     const t = setTimeout(() => {
       try {
         sessionStorage.setItem(VIEW_KEY, JSON.stringify({
-          focusId: activeFocus, view, positions, sections: [...openSections],
+          focusId: activeFocus, view, positions,
         }));
       } catch { /* 저장 공간이 없으면 기억하지 않을 뿐, 화면은 그대로 돈다 */ }
     }, 300);
     return () => clearTimeout(t);
-  }, [activeFocus, view, positions, openSections]);
+  }, [activeFocus, view, positions]);
 
   // 선이 하나도 없는 노드. 예전 화면은 가지를 지어내 이어진 것처럼 보였는데,
   // 이제 진짜 선만 그리니 드러난다. 감추지 말고 세어서 알려 준다 — 한 번
@@ -1420,11 +1403,7 @@ export function S06({ onNav }) {
               <div style={{marginTop:16}}>
                 {/* 출처가 맨 위인 까닭: 고치거나 지우려는 순간에는 판단할 근거가
                     먼저 필요하다. */}
-                <Section
-                  title="출처"
-                  open={openSections.has("evidence")}
-                  onToggle={()=>toggleSection("evidence")}
-                >
+                <Section title="출처">
                   {/* 노드가 무엇이든 **같은 모양**으로 보여준다. 예전에는 구획
                       노드일 때 출처 칸을 통째로 비우고 "이 글 열기" 만 세웠는데,
                       노드마다 이 칸의 생김새가 달라져서 무엇을 보는 자리인지 매번
@@ -1447,11 +1426,7 @@ export function S06({ onNav }) {
                   )}
                 </Section>
 
-                <Section
-                  title="연결"
-                  open={openSections.has("links")}
-                  onToggle={()=>toggleSection("links")}
-                >
+                <Section title="연결">
                   <NodeConnections
                     node={sel}
                     edges={edges}
@@ -1462,11 +1437,7 @@ export function S06({ onNav }) {
                   />
                 </Section>
 
-                <Section
-                  title="다음 탐구"
-                  open={openSections.has("prune")}
-                  onToggle={()=>toggleSection("prune")}
-                >
+                <Section title="다음 탐구">
             {/* 안내문을 지웠다. 칸 이름이 이미 "다음 탐구" 이고 단추에 "추천
                 받기" 라고 적혀 있어서, 그 사이의 한 줄은 같은 말을 세 번째로
                 하고 있었다. 단추는 칸을 가득 채운다 — 이 칸에서 할 일이 그것
@@ -1581,11 +1552,7 @@ export function S06({ onNav }) {
                     자유 문자열이라, 지금 이을 수 있는 고리는 이름뿐이다 —
                     이름이 같은 노드가 둘이면 섞이고 이름을 고치면 끊긴다.
                     백엔드에 node_id 가 생기면 이 두 줄만 바꾸면 된다. */}
-                <Section
-                  title="코멘트"
-                  open={openSections.has("comments")}
-                  onToggle={()=>toggleSection("comments")}
-                >
+                <Section title="코멘트">
                   {/* "코멘트가 없습니다" 를 지웠다. 바로 아래 빈 칸이 이미
                       그 말을 하고 있어서, 없다는 사실을 두 번 알리고 있었다. */}
                   {nodeComments.slice(0,5).map((c)=>(

@@ -45,33 +45,20 @@ export function GraphPanel({ title, onClose, onBack, backLabel, width, children 
 }
 
 /**
- * 패널 안의 접히는 구획.
+ * 판 안의 한 구획.
  *
- * 탭이 아니라 디스클로저를 쓴다 — 탭은 **정보가 있다는 사실 자체를** 감춘다.
- * 접혀 있어도 제목이 남으므로 무엇이 있는지는 알 수 있다. 폐지한 노드 상세
- * 화면(S07)의 4탭이 정확히 그 실패였다.
+ * 접었다 펴는 방식을 그만두었다. 판에 서는 것은 넷뿐이고(출처·연결·다음
+ * 탐구·코멘트) 저마다 짧다 — 접어서 아낄 자리보다, 무엇이 있는지 보려고
+ * 네 번 누르는 품이 더 든다. 게다가 접힌 것은 **없는 것처럼** 읽혀서, 출처가
+ * 일곱 문장 있는데도 학생이 그냥 지나치는 일이 생겼다.
  *
- * 머리에 있던 개수는 걷었다. 펼치면 안에 "연결 1개" 가 또 적혀 있어서 같은
- * 숫자가 두 번 섰고, 접혀 있을 때 오른쪽 끝에 뜬 숫자 하나만으로는 그것이
- * 무엇을 센 것인지도 알 수 없었다.
+ * 판 폭을 끌어 넓힐 수 있게 된 뒤로 자리가 모자라 접을 이유도 줄었다.
  */
-export function Section({ title, open, onToggle, children }) {
+export function Section({ title, children }) {
   return (
     <section className="gsec">
-      <button
-        type="button"
-        className="gsec-hd"
-        aria-expanded={open}
-        onClick={onToggle}
-      >
-        <NavIcon
-          name="chevronDown"
-          size={14}
-          color={TDS.textTertiary}
-        />
-        <span className="gsec-title">{title}</span>
-      </button>
-      {open && <div className="gsec-body">{children}</div>}
+      <h3 className="gsec-title">{title}</h3>
+      <div className="gsec-body">{children}</div>
     </section>
   );
 }
