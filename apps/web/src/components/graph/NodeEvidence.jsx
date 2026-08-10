@@ -45,11 +45,16 @@ function Quoted({ text, start, end }) {
   );
 }
 
+/** 접혀 있을 때 세우는 문장 수. 이만큼이면 "왜 이 노드가 있는지" 는 판단된다. */
+const PREVIEW = 3;
+
 export function NodeEvidence({ nodeId, label }) {
   const [state, setState] = useState({ loading: true });
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let alive = true;
+    setExpanded(false);   // 다른 노드를 골랐으면 접힌 채로 다시 시작한다
     setState({ loading: true });
     api.graph
       .nodeEvidence(nodeId)
@@ -61,7 +66,10 @@ export function NodeEvidence({ nodeId, label }) {
   }, [nodeId, label]); // 이름을 고치면 찾을 낱말도 달라진다.
 
   const quotes = state.quotes || [];
-  const more = (state.total || 0) - quotes.length;
+  const shown = expanded ? quotes : quotes.slice(0, PREVIEW);
+  // 접혀 있을 때 몇 개가 더 있는지. 서버가 30개까지만 주므로, 그보다 많으면
+  // "받아 온 만큼" 이 아니라 **실제 개수**로 세어야 말이 맞는다.
+  const hidden = Math.max(state.total || 0, quotes.length) - shown.length;
 
   return (
     <div>
@@ -88,7 +96,7 @@ export function NodeEvidence({ nodeId, label }) {
         </p>
       )}
 
-      {quotes.map((q, i) => (
+      {shown.map((q, i) => (
         <div
           key={i}
           style={{
@@ -113,9 +121,22 @@ export function NodeEvidence({ nodeId, label }) {
         </div>
       ))}
 
-      {more > 0 && (
-        <p style={{ fontSize: 11.5, color: TDS.textTertiary, margin: "2px 0 0" }}>
-          이 밖에 {more}곳에서 더 나옵니다.
+      {/* "이 밖에 4곳에서 더 나옵니다." 는 알려만 주고 길이 없었다 — 더 있다는
+          걸 아는데 볼 수가 없으면 알려 주지 않느니만 못하다. 눌러서 편다. */}
+      {hidden > 0 && !expanded && (
+        <button type="button" className="ev-more" onClick={() => setExpanded(true)}>
+          +{hidden}건 더 보기
+        </button>
+      )}
+      {expanded && quotes.length > PREVIEW && (
+        <button type="button" className="ev-more" onClick={() => setExpanded(false)}>
+          접기
+        </button>
+      )}
+      {/* 서른을 넘으면 나머지는 못 받아 왔다. 없는 것처럼 두면 개수가 어긋난다. */}
+      {expanded && (state.total || 0) > quotes.length && (
+        <p style={{ fontSize: 11.5, color: TDS.textTertiary, margin: "6px 0 0" }}>
+          너무 많아 {quotes.length}개까지만 보여드립니다 (모두 {state.total}곳).
         </p>
       )}
     </div>

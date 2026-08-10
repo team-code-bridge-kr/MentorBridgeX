@@ -16,6 +16,7 @@ import { OVERLAY_TEXT } from "../../theme/graphMeta.js";
 import { SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { NavIcon } from "../NavIcon.jsx";
 import { Btn } from "../ui.jsx";
+import api from "../../api/index.js";
 
 /** 과목·분야 선택지. 범례와 같은 목록이어야 아이콘이 뜻대로 붙는다. */
 const SECTIONS = SUBJECT_LEGEND.map((s) => s.label);
@@ -211,10 +212,29 @@ export function NodeDeleteConfirm({ node, edgeCount, onConfirm, onCancel, busy }
 /**
  * 이 노드에 걸린 연결 목록. 하나씩 끊을 수 있고, 새로 이을 수도 있다.
  * 연결이 없으면 그래프에서 떨어진 점이 되므로, 비어 있을 때도 그 사실을 말한다.
+ *
+ * **이을 만한 짝을 먼저 내민다.** 예전에는 목록에서 손으로 고르는 길뿐이었는데,
+ * 노드가 백 개면 무엇과 이어야 할지는 그 목록을 봐도 안 나온다. 서버가 생기부
+ * **같은 문장**에 함께 적혀 있던 짝을 찾아 준다 — 모델을 쓰지 않고 규칙만
+ * 쓰므로, 왜 떴는지를 그 문장 하나로 다 말할 수 있다. 읽고 아니면 넘긴다.
  */
 export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, busy }) {
   const [adding, setAdding] = useState(false);
   const [target, setTarget] = useState("");
+  const [hints, setHints] = useState({ loading: true, items: [] });
+  const [skipped, setSkipped] = useState(() => new Set());
+
+  useEffect(() => {
+    let alive = true;
+    setSkipped(new Set());
+    setHints({ loading: true, items: [] });
+    api.graph
+      .suggestedLinks(6, node.id)
+      .then((items) => alive && setHints({ loading: false, items }))
+      // 추천이 없다고 화면이 죽으면 안 된다 — 연결 목록은 그대로 쓸 수 있어야 한다.
+      .catch(() => alive && setHints({ loading: false, items: [] }));
+    return () => { alive = false; };
+  }, [node.id]);
 
   const linked = edges
     .filter((e) => e.from === node.id || e.to === node.id)
@@ -260,6 +280,7 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
         </p>
       )}
 
+
       {linked.map((l) => (
         <div key={l.edgeId}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: TDS.bgTertiary, borderRadius: 9, marginBottom: 6 }}>
@@ -281,6 +302,49 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
           </button>
         </div>
       ))}
+
+      {/* 이을 만한 짝 — 생기부 같은 문장에 함께 적혀 있던 것.
+          이미 이어진 짝은 서버가 빼고 준다. */}
+      {(() => {
+        const fresh = hints.items.filter((s) => {
+          const other = s.source_id === node.id ? s.target_id : s.source_id;
+          return !linkedIds.has(other) && !skipped.has(other);
+        });
+        if (hints.loading || !fresh.length) return null;
+        return (
+          <div className="nlink-hints">
+            <p className="nlink-hints-t">
+              이어 볼 만한 것 {fresh.length}개
+              <span>생기부 같은 문장에 함께 적혀 있었습니다</span>
+            </p>
+            {fresh.map((s) => {
+              const otherId = s.source_id === node.id ? s.target_id : s.source_id;
+              const otherLabel = s.source_id === node.id ? s.target_label : s.source_label;
+              return (
+                <div key={otherId} className="nlink-hint">
+                  <div className="nlink-hint-head">
+                    <NavIcon name="link" size={12} color={TDS.primary} />
+                    <span className="nlink-hint-name">{otherLabel}</span>
+                    {s.count > 1 && <span className="nlink-hint-n">{s.count}번</span>}
+                  </div>
+                  {/* 근거 문장을 그대로 둔다. 왜 떴는지 못 읽으면 학생은
+                      "그냥 AI 가 그랬대" 로 받아들이고 아무거나 잇게 된다. */}
+                  <p className="nlink-hint-why">{s.sentence}</p>
+                  <div className="nlink-hint-act">
+                    <Btn v="secondary" s="sm" disabled={busy} onClick={() => onConnect(otherId)}>잇기</Btn>
+                    <button
+                      type="button" className="nlink-hint-skip"
+                      onClick={() => setSkipped((prev) => new Set(prev).add(otherId))}
+                    >
+                      아니요
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }

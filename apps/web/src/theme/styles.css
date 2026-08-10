@@ -2896,6 +2896,51 @@ tr:hover td { background:var(--surface-container-low); }
   padding:clamp(14px,2vw,20px) clamp(16px,2vw,24px) 12px;
   background:transparent;
 }
+/* ── 노드 상세: 출처 · 연결 추천 · 코멘트 ── */
+/* "이 밖에 N곳에서 더 나옵니다" 는 알려만 주고 길이 없었다. 눌러서 편다. */
+.ev-more {
+  margin-top:4px; padding:0; border:none; background:none; cursor:pointer; font-family:inherit;
+  font-size:11.5px; font-weight:700; color:var(--primary);
+}
+.ev-more:hover { text-decoration:underline; }
+
+/* 이어 볼 만한 짝. 이미 이어진 것(위 목록)과 섞이지 않게 띠로 나눈다 —
+   "있는 것" 과 "해 볼 만한 것" 은 뜻이 다르다. */
+.nlink-hints { margin-top:12px; padding-top:12px; border-top:1px dashed var(--brd); }
+.nlink-hints-t {
+  display:flex; flex-direction:column; gap:2px; margin:0 0 8px;
+  font-size:12px; font-weight:700; color:var(--tp);
+}
+.nlink-hints-t span { font-size:11px; font-weight:500; color:var(--tt); }
+.nlink-hint {
+  padding:9px 11px; border-radius:10px; margin-bottom:7px;
+  background:rgba(9,105,218,.05); border:1px solid rgba(9,105,218,.14);
+}
+.nlink-hint-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
+.nlink-hint-name {
+  flex:1; min-width:0; font-size:12.5px; font-weight:700; color:var(--tp);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.nlink-hint-n {
+  flex:none; font-size:10.5px; font-weight:700; color:var(--primary);
+  background:var(--bg1); border-radius:9999px; padding:1px 7px;
+}
+.nlink-hint-why {
+  margin:0 0 8px; font-size:11.5px; line-height:1.65; color:var(--ts);
+  word-break:keep-all;
+  /* 문장이 길면 세 줄까지만. 여기는 읽는 자리가 아니라 판단하는 자리다. */
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+}
+.nlink-hint-act { display:flex; align-items:center; gap:8px; }
+.nlink-hint-skip {
+  border:none; background:none; padding:0; cursor:pointer; font-family:inherit;
+  font-size:11.5px; font-weight:600; color:var(--tt);
+}
+.nlink-hint-skip:hover { color:var(--tp); text-decoration:underline; }
+
+/* 코멘트 쓰는 칸 — 한 줄 입력(.inp)과 겹쳐 눌려 있었다 */
+.gcomment-write { min-height:72px; margin-top:2px; font-size:12.5px; }
+
 /* ── 그래프 범례 ──
    평소에는 알약 하나로 접혀 있다. 한 번 읽으면 그만인 표인데 늘 펴 두면
    캔버스 왼쪽 위 한 뼘을 계속 차지하고, 노드가 그 아래로 들어가면 가려진다.
@@ -2991,6 +3036,10 @@ tr:hover td { background:var(--surface-container-low); }
   flex:0 0 auto; width:clamp(330px, 30%, 430px);
   border-left:1px solid var(--brd); background:var(--bg1);
   overflow-y:auto; padding:18px 18px 28px;
+  /* 아래 여백을 넉넉히. 오른쪽 아래 떠 있는 빠른 실행 단추(60px + 여백)가
+     이 판의 맨 끝 단추를 덮고 있었다 — 「코멘트 남기기」가 로고 뒤에 깔려
+     눌리지 않았다. 판이 끝까지 스크롤됐을 때도 단추가 나오도록 비워 둔다. */
+  padding-bottom:104px;
 }
 .gpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
 .gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }

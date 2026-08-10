@@ -127,6 +127,7 @@ async def get_node_evidence(
 @router.get("/links/suggested", response_model=list[LinkSuggestion], summary="이어 볼 만한 노드 짝")
 async def suggest_links(
     limit: int = 30,
+    node_id: str | None = None,
     user: UserRow | MemoryUser = Depends(get_current_user),
     session: AsyncSession | None = Depends(get_db_session),
 ) -> list[LinkSuggestion]:
@@ -134,6 +135,14 @@ async def suggest_links(
 
     잇지는 않는다. 근거 문장을 함께 돌려주고 결정은 학생이 한다 — 근거가 약한
     연결이 자동으로 늘면 그래프가 다시 못 읽는 그림이 된다.
+
+    `node_id` 를 주면 그 노드가 낀 짝만 돌려준다. 노드 상세의 「연결」 칸이
+    쓴다 — 학생이 지금 보고 있는 노드에 대해 "이건 어때요" 를 먼저 내밀려면
+    전체 목록에서 골라내는 것보다 물어보는 쪽이 싸다.
+
+    **모델을 쓰지 않는다.** 규칙이 전부다: 같은 문장에 함께 적혀 있었나.
+    근거가 그 문장 하나뿐이라 왜 떴는지 한 줄로 말할 수 있고, 학생이 읽고
+    바로 아니라고 할 수 있다.
     """
     snapshot = await _store().get_snapshot(user.id)
     existing = {
@@ -141,7 +150,14 @@ async def suggest_links(
         for e in snapshot.edges
     }
     sections = await DocumentService().list_sections(session, user.id)
-    found = node_links.suggest_links(snapshot.nodes, sections, existing, limit=max(1, min(limit, 60)))
+    # 한 노드만 물었을 때도 **그래프 전체**로 찾는다. 짝은 둘이 있어야 생기므로
+    # 상대를 후보에서 빼면 아무것도 안 나온다. 찾은 뒤에 그 노드가 낀 것만 남긴다.
+    wanted = max(1, min(limit, 60))
+    found = node_links.suggest_links(
+        snapshot.nodes, sections, existing, limit=60 if node_id else wanted
+    )
+    if node_id:
+        found = [s for s in found if node_id in (s.source_id, s.target_id)][:wanted]
     return [
         LinkSuggestion(
             source_id=s.source_id,

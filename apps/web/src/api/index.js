@@ -606,8 +606,10 @@ const api = {
      * 생기부 같은 문장에 함께 나온 노드 짝. 잇지는 않는다 — 근거 문장을 함께
      * 돌려주고 결정은 학생이 한다.
      */
-    async suggestedLinks(limit = 30) {
-      const data = await request(`/v1/students/me/graph/links/suggested?limit=${limit}`);
+    async suggestedLinks(limit = 30, nodeId = null) {
+      const q = new URLSearchParams({ limit: String(limit) });
+      if (nodeId) q.set("node_id", nodeId);
+      const data = await request(`/v1/students/me/graph/links/suggested?${q}`);
       return Array.isArray(data) ? data : [];
     },
 

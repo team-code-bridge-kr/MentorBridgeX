@@ -1509,15 +1509,20 @@ export function S06({ onNav }) {
                   ))}
                   {/* 쓰는 자리도 여기다. 다른 화면(S24)으로 보내면 방금 보던 노드와
                       쓰는 자리가 떨어져서, 무엇에 대해 쓰는 중인지 잊는다. */}
+                  {/* `.inp` 은 height:40px 인 한 줄 입력이다. 함께 걸면 그 높이가
+                      이겨서 여러 줄 칸이 한 줄로 눌린다 — 보고서·녹음 화면에서
+                      났던 것과 같은 자리다. `.textarea` 만 쓴다.
+                      따옴표로 이름을 감싸던 것도 걷었다. 이름에 따옴표가 들어
+                      있으면 어긋나고, 굳이 감싸지 않아도 무엇에 쓰는지는 이 칸이
+                      노드 상세 안에 있다는 것으로 이미 말한다. */}
                   <textarea
-                    className="inp textarea"
-                    style={{minHeight:64,marginTop:2}}
-                    placeholder={`'${sel.label}' 에 남길 말…`}
+                    className="textarea gcomment-write"
+                    placeholder={`${sel.label}에 남길 말…`}
                     value={commentDraft}
                     onChange={(e)=>setCommentDraft(e.target.value)}
                   />
                   <Btn
-                    v="secondary" s="sm" style={{marginTop:8,width:"100%"}}
+                    v="primary" s="sm" style={{marginTop:8,width:"100%"}}
                     disabled={commentBusy || !commentDraft.trim()}
                     onClick={submitComment}
                   >
