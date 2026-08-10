@@ -2886,7 +2886,16 @@ tr:hover td { background:var(--surface-container-low); }
 /* ── 그래프 툴바 ──────────────────────────────────────────
    `.toolbar` 는 교사 화면(T07)과 공유하므로 밑바탕은 건드리지 않는다.
    여기만 줄바꿈을 허용한다 — 그래프 툴바는 항목이 많아 좁은 화면에서 넘친다. */
-.toolbar-graph { flex-wrap:wrap; row-gap:8px; }
+/* 도구띠 아래 선을 걷는다.
+   바로 밑에 캔버스가 제 테두리를 두르고 있어서, 선이 **둘** 겹쳐 있었다.
+   가로 여백도 탐구 피드(.rs-wrap)와 같은 값으로 맞춘다 — 화면을 옮길 때
+   왼쪽 끝이 움직이면 같은 앱이 아닌 것처럼 보인다. */
+.toolbar-graph {
+  flex-wrap:wrap; row-gap:8px;
+  border-bottom:none;
+  padding:clamp(14px,2vw,20px) clamp(16px,2vw,24px) 12px;
+  background:transparent;
+}
 /* 「더보기」 안의 설명 줄. 공용 `.pop-item-hint` 는 이름 옆에 붙는 짧은 곁말이라
    한 줄짜리를 전제하는데, 여기 설명은 문장이라 아래로 내려놓아야 읽힌다. */
 .gpop-item { display:block; width:100%; }
@@ -2916,7 +2925,12 @@ tr:hover td { background:var(--surface-container-low); }
    띄우지 않는다. 좁은 화면에서는 아래로 나뉜다(패널이 캔버스를 덮으면 안 된다).
    자리는 하나뿐이라 무엇을 세울지는 S06 의 상태가 정한다. */
 .gbody { flex:1; min-height:0; display:flex; align-items:stretch; overflow:hidden; }
-.gstage { flex:1; min-width:0; padding:20px; overflow:hidden; position:relative; }
+/* 위쪽 여백은 도구띠가 이미 냈다. 여기서 또 20px 를 주면 띠와 캔버스 사이만
+   유난히 벌어져, 걷어낸 선 자리가 빈틈으로 남는다. */
+.gstage {
+  flex:1; min-width:0; overflow:hidden; position:relative;
+  padding:0 clamp(16px,2vw,24px) clamp(16px,2vw,24px);
+}
 .gpanel {
   flex:0 0 auto; width:clamp(330px, 30%, 430px);
   border-left:1px solid var(--brd); background:var(--bg1);
