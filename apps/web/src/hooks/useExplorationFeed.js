@@ -24,9 +24,13 @@ export const DEFAULT_FILTERS = {
 
 const KEYS = Object.keys(DEFAULT_FILTERS);
 
+/* 거르개를 주소에 적어 둔다 — 링크로 보내면 같은 화면이 열려야 한다.
+   해시(`#/S41?tab=news`)를 쓰고 있었다. 이 앱은 해시 라우터가 아니라서,
+   그 값은 주소 뒤에 그냥 매달린 글자였고 주소가 `/feed#/S41?tab=news` 처럼
+   됐다 — 화면 번호까지 다시 붙었다. 물음표 뒤(search)를 쓴다. */
 function readFromUrl() {
   try {
-    const raw = window.location.hash.split("?")[1];
+    const raw = window.location.search.slice(1);
     if (!raw) return {};
     const p = new URLSearchParams(raw);
     const out = {};
@@ -51,9 +55,9 @@ function writeToUrl(filters) {
     if (Array.isArray(v)) { if (v.length) p.set(k, v.join(",")); }
     else if (v) p.set(k, String(v));
   }
-  const base = window.location.hash.split("?")[0] || "#/S41";
-  const next = p.toString() ? `${base}?${p}` : base;
-  if (next !== window.location.hash) {
+  const qs = p.toString();
+  const next = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+  if (next !== window.location.pathname + window.location.search) {
     window.history.replaceState(null, "", next);
   }
 }

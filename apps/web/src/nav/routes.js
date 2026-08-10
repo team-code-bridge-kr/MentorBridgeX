@@ -1,5 +1,7 @@
 /** Screen id ↔ URL path mapping (SPA + nginx try_files). */
 
+import { PATH_SCREEN, SCREEN_PATH } from "./paths.js";
+
 // 로그인 없이 볼 수 있는 화면. 온보딩(S03/S04)은 여기서 빠졌다 — 서버에 상태를
 // 저장하려면 토큰이 있어야 하고, 없으면 불러오는 중에서 멈춘 화면이 된다.
 export const PUBLIC_SCREENS = ["S01", "S02", "A00", "T01"];
@@ -8,9 +10,9 @@ export const PUBLIC_SCREENS = ["S01", "S02", "A00", "T01"];
 export const ONBOARDING_SCREEN = "S03";
 
 export function screenToPath(id) {
-  if (id === "S01") return "/login";
-  if (id === "S02") return "/oauth/callback";
-  return `/${id}`;
+  // 표에 없으면 옛 방식(/S06)으로 떨어진다. 화면을 새로 만들고 이름 붙이는
+  // 것을 잊어도 주소가 깨지지는 않게 — 대신 주소창에 번호가 보여서 티가 난다.
+  return SCREEN_PATH[id] || `/${id}`;
 }
 
 /**
@@ -36,9 +38,17 @@ const RETIRED = {
 
 export function pathToScreen(pathname) {
   if (!pathname || pathname === "/") return null;
+  // 구글이 돌려보낼 때 `?code=…` 가 붙는다
   if (pathname.startsWith("/oauth/callback")) return "S02";
-  if (pathname === "/login") return "S01";
-  const m = pathname.match(/^\/([STA]\d+)$/i);
+
+  // 끝의 빗금은 있으나 없으나 같은 곳이다(`/graph/` 로 손으로 쳐서 들어오는 일)
+  const clean = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const named = PATH_SCREEN[clean];
+  if (named) return RETIRED[named] || named;
+
+  /* 옛 주소(`/S06`). 이미 나간 링크를 죽이지 않는다 — 열어 주고, App 이
+     주소창을 새 이름으로 바꿔 놓는다. */
+  const m = clean.match(/^\/([STA]\d+)$/i);
   if (!m) return null;
   const id = m[1].toUpperCase();
   return RETIRED[id] || id;

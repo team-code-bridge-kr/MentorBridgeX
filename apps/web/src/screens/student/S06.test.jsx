@@ -109,16 +109,16 @@ describe("첫 화면 — 뿌리 층", () => {
       .toEqual(["과학", "내 생기부", "수학"]);
   });
 
-  it("경로표시가 지금 자리를 알려준다", () => {
-    const items = all(".gcrumb-item").map((b) => b.textContent);
-    expect(items).toEqual(["내 생기부"]);
-    expect(host.querySelector(".gcrumb-item").className).toContain("is-here");
+  it("뿌리에서는 경로표시를 세우지 않는다", () => {
+    // "내 생기부" 한 칸짜리 경로는 길이 아니라 이름이다.
+    expect(all(".gcrumb-item").length).toBe(0);
   });
 
   it("툴바는 넷이다 — 으뜸 단추는 하나뿐", () => {
     expect(host.querySelector(".toolbar-graph")).toBeTruthy();
     expect(btn("노드 추가")).toBeTruthy();
-    expect(btn("둘러보기")).toBeTruthy();
+    expect(host.querySelector(".toolbar-graph .gsearch")).toBeTruthy();
+    expect(btn("확장하기")).toBeTruthy();
     expect(btn("더보기")).toBeTruthy();
     expect(all(".btn-primary").length).toBe(1);
   });
@@ -166,7 +166,7 @@ describe("들어가고 나오기", () => {
     await click(label("수학"));
     await click(label("2학년 미적분"));
     await click(all(".gcrumb-item")[0]);          // 「내 생기부」
-    expect(all(".gcrumb-item").length).toBe(1);
+    expect(all(".gcrumb-item").length).toBe(0);   // 뿌리로 돌아오면 경로가 사라진다
     expect(html()).toContain("수학");
     expect(html()).not.toContain("미적분");
   });
@@ -203,20 +203,23 @@ describe("들어가고 나오기", () => {
     expect(all(".gcrumb-item").length).toBe(2);    // 층은 그대로
 
     await tapBackground();
-    expect(all(".gcrumb-item").length).toBe(1);    // 이제 위로
+    expect(all(".gcrumb-item").length).toBe(0);    // 뿌리로 — 경로는 사라진다
   });
 
   it("뿌리에서 배경을 눌러도 더 갈 곳이 없다", async () => {
-    expect(all(".gcrumb-item").length).toBe(1);
+    expect(all(".gcrumb-item").length).toBe(0);
     await tapBackground();
     await tapBackground();
-    expect(all(".gcrumb-item").length).toBe(1);
+    expect(all(".gcrumb-item").length).toBe(0);
+    // 뿌리 층 노드가 그대로 서 있는지로 확인한다
+    expect(html()).toContain("수학");
   });
 });
 
 describe("검색", () => {
   const type = async (text) => {
-    const input = host.querySelector(".search-wrap input");
+    // 검색창이 탐구 피드와 같은 알약(.gsearch)으로 바뀌었다.
+    const input = host.querySelector(".gsearch input");
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
     await act(async () => {
       setter.call(input, text);
@@ -250,21 +253,21 @@ describe("옆 패널은 한 자리다", () => {
 
   it("처음에는 없다", () => expect(panels()).toBe(0));
 
-  it("만들기 → 둘러보기로 바꿔도 하나다", async () => {
+  it("만들기 → 확장하기로 바꿔도 하나다", async () => {
     await click(btn("노드 추가"));
     expect(panels()).toBe(1);
-    await click(btn("둘러보기"));
+    await click(btn("확장하기"));
     expect(panels()).toBe(1);
   });
 
-  it("둘러보기에 세 구획이 모여 있다", async () => {
-    await click(btn("둘러보기"));
+  it("확장하기에 세 구획이 모여 있다", async () => {
+    await click(btn("확장하기"));
     const titles = all(".gsec-title").map((n) => n.textContent);
     expect(titles).toEqual(expect.arrayContaining(["빈 곳", "이어 볼 만한 짝", "넓혀 볼 만한 주제"]));
   });
 
-  it("둘러보기를 연 채 노드를 골라도 하나다 — 예전엔 둘이 섰다", async () => {
-    await click(btn("둘러보기"));
+  it("확장하기를 연 채 노드를 골라도 하나다 — 예전엔 둘이 섰다", async () => {
+    await click(btn("확장하기"));
     const l = all("span").find((s) => s.textContent === "수학");
     if (l) await click(l);
     expect(panels()).toBe(1);
@@ -279,23 +282,14 @@ describe("노드 패널", () => {
     await click(l);
   };
 
-  it("구획 넷으로 나뉘고 출처·연결만 펴져 있다", async () => {
+  it("구획 넷이 모두 펼쳐져 있다", async () => {
+    // 접기를 걷었다. 접힌 것은 **없는 것처럼** 읽혀서, 출처가 일곱 문장
+    // 있는데도 그냥 지나쳤다.
     await openNode();
     const titles = all(".gpanel .gsec-title").map((n) => n.textContent);
     expect(titles).toEqual(expect.arrayContaining(["출처", "연결", "다음 탐구", "코멘트"]));
-    const open = all(".gpanel .gsec-hd")
-      .filter((b) => b.getAttribute("aria-expanded") === "true")
-      .map((b) => b.querySelector(".gsec-title").textContent);
-    expect(open.sort()).toEqual(["연결", "출처"]);
-  });
-
-  it("구획을 접었다 펼 수 있다", async () => {
-    await openNode();
-    const head = () => all(".gpanel .gsec-hd").find((b) => b.querySelector(".gsec-title").textContent === "연결");
-    await click(head());
-    expect(head().getAttribute("aria-expanded")).toBe("false");
-    await click(head());
-    expect(head().getAttribute("aria-expanded")).toBe("true");
+    expect(all(".gpanel .gsec-body").length).toBe(titles.length);
+    expect(all(".gpanel .gsec-hd").length).toBe(0);   // 여닫는 단추가 없다
   });
 
   it("닫으면 사라진다", async () => {

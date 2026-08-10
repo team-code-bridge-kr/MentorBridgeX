@@ -41,11 +41,13 @@ export default function App() {
     <BrowserRouter>
       <StoreProvider>
         <Routes>
-          <Route path="/oauth/callback" element={<AppShell />} />
-          <Route path="/login" element={<AppShell />} />
-          <Route path="/:screenId" element={<AppShell />} />
           <Route path="/" element={<RootRedirect />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 주소가 한 칸(`/S06`)이던 시절에는 `/:screenId` 하나로 됐다. 이름을
+              붙이면서 두 칸(`/reports/new`)이 생겼는데 그 규칙이 그대로 남아
+              있어서, 두 칸짜리는 전부 `*` 에 걸려 `/` 로 튕겼다 — 주소창에
+              쳐 넣거나 즐겨찾기로 들어오면 대시보드가 떴다.
+              어느 주소든 껍데기가 받고, 무슨 화면인지는 pathToScreen 이 정한다. */}
+          <Route path="/*" element={<AppShell />} />
         </Routes>
         <Toast />
       </StoreProvider>
@@ -76,15 +78,19 @@ function AppShell() {
     pathToScreen(location.pathname) ||
     (session ? homeScreenForRole(session.user.role, session.user.grade) : "S01");
 
-  /* 없앤 화면의 옛 주소로 들어오면 이어받은 화면이 뜬다. 그런데 주소창에는
-     죽은 경로가 그대로 남아서, 그 자리를 즐겨찾기 하거나 남에게 보내면
-     없는 화면 주소가 계속 돌아다닌다. 자리를 옮겨 준 김에 주소도 고친다. */
+  /* 주소를 제 이름으로 맞춘다.
+     두 가지를 잡는다. 옛 주소(`/S06`)로 들어오면 이어받은 화면이 뜨는데
+     주소창에는 죽은 경로가 그대로 남아, 그 자리를 즐겨찾기 하거나 남에게
+     보내면 없는 주소가 계속 돌아다닌다. 그리고 아예 모르는 주소로 들어오면
+     내용은 홈이 뜨는데 주소는 엉뚱한 채로 남는다 — 다시 새로고침하면 또
+     같은 자리다. 둘 다 제 이름으로 바꿔 놓는다. */
   useEffect(() => {
+    if (location.pathname === "/" || !session) return;
     const canonical = screenToPath(screen);
-    if (location.pathname !== canonical && pathToScreen(location.pathname) === screen) {
-      navigate(canonical, { replace: true });
-    }
-  }, [screen, location.pathname, navigate]);
+    if (location.pathname === canonical) return;
+    const known = pathToScreen(location.pathname);
+    if (known === screen || known === null) navigate(canonical, { replace: true });
+  }, [screen, location.pathname, navigate, session]);
 
   const nav = useCallback((id, opts = {}) => {
     if (opts.preview) setPreview(true);
