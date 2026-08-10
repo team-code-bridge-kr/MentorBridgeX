@@ -2896,9 +2896,32 @@ tr:hover td { background:var(--surface-container-low); }
   padding:clamp(14px,2vw,20px) clamp(16px,2vw,24px) 12px;
   background:transparent;
 }
-/* 「더보기」 안의 설명 줄. 공용 `.pop-item-hint` 는 이름 옆에 붙는 짧은 곁말이라
-   한 줄짜리를 전제하는데, 여기 설명은 문장이라 아래로 내려놓아야 읽힌다. */
-.gpop-item { display:block; width:100%; }
+/* 「더보기」 차림표.
+   글자만 세 덩이 놓여 있어서 어디까지가 한 항목인지, 눌리기는 하는지 알 수
+   없었다. 옆의 검색창과 같은 재질(옅은 판 + 테두리 + 둥근 모서리)로 각각을
+   상자에 담는다 — 같은 도구띠에 선 것들이 같은 옷을 입는다.
+   설명은 공용 `.pop-item-hint`(이름 옆 짧은 곁말)로는 안 된다. 여기 설명은
+   문장이라 아래로 내려놓아야 읽힌다. */
+/* 공용 팝오버는 한 줄짜리 항목을 전제한 230px 다. 여기 설명은 문장이라
+   그 폭에서는 네 줄로 접혀 읽는 데 품이 든다. */
+.pop:has(.gpop-item) { min-width:330px; }
+.gpop-item {
+  display:flex; align-items:flex-start; gap:10px; width:100%;
+  padding:11px 12px; border-radius:12px;
+  border:1px solid var(--brd); background:var(--bg3);
+  transition:border-color .14s, background .14s;
+}
+.pop-list .gpop-item + .gpop-item { margin-top:8px; }
+.gpop-item:hover:not(:disabled) { border-color:var(--primary); background:var(--blue-50); }
+.gpop-item:disabled { opacity:.6; cursor:default; }
+.gpop-ic {
+  flex:0 0 auto; width:30px; height:30px; border-radius:9px;
+  display:grid; place-items:center; background:var(--bg1);
+  border:1px solid var(--brd);
+}
+.gpop-item:hover:not(:disabled) .gpop-ic { border-color:transparent; }
+.gpop-body { flex:1; min-width:0; }
+.gpop-t { display:block; font-size:13.5px; font-weight:700; color:var(--tp); }
 .gpop-hint {
   display:block; margin-top:3px; font-size:11.5px; font-weight:500;
   color:var(--tt); line-height:1.5; word-break:keep-all; white-space:normal;

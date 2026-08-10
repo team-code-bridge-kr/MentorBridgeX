@@ -904,22 +904,29 @@ export function S06({ onNav }) {
           <Popover open={moreOpen} onClose={()=>setMoreOpen(false)} anchorRef={moreRef} label="그래프 도구" align="right">
             <div className="pop-list">
               <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S09"); }}>
-                시드로 생성
-                <span className="gpop-hint">키워드를 넣어 그래프를 시작합니다.</span>
+                <span className="gpop-ic"><NavIcon name="plusSeed" size={17} color={TDS.primary}/></span>
+                <span className="gpop-body">
+                  <span className="gpop-t">시드로 생성</span>
+                  <span className="gpop-hint">키워드를 넣어 그래프를 시작합니다.</span>
+                </span>
               </button>
               {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
                   이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다.
                   설명을 hint 로 올렸다 — title 은 마우스를 올려야만 보여서, 정작
                   이 단추를 눌러도 되는지 망설이는 사람에게 닿지 않았다. */}
               <button type="button" className="pop-item gpop-item" disabled={restruct.busy} onClick={rebuildLayers}>
-                {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
-                <span className="gpop-hint">
-                  생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.
+                <span className="gpop-ic"><NavIcon name="graph" size={17} color={TDS.primary}/></span>
+                <span className="gpop-body">
+                  <span className="gpop-t">{restruct.busy ? "세우는 중…" : "층 다시 세우기"}</span>
+                  <span className="gpop-hint">
+                    생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.
+                  </span>
                 </span>
               </button>
-              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S29"); }}>
-                내보내기
-              </button>
+              {/* "내보내기" 를 뺐다. 누르면 가던 화면(S29)은 값을 코드에 박아 둔
+                  시안이었고 — "전체 데이터 내보내기 2.4 MB · 완료" 가 아무것도
+                  하지 않고 떠 있었다 — 서버에 내보내기 자체가 없다. 없는 기능을
+                  차림표에 세워 두면, 누른 사람은 자기가 뭘 잘못한 줄 안다. */}
             </div>
           </Popover>
         </div>
