@@ -3260,9 +3260,15 @@ tr:hover td { background:var(--surface-container-low); }
    한 덩이인지 보이게 한다. */
 .gsec { border-top:1px solid var(--surface-container); padding-top:16px; margin-top:16px; }
 .gsec:first-child { border-top:none; padding-top:0; margin-top:0; }
+/* 머리글은 알약이다. 회색 글자 넷이 같은 크기로 서 있으면 그 아래 본문과
+   구분이 안 돼서, 어디가 구획의 시작인지 선(border-top)으로만 알 수 있었다.
+   판 안에서 파랑은 "누르는 것" 이 아니라 **표시** 로 쓰이므로(연결 노드 뱃지,
+   다른 이름 알약) 여기서도 같은 뜻으로 읽힌다. */
 .gsec-title {
-  margin:0 0 10px; font-size:12px; font-weight:800; color:var(--tt);
-  letter-spacing:.04em;
+  display:inline-block; margin:0 0 10px;
+  padding:4px 12px; border-radius:9999px;
+  background:var(--blue-50); color:var(--primary);
+  font-size:12px; font-weight:800; letter-spacing:.02em;
 }
 .gsec-body { padding-bottom:0; }
 
