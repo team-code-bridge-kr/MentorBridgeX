@@ -192,6 +192,21 @@ describe("ringSlots — 넓게 퍼뜨리기", () => {
     expect(spanX).toBeGreaterThan(spanY);
   });
 
+  it("고리가 둘일 때도 붙지 않는다", () => {
+    // 자식 열이면 안쪽 8 · 바깥 2 로 나뉜다. 바깥 고리를 제 반 칸으로 돌리면
+    // 그 반 칸이 90°라 안쪽 자리와 같은 각도에 앉아, 반지름 차이(7%)만 남고
+    // 붙어 보였다. 노드 지름이 56px 이라 그 정도로는 겹친다.
+    for (const n of [9, 10, 12, 16]) {
+      const slots = ringSlots(n);
+      for (let i = 0; i < slots.length; i += 1) {
+        for (let j = i + 1; j < slots.length; j += 1) {
+          const d = Math.hypot(slots[i].x - slots[j].x, slots[i].y - slots[j].y);
+          expect(d, `n=${n} 자리 ${i}·${j}`).toBeGreaterThan(12);
+        }
+      }
+    }
+  });
+
   it("적은 자식은 서로 넉넉히 떨어진다", () => {
     // 노드 지름이 60px 안팎이고 이름표가 그 아래로 더 나온다. 자식이 여덟
     // 이하일 때는 이름이 서로를 가리지 않을 만큼 떨어져야 한다.

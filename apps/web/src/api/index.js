@@ -315,7 +315,13 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     type: n.type ?? null,
     x:     n.x ?? refs.x ?? pos?.x ?? `${cx.toFixed(0)}%`,
     y:     n.y ?? refs.y ?? pos?.y ?? `${cy.toFixed(0)}%`,
-    size:  n.size ?? (kind === "root" ? 68 : kind === "topic" ? 46 : 32),
+    /* 자식(topic·leaf)을 키웠다: 46 → 56, 32 → 44.
+       한 화면에 126개가 깔려 있던 시절에는 작아야 겹치지 않았다. 층마다 한
+       화면을 쓰게 되면서 한 번에 뜨는 것이 열 안팎으로 줄었으니, 남는 자리를
+       노드에 준다 — 안의 아이콘(과목 표시)이 이 크기에서야 알아볼 만해진다.
+       뿌리는 그대로 68. 자식이 커진 만큼 차이가 줄어 "가운데가 뿌리"라는 것은
+       여전히 첫눈에 보인다. */
+    size:  n.size ?? (kind === "root" ? 68 : kind === "topic" ? 56 : 44),
     cat:   n.cat  ?? (kind === "root" ? "핵심 노드" : kind === "topic" ? "연결 노드" : "말단 노드"),
   };
 }

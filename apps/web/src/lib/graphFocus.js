@@ -76,8 +76,13 @@ export function ringSlots(count) {
   const out = [];
   rings.forEach((ring, ri) => {
     const step = (Math.PI * 2) / ring.n;
-    // 첫 자식을 위쪽에 두고, 안쪽 고리와 반 칸 어긋나게 한다.
-    const offset = -Math.PI / 2 + (ri % 2 ? step / 2 : 0);
+    /* 첫 자식을 위쪽에 두고, 바깥 고리는 **안쪽 고리의** 반 칸만큼 돌린다.
+       제 반 칸(step/2)으로 돌리면 개수가 다를 때 도로 겹친다 — 자식 열이면
+       바깥 고리에 둘만 남는데, 그 반 칸은 90°라 안쪽 고리의 자리와 정확히
+       같은 각도에 앉는다(반지름만 7% 차이나 붙어 보였다). 어긋나게 하려는
+       상대는 안쪽 고리이므로 그쪽 간격을 기준으로 삼는다. */
+    const innerStep = ri > 0 ? (Math.PI * 2) / rings[ri - 1].n : 0;
+    const offset = -Math.PI / 2 + (ri % 2 ? innerStep / 2 : 0);
     for (let i = 0; i < ring.n; i += 1) {
       const a = offset + step * i;
       out.push({
