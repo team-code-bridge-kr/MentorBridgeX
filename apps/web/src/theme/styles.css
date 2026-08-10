@@ -2896,6 +2896,31 @@ tr:hover td { background:var(--surface-container-low); }
   padding:clamp(14px,2vw,20px) clamp(16px,2vw,24px) 12px;
   background:transparent;
 }
+/* ── 그래프 범례 ──
+   평소에는 알약 하나로 접혀 있다. 한 번 읽으면 그만인 표인데 늘 펴 두면
+   캔버스 왼쪽 위 한 뼘을 계속 차지하고, 노드가 그 아래로 들어가면 가려진다.
+   판 자체는 손을 막지 않는다(`pointer-events:none`) — 막으면 그 아래 노드를
+   누를 수 없어 좌상단 구획이 통째로 죽는다. 여는 단추만 손을 받는다. */
+.glegend {
+  position:absolute; top:16px; left:16px;
+  max-height:calc(100% - 32px); overflow-y:auto;
+  pointer-events:none;
+  transition:box-shadow .16s;
+}
+.glegend-toggle {
+  display:flex; align-items:center; gap:7px;
+  padding:8px 12px; border:none; background:transparent; cursor:pointer;
+  font-family:inherit; pointer-events:auto; border-radius:16px;
+}
+.glegend-toggle-t { font-size:12px; font-weight:700; color:var(--ts); }
+.glegend-toggle:hover .glegend-toggle-t { color:var(--primary); }
+/* 갈매기는 펴면 돈다. 아이콘을 둘 두면 회전이 아니라 교체가 되어, 여닫는
+   것이 같은 물건이라는 느낌이 사라진다. */
+.glegend-toggle svg:last-child { transition:transform .16s; }
+.glegend.is-open .glegend-toggle svg:last-child { transform:rotate(180deg); }
+.glegend.is-open .glegend-toggle { border-bottom:1px solid rgba(15,23,42,.07); border-radius:16px 16px 0 0; }
+.glegend-body { padding:12px 14px 14px; min-width:172px; }
+
 /* 「더보기」 차림표.
    글자만 덩이로 놓여 있어서 어디까지가 한 항목인지, 눌리기는 하는지 알 수
    없었다. 활동 기록(.act-glass)과 **같은 재질**로 담는다 — 흰 반투명 판에

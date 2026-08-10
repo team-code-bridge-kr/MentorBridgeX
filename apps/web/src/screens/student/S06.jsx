@@ -52,6 +52,7 @@ const FLY_MS = 380;
  * 싸우게 된다 — 끌어 옮기기는 이번 탭 안의 임시 조정이다.
  */
 const VIEW_KEY = "mbx_graph_view";
+const LEGEND_KEY = "mbx_graph_legend";
 
 function readSaved() {
   try {
@@ -297,6 +298,14 @@ export function S06({ onNav }) {
   // 드래그 핸들러가 매 프레임 새로 만들어진다.
   const viewRef = useRef(view);
   const focusRef = useRef(null);
+  /* 범례를 폈는지. 세션이 아니라 브라우저에 남긴다 — 한 번 접어 둔 사람이
+     다음에 들어와서 또 접어야 하면 접는 뜻이 없다. */
+  const [legendOpen, setLegendOpen] = useState(() => {
+    try { return localStorage.getItem(LEGEND_KEY) === "open"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(LEGEND_KEY, legendOpen ? "open" : "closed"); } catch { /* 사생활 보호 모드 */ }
+  }, [legendOpen]);
   // 자동 포커싱은 "선택이 바뀔 때만" 돌아야 한다. positions 를 의존성에 넣으면
   // 노드를 끌 때마다 화면이 따라 움직인다.
   const positionsRef = useRef(positions);
@@ -1114,36 +1123,57 @@ export function S06({ onNav }) {
               );
             })()}
 
-            {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목 */}
+            {/* 범례 (좌상단) — 색은 유형, 아이콘은 과목.
+                평소에는 접어 둔다. 한 번 읽으면 그만인 표인데 늘 펴 두면
+                캔버스 왼쪽 위 한 뼘을 계속 차지하고, 노드가 그 아래로 들어가면
+                가려진다. 궁금할 때만 편다. */}
             {!!nodes.length && (
-              // 읽기만 하는 판이라 손을 막으면 안 된다. 그대로 두면 아래 노드를
-              // 누를 수 없어 좌상단 구획이 통째로 죽는다(실제로 그랬다).
-              <div data-graph-panel style={{...OVERLAY_SURFACE,position:"absolute",top:16,left:16,zIndex:Z.panel,padding:"14px 16px",minWidth:172,maxHeight:"calc(100% - 32px)",overflowY:"auto",pointerEvents:"none"}}>
-                <div style={{fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,marginBottom:10,letterSpacing:".02em"}}>
-                  색 = 노드 유형
-                </div>
-                {["root","topic","leaf"].map(k=>{
-                  const m=KIND_META[k]; const c=m.color;
-                  return (
-                    <div key={k} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                      <span style={{width:12,height:12,borderRadius:"50%",background:c,flexShrink:0,boxShadow:`0 0 0 3px ${c}22`}} />
-                      <span style={{fontSize:12,color:OVERLAY_TEXT.secondary,flex:1}}>{m.label}</span>
-                      <span style={{fontSize:12,fontWeight:700,color:OVERLAY_TEXT.primary,fontVariantNumeric:"tabular-nums"}}>{kindCounts[k]||0}</span>
+              <div
+                data-graph-panel
+                className={`glegend${legendOpen ? " is-open" : ""}`}
+                style={{...OVERLAY_SURFACE, zIndex:Z.panel}}
+              >
+                <button
+                  type="button"
+                  className="glegend-toggle"
+                  aria-expanded={legendOpen}
+                  onClick={()=>setLegendOpen(o=>!o)}
+                >
+                  <NavIcon name="idea" size={14} color={OVERLAY_TEXT.secondary}/>
+                  <span className="glegend-toggle-t">범례</span>
+                  <NavIcon name="chevronDown" size={13} color={OVERLAY_TEXT.tertiary}/>
+                </button>
+                {/* 읽기만 하는 판이라 손을 막으면 안 된다. 그대로 두면 아래
+                    노드를 누를 수 없어 좌상단 구획이 통째로 죽는다(실제로 그랬다). */}
+                {legendOpen && (
+                  <div className="glegend-body">
+                    <div style={{fontSize:11,fontWeight:700,color:OVERLAY_TEXT.tertiary,marginBottom:10,letterSpacing:".02em"}}>
+                      색 = 노드 유형
                     </div>
-                  );
-                })}
-                <div style={{height:1,background:"rgba(15,23,42,.08)",margin:"10px -16px 10px"}} />
-                <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>
-                  모양 = 과목·분야
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>
-                  {SUBJECT_LEGEND.map(s=>(
-                    <div key={s.icon} style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
-                      <NavIcon name={s.icon} size={14} color={OVERLAY_TEXT.secondary}/>
-                      <span style={{fontSize:11,color:OVERLAY_TEXT.tertiary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.label}</span>
+                    {["root","topic","leaf"].map(k=>{
+                      const m=KIND_META[k]; const c=m.color;
+                      return (
+                        <div key={k} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                          <span style={{width:12,height:12,borderRadius:"50%",background:c,flexShrink:0,boxShadow:`0 0 0 3px ${c}22`}} />
+                          <span style={{fontSize:12,color:OVERLAY_TEXT.secondary,flex:1}}>{m.label}</span>
+                          <span style={{fontSize:12,fontWeight:700,color:OVERLAY_TEXT.primary,fontVariantNumeric:"tabular-nums"}}>{kindCounts[k]||0}</span>
+                        </div>
+                      );
+                    })}
+                    <div style={{height:1,background:"rgba(15,23,42,.08)",margin:"10px -14px 10px"}} />
+                    <div style={{fontSize:11,fontWeight:700,color:TDS.textTertiary,marginBottom:8,letterSpacing:".02em"}}>
+                      모양 = 과목·분야
                     </div>
-                  ))}
-                </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 10px"}}>
+                      {SUBJECT_LEGEND.map(s=>(
+                        <div key={s.icon} style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                          <NavIcon name={s.icon} size={14} color={OVERLAY_TEXT.secondary}/>
+                          <span style={{fontSize:11,color:OVERLAY_TEXT.tertiary,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
