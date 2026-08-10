@@ -181,3 +181,28 @@ describe("별 모양 그래프 — 층을 한 번도 안 세운 계정", () => {
     expect(seen.size).toBe(61);
   });
 });
+
+describe("ringSlots — 넓게 퍼뜨리기", () => {
+  it("가로가 세로보다 넓게 퍼진다", () => {
+    // 캔버스가 가로로 길어서, x·y 에 같은 반지름을 주면 위아래 이웃이 좌우
+    // 이웃보다 가깝게 붙는다.
+    const slots = ringSlots(8);
+    const spanX = Math.max(...slots.map((s) => s.x)) - Math.min(...slots.map((s) => s.x));
+    const spanY = Math.max(...slots.map((s) => s.y)) - Math.min(...slots.map((s) => s.y));
+    expect(spanX).toBeGreaterThan(spanY);
+  });
+
+  it("적은 자식은 서로 넉넉히 떨어진다", () => {
+    // 노드 지름이 60px 안팎이고 이름표가 그 아래로 더 나온다. 자식이 여덟
+    // 이하일 때는 이름이 서로를 가리지 않을 만큼 떨어져야 한다.
+    for (const n of [2, 3, 4, 5, 6, 8]) {
+      const slots = ringSlots(n);
+      for (let i = 0; i < slots.length; i += 1) {
+        for (let j = i + 1; j < slots.length; j += 1) {
+          const d = Math.hypot(slots[i].x - slots[j].x, slots[i].y - slots[j].y);
+          expect(d, `n=${n} 자리 ${i}·${j}`).toBeGreaterThan(20);
+        }
+      }
+    }
+  });
+});

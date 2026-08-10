@@ -296,6 +296,7 @@ export function S06({ onNav }) {
   // 콜백 안에서 최신 배율을 읽기 위한 거울. state 를 의존성에 넣으면
   // 드래그 핸들러가 매 프레임 새로 만들어진다.
   const viewRef = useRef(view);
+  const focusRef = useRef(null);
   // 자동 포커싱은 "선택이 바뀔 때만" 돌아야 한다. positions 를 의존성에 넣으면
   // 노드를 끌 때마다 화면이 따라 움직인다.
   const positionsRef = useRef(positions);
@@ -336,12 +337,27 @@ export function S06({ onNav }) {
   }, [sel, prune]);
   // 코멘트 초기 로드
   useEffect(()=>{ api.comments.list().then(setComments).catch(()=>{}); }, []);
-  // 새 노드가 생기면 positions 에 추가 (이미 드래그로 옮긴 노드는 덮어쓰지 않음)
+  /* `positions` 는 **손으로 옮긴 것만** 담는다.
+   *
+   * 예전에는 노드를 처음 볼 때마다 여기에 전역 배치 좌표(api/index.js 가 그래프
+   * 전체를 놓고 셈한 값)를 미리 채워 넣었다. 그런데 화면이 그리는 자리는
+   * graphFocus 가 층마다 새로 셈한 **고리**다. 미리 채운 값이 늘 이겨서, 고리를
+   * 셈해 놓고 그대로 버리고 있었다.
+   *
+   * 뿌리 층에서는 두 배치가 우연히 비슷해 티가 안 났다. 깊이 들어갈수록
+   * 어긋난다 — 전역 배치에서 어느 과목의 자식 넷은 그 과목 언저리에 모여 있는
+   * 작은 덩이라, 그 층만 띄우면 서로 겹쳐 붙어 버린다.
+   *
+   * 이제 안 채운다. 안 옮긴 노드는 `getPos` 가 고리 자리(n.x/n.y)를 쓴다.
+   *
+   * 없어진 노드의 자리만 치운다 — 안 치우면 지운 노드의 좌표가 계속 쌓인다. */
   useEffect(()=>{
     setPositions(prev=>{
+      const live = new Set(allNodes.map((n) => n.id));
+      const stale = Object.keys(prev).filter((key) => !live.has(key.split("@")[1] ?? key));
+      if (!stale.length) return prev;
       const next = {...prev};
-      allNodes.forEach(n=>{ if(!next[n.id]) next[n.id]={x:n.x,y:n.y}; });
-      Object.keys(next).forEach(id=>{ if(!allNodes.find(n=>n.id===id)) delete next[id]; });
+      stale.forEach((key) => delete next[key]);
       return next;
     });
   }, [allNodes]);
@@ -404,7 +420,14 @@ export function S06({ onNav }) {
       ? new Set(visualEdges.filter(e=>e.from===activeId||e.to===activeId).flatMap(e=>[e.from,e.to]))
       : null
   ), [visualEdges, activeId]);
-  const getPos = useCallback((n) => positions[n.id] || {x:n.x, y:n.y}, [positions]);
+  /* 옮긴 자리는 **층마다** 따로 기억한다. 같은 노드가 어느 층에서는 자식이고
+     다른 층에서는 한가운데 초점이라, id 하나로 기억하면 자식일 때 옮겨 둔
+     자리가 초점일 때까지 따라와 가운데를 비운다. */
+  const posKey = useCallback((id) => `${activeFocus}@${id}`, [activeFocus]);
+  const getPos = useCallback(
+    (n) => positions[posKey(n.id)] || { x: n.x, y: n.y },
+    [positions, posKey],
+  );
 
   // 캔버스 실제 크기. 라벨을 화면 좌표에 놓으려면 픽셀 크기를 알아야 한다.
   const [canvasBox, setCanvasBox] = useState({ w: 0, h: 0 });
@@ -502,7 +525,10 @@ export function S06({ onNav }) {
     const s = viewRef.current.scale;
     const newX = Math.max(4, Math.min(96, d.origX + (dx / rect.width) * 100 / s));
     const newY = Math.max(4, Math.min(96, d.origY + (dy / rect.height) * 100 / s));
-    setPositions(prev => ({...prev, [d.id]: {x:`${newX.toFixed(1)}%`, y:`${newY.toFixed(1)}%`}}));
+    setPositions(prev => ({
+      ...prev,
+      [`${focusRef.current}@${d.id}`]: { x:`${newX.toFixed(1)}%`, y:`${newY.toFixed(1)}%` },
+    }));
   }, []);
 
   const onCanvasUp = useCallback((e) => {
@@ -531,6 +557,8 @@ export function S06({ onNav }) {
 
   // ── 줌 · 팬 ─────────────────────────────────────────────
   useEffect(() => { viewRef.current = view; }, [view]);
+  // 끌기 처리기는 한 번만 만들어지므로(deps []) 지금 층을 ref 로 읽는다.
+  useEffect(() => { focusRef.current = activeFocus; }, [activeFocus]);
   useEffect(() => { positionsRef.current = positions; }, [positions]);
 
   const clampScale = (s) => Math.min(ZOOM.max, Math.max(ZOOM.min, s));
@@ -620,9 +648,18 @@ export function S06({ onNav }) {
   useEffect(() => {
     if (!sel) return;
     const node = allNodes.find((n) => n.id === sel.id);
-    if (node) focusNode(node);
+    if (!node) return;
+    /* 파고들어 이 노드가 이번 층의 한가운데가 됐다면, 확대하지 말고 **층에
+       맞춘다.**
+       `focusNode` 의 135% 확대는 126개가 한 화면에 깔려 있던 시절, 어느 것을
+       눌렀는지 되짚기 어려워 만든 동작이다. 층마다 한 화면을 쓰는 지금 그
+       확대는 방금 들어온 층의 형제들을 화면 밖으로 밀어낸다 — 들어가서 보려던
+       것이 바로 그 형제들인데.
+       같은 층 안에서 옆 노드를 고르는 것은 그대로 둔다. 그건 확대해 볼 만하다. */
+    if (node.id === activeFocus) fitView();
+    else focusNode(node);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [sel?.id]);
+  }, [sel?.id, activeFocus]);
 
   /**
    * 검색 결과 사이를 오간다.
