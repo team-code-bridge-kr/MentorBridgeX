@@ -53,6 +53,10 @@ const FLY_MS = 380;
  */
 const VIEW_KEY = "mbx_graph_view";
 const LEGEND_KEY = "mbx_graph_legend";
+const PANEL_W_KEY = "mbx_graph_panel_w";
+// 판이 이보다 좁으면 글이 두 글자씩 접히고, 넓으면 캔버스가 사라진다.
+const PANEL_MIN = 300;
+const PANEL_MAX = 720;
 
 function readSaved() {
   try {
@@ -298,6 +302,58 @@ export function S06({ onNav }) {
   // 드래그 핸들러가 매 프레임 새로 만들어진다.
   const viewRef = useRef(view);
   const focusRef = useRef(null);
+
+  /* 옆 판 폭.
+   *
+   * `null` 이면 정해 둔 폭(clamp 330~430px)을 쓴다. 손으로 끌면 px 로 굳는다 —
+   * 읽는 글의 길이는 사람마다 다르고, 코멘트를 길게 쓰는 사람과 그래프를 넓게
+   * 보려는 사람이 원하는 폭이 반대다.
+   *
+   * 브라우저에 남긴다. 한 번 맞춰 둔 폭을 들어올 때마다 다시 맞춰야 하면
+   * 조절하는 뜻이 없다. */
+  const [panelW, setPanelW] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(PANEL_W_KEY));
+      return v >= PANEL_MIN && v <= PANEL_MAX ? v : null;
+    } catch { return null; }
+  });
+  const [gripping, setGripping] = useState(false);
+  const panelWRef = useRef(panelW);
+  useEffect(() => { panelWRef.current = panelW; }, [panelW]);
+  useEffect(() => {
+    try {
+      if (panelW == null) localStorage.removeItem(PANEL_W_KEY);
+      else localStorage.setItem(PANEL_W_KEY, String(Math.round(panelW)));
+    } catch { /* 사생활 보호 모드 */ }
+  }, [panelW]);
+
+  /** 지금 실제로 서 있는 폭. 아직 손대지 않았으면 화면에서 재 온다. */
+  const currentPanelW = useCallback(() => {
+    if (panelWRef.current != null) return panelWRef.current;
+    const el = document.querySelector(".gpanel");
+    return el ? el.getBoundingClientRect().width : 380;
+  }, []);
+
+  const clampW = (w) => Math.max(PANEL_MIN, Math.min(PANEL_MAX, w));
+  const nudgeWidth = useCallback((by) => {
+    setPanelW(clampW(currentPanelW() + by));
+  }, [currentPanelW]);
+
+  /** 끌어서 폭 조절. 왼쪽으로 끌수록 판이 넓어진다. */
+  const startResize = useCallback((e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = currentPanelW();
+    setGripping(true);
+    const move = (ev) => setPanelW(clampW(startW - (ev.clientX - startX)));
+    const up = () => {
+      setGripping(false);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }, [currentPanelW]);
   /* 범례를 폈는지. 세션이 아니라 브라우저에 남긴다 — 한 번 접어 둔 사람이
      다음에 들어와서 또 접어야 하면 접는 뜻이 없다. */
   const [legendOpen, setLegendOpen] = useState(() => {
@@ -333,6 +389,8 @@ export function S06({ onNav }) {
   }, []);
 
   const closePanel = useCallback(() => { setSel(null); setPanel(null); }, []);
+  /** 옆 판이 서 있는가. 폭 손잡이가 이때만 선다. */
+  const panelOpen = Boolean(sel) || Boolean(panel);
 
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!allNodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
@@ -1221,12 +1279,32 @@ export function S06({ onNav }) {
           </div>
         </div>
 
+        {/* 판 폭 손잡이. 판과 캔버스 **사이**에 선다 — 판 안에 넣으면 판이
+            스크롤될 때 손잡이도 같이 올라가 버린다. */}
+        {panelOpen && (
+          <div
+            className={`gpanel-grip${gripping ? " is-on" : ""}`}
+            role="separator"
+            aria-label="옆 판 폭 조절"
+            aria-orientation="vertical"
+            tabIndex={0}
+            onPointerDown={startResize}
+            onDoubleClick={() => setPanelW(null)}
+            onKeyDown={(e) => {
+              // 손으로 끄는 것만 길이면 키보드로는 못 쓴다. 화살표로도 움직인다.
+              if (e.key === "ArrowLeft") { e.preventDefault(); nudgeWidth(24); }
+              if (e.key === "ArrowRight") { e.preventDefault(); nudgeWidth(-24); }
+            }}
+            title="끌어서 폭 조절 (두 번 누르면 처음 폭)"
+          />
+        )}
+
         {/* ── 옆 패널 — 자리는 하나다 ────────────────────────────
             고른 노드가 언제나 이긴다. 만들기·둘러보기는 노드를 고르는 순간
             비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
 
         {!sel && panel === "create" && (
-          <GraphPanel title="노드 추가" onClose={closePanel}>
+          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel}>
             <NodeEditor
               mode="create"
               nodes={nodes}
@@ -1239,7 +1317,7 @@ export function S06({ onNav }) {
         )}
 
         {!sel && panel === "explore" && (
-          <GraphPanel title="둘러보기" onClose={closePanel}>
+          <GraphPanel width={panelW} title="확장하기" onClose={closePanel}>
             <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
@@ -1264,6 +1342,7 @@ export function S06({ onNav }) {
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
           <GraphPanel
+            width={panelW}
             title="노드"
             onClose={closePanel}
             /* 뿌리 층에서는 나갈 데가 없다 — 없는 길을 단추로 세우지 않는다. */

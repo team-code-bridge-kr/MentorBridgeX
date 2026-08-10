@@ -20,9 +20,10 @@ import TDS from "../../theme/tokens.js";
  *   동안 눈은 오른쪽에 있어서 거기까지 되짚어 올라가야 했다.
  * @param backLabel 어디로 나가는지. 이름 없이 갈매기만 두면 어디로 가는지 모른다.
  */
-export function GraphPanel({ title, onClose, onBack, backLabel, children }) {
+export function GraphPanel({ title, onClose, onBack, backLabel, width, children }) {
   return (
-    <aside className="gpanel">
+    // `width` 가 없으면 CSS 의 기본 폭(clamp)을 쓴다. 손으로 끈 뒤에만 px 로 굳는다.
+    <aside className="gpanel" style={width ? { width } : undefined}>
       <div className="gpanel-head">
         {onBack && (
           <button type="button" className="gpanel-back" onClick={onBack}

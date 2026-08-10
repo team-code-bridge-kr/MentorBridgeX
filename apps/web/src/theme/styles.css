@@ -3169,7 +3169,29 @@ tr:hover td { background:var(--surface-container-low); }
 }
 /* 판이 서면 캔버스와 판 사이가 두 번 벌어진다(캔버스 오른쪽 여백 + 판 왼쪽
    여백). 캔버스 쪽 여백을 좁혀 한 번만 벌어지게 한다. */
-.gbody:has(.gpanel) .gstage { padding-right:clamp(10px,1.2vw,14px); }
+.gbody:has(.gpanel) .gstage { padding-right:0; }
+
+/* 폭 손잡이 — 판과 캔버스 **사이**에 선다. 판 안에 넣으면 판이 스크롤될 때
+   손잡이도 같이 올라간다.
+   보이는 것은 가는 선 하나지만 잡는 자리는 14px 다 — 1px 짜리를 정확히
+   집으라고 하면 아무도 못 쓴다. */
+.gpanel-grip {
+  flex:0 0 auto; width:14px; align-self:stretch; cursor:col-resize;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:clamp(16px,2vw,24px);
+  touch-action:none;
+}
+.gpanel-grip::before {
+  content:""; width:3px; height:44px; border-radius:9999px;
+  background:var(--brd); transition:background .14s, height .14s;
+}
+.gpanel-grip:hover::before,
+.gpanel-grip:focus-visible::before,
+.gpanel-grip.is-on::before { background:var(--primary); height:72px; }
+.gpanel-grip:focus-visible { outline:none; }
+/* 끄는 동안에는 판 안의 글이 잡히지 않게 한다 — 끌다가 글이 선택되면
+   손잡이를 놓쳤다고 느낀다. */
+.gbody:has(.gpanel-grip.is-on) { user-select:none; cursor:col-resize; }
 .gpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
 /* 뒤로 가기 — 판을 읽는 동안 눈은 오른쪽에 있다. 나가는 길이 위쪽 경로표시뿐이면
    거기까지 되짚어 올라가야 한다. 판 안에도 같은 길을 둔다. */
@@ -3184,6 +3206,9 @@ tr:hover td { background:var(--surface-container-low); }
 /* 뒤로 가기가 서면 제목은 자리를 양보한다 — 둘 다 늘어나면 ✕ 가 밀린다 */
 .gpanel-back + .gpanel-title { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }
+/* 제목을 `sr-only`(position:absolute) 로 감춘 뒤로 흐름에 남는 것이 ✕ 하나다.
+   space-between 은 하나뿐이면 왼쪽에 붙여 버린다 — 닫기는 늘 오른쪽 끝이다. */
+.gpanel-x { margin-left:auto; }
 .gpanel-x {
   width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
   border:none; border-radius:8px; background:var(--bg3); color:var(--ts); cursor:pointer;
@@ -3195,7 +3220,10 @@ tr:hover td { background:var(--surface-container-low); }
   .gstage { padding:12px; }
   /* 좁은 화면에서는 아래로 내려간다. 카드 모양은 그대로 두되 위쪽만 붙인다 —
      화면 폭을 다 쓰는 판이 사방에 여백을 두면 읽을 자리가 그만큼 준다. */
-  .gpanel { width:auto; height:46dvh; margin:0 12px 12px; }
+  /* 아래로 내려가면 가로 폭을 끄는 일은 뜻이 없다. 손잡이를 치우고 폭도
+     화면에 맡긴다(손으로 굳혀 둔 px 를 여기서는 무시해야 한다). */
+  .gpanel { width:auto !important; height:46dvh; margin:0 12px 12px; }
+  .gpanel-grip { display:none; }
 }
 
 /* ── 패널 안의 접히는 구획 ────────────────────────────────
