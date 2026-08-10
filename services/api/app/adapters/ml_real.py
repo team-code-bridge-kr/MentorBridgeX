@@ -280,7 +280,50 @@ def _parse_json(text: str) -> dict:
             return json.loads(m.group(0))
         except json.JSONDecodeError:
             pass
+
+    # 여기까지 왔으면 대개 **중간에서 끊긴** JSON 이다(토큰 한계). 통째로
+    # 버리면 다섯 개를 받아 놓고 하나도 못 쓴다 — 온전한 항목만 건져 낸다.
+    salvaged = _salvage_objects(text)
+    if salvaged:
+        logger.warning("잘린 JSON 에서 %d개를 건졌습니다.", len(salvaged))
+        return {"suggestions": salvaged}
     return {}
+
+
+def _salvage_objects(text: str) -> list[dict]:
+    """글 안에서 **닫힌** `{...}` 를 골라 읽는다. 끊긴 마지막 하나는 버린다.
+
+    깊이에 상관없이 본다. 잘린 응답은 바깥 껍데기(`{"suggestions": [`)가 끝내
+    안 닫히므로, 맨 바깥만 보면 안에 온전히 들어 있는 항목까지 통째로 잃는다.
+    문자열 안의 중괄호는 세지 않는다 — 이름에 `{` 가 들어 있어도 안 흔들린다.
+    """
+    out: list[dict] = []
+    stack: list[int] = []
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            stack.append(i)
+        elif ch == "}" and stack:
+            start = stack.pop()
+            try:
+                obj = json.loads(text[start : i + 1])
+            except json.JSONDecodeError:
+                continue
+            # 껍데기가 아니라 **항목**만 담는다.
+            if isinstance(obj, dict) and "label" in obj:
+                out.append(obj)
+    return out
 
 
 class AnthropicMLAdapter:
@@ -310,16 +353,23 @@ class AnthropicMLAdapter:
         if not seeds:
             return []
 
+        # 길이를 못 박는다. 예전에는 그냥 "추천해주세요" 라고만 해서 모델이 한
+        # 줄에 40자씩 쓰는 긴 제목과 두 줄짜리 이유를 돌려줬고, 그러면 512토큰을
+        # 넘겨 **JSON 이 중간에서 끊겼다.** 끊긴 JSON 은 못 읽으니 화면에는 늘
+        # 빈손이 갔다 — 눌러 놓고 기다렸는데 아무것도 안 나오는 자리였다.
         prompt = (
             f"다음 관심 키워드와 관련된 탐구·활동 주제를 {max_results}개 이내로 추천해주세요: "
             f"{', '.join(seeds)}\n\n"
+            "label 은 20자 이내의 주제어, rationale 은 40자 이내 한 문장으로 짧게 쓰세요.\n"
             '반환 형식(JSON만 출력): {"suggestions": '
             '[{"label": "...", "confidence": 0.0-1.0, "rationale": "..."}]}'
         )
         try:
             resp = await self._client.messages.create(
                 model=self._model,
-                max_tokens=512,
+                # 짧게 쓰라고 해도 모델은 넘길 수 있다. 잘려서 통째로 버리느니
+                # 넉넉히 받는 편이 싸다 — 다섯 개면 1,500토큰이면 충분하다.
+                max_tokens=1536,
                 system="당신은 고등학생 생기부 설계 전문가입니다. 반드시 유효한 JSON만 반환하세요.",
                 messages=[{"role": "user", "content": prompt}],
             )

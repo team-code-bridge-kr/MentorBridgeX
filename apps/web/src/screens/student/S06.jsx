@@ -1466,6 +1466,16 @@ export function S06({ onNav }) {
             )}
 
 
+            {/* 빈손으로 돌아온 경우. 예전에는 아무 말도 없이 단추만 "다시" 로
+                바뀌어서, 누른 사람은 자기가 뭘 잘못 눌렀는지 아니면 아직 도는
+                중인지 알 수 없었다. */}
+            {prune && !prune.loading && !prune.error && prune.items?.length === 0 && (
+              <p className="prune-none">
+                이 노드로는 뻗어 갈 주제를 찾지 못했습니다. 이름이 조금 더
+                구체적이면 잘 찾습니다.
+              </p>
+            )}
+
             {prune?.items?.map((rec) => {
               const meta = BRANCH_META[rec.type] || BRANCH_META.DEPTH;
               const res = research[rec.id];
