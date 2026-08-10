@@ -1177,19 +1177,18 @@ export function S06({ onNav }) {
               </div>
             )}
 
-            {/* 통계 (우상단) — 범례와 같은 재질 */}
+            {/* 개수 (우상단).
+                판 두 개가 나란히 서서 자리를 넓게 먹고, 아이콘 둘이 서로 다른
+                색이라 캔버스 위에서 유난히 튀었다. 알약 하나에 모으고 색은
+                걷는다 — 이건 지금 몇 개가 떠 있는지 알려 주는 값이지 눌러야 할
+                것이 아니다. */}
             {!!nodes.length && (
-              <div data-graph-panel style={{position:"absolute",top:16,right:16,zIndex:Z.panel,display:"flex",gap:8}}>
-                {[
-                  { icon:"core",   color:TDS.blue500, value:nodes.length, label:"노드" },
-                  { icon:"branch", color:"#22c55e",   value:edges.length, label:"연결" },
-                ].map(s=>(
-                  <div key={s.label} style={{...OVERLAY_SURFACE,borderRadius:12,padding:"9px 13px",display:"flex",alignItems:"center",gap:8}}>
-                    <NavIcon name={s.icon} size={15} color={s.color}/>
-                    <span style={{fontSize:15,fontWeight:800,color:OVERLAY_TEXT.primary,fontVariantNumeric:"tabular-nums",letterSpacing:"-.01em"}}>{s.value}</span>
-                    <span style={{fontSize:12,color:OVERLAY_TEXT.tertiary}}>{s.label}</span>
-                  </div>
-                ))}
+              <div data-graph-panel className="gcount" style={{zIndex:Z.panel}}>
+                <span className="gcount-n">{nodes.length}</span>
+                <span className="gcount-l">노드</span>
+                <span className="gcount-sep" aria-hidden />
+                <span className="gcount-n">{edges.length}</span>
+                <span className="gcount-l">연결</span>
               </div>
             )}
 
@@ -1363,7 +1362,6 @@ export function S06({ onNav }) {
 
                 <Section
                   title="연결"
-                  count={eList.length}
                   open={openSections.has("links")}
                   onToggle={()=>toggleSection("links")}
                 >
@@ -1379,7 +1377,6 @@ export function S06({ onNav }) {
 
                 <Section
                   title="다음 탐구"
-                  count={prune?.items?.length ?? null}
                   open={openSections.has("prune")}
                   onToggle={()=>toggleSection("prune")}
                 >
@@ -1499,15 +1496,11 @@ export function S06({ onNav }) {
                     백엔드에 node_id 가 생기면 이 두 줄만 바꾸면 된다. */}
                 <Section
                   title="코멘트"
-                  count={nodeComments.length}
                   open={openSections.has("comments")}
                   onToggle={()=>toggleSection("comments")}
                 >
-                  {!nodeComments.length && (
-                    <p style={{fontSize:12.5,color:TDS.textTertiary,margin:"0 0 10px"}}>
-                      이 노드에 달린 코멘트가 없습니다.
-                    </p>
-                  )}
+                  {/* "코멘트가 없습니다" 를 지웠다. 바로 아래 빈 칸이 이미
+                      그 말을 하고 있어서, 없다는 사실을 두 번 알리고 있었다. */}
                   {nodeComments.slice(0,5).map((c)=>(
                     <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",background:TDS.bgTertiary,borderRadius:10,marginBottom:8}}>
                       <div style={{width:28,height:28,borderRadius:"50%",background:TDS.blue50,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:700,color:TDS.blue500}}>

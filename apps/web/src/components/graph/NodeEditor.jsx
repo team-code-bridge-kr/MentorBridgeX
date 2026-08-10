@@ -22,31 +22,17 @@ import api from "../../api/index.js";
 const SECTIONS = SUBJECT_LEGEND.map((s) => s.label);
 const NO_SECTION = "기타";
 
-const field = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 9,
-  border: `1px solid ${TDS.border}`,
-  background: TDS.bgPrimary,
-  color: TDS.textPrimary,
-  fontFamily: "inherit",
-  fontSize: 13.5,
-  outline: "none",
-};
-const labelStyle = {
-  display: "block",
-  fontSize: 11.5,
-  fontWeight: 700,
-  color: TDS.textTertiary,
-  marginBottom: 5,
-};
-
 export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCancel, busy }) {
   const editing = mode === "edit";
   const [label, setLabel] = useState("");
   const [section, setSection] = useState(NO_SECTION);
   const [description, setDescription] = useState("");
-  const [aliases, setAliases] = useState("");
+  /* 다른 이름은 **하나씩** 담는다.
+     예전에는 "인공지능, 머신러닝" 처럼 한 칸에 쉼표로 적게 했다. 쉼표를 안 쓰면
+     통째로 한 이름이 되고, 이름 안에 쉼표가 들어가면 둘로 쪼개진다. 무엇보다
+     지금 몇 개를 넣어 뒀는지 눈으로 셀 수가 없었다. */
+  const [aliases, setAliases] = useState([]);
+  const [aliasDraft, setAliasDraft] = useState("");
   const [parentId, setParentId] = useState("");
   const [error, setError] = useState("");
 
@@ -54,10 +40,22 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
     setLabel(editing ? node?.label || "" : "");
     setSection(editing ? node?.section || NO_SECTION : NO_SECTION);
     setDescription(editing ? node?.description || "" : "");
-    setAliases(editing ? (node?.aliases || []).join(", ") : "");
+    setAliases(editing ? [...(node?.aliases || [])] : []);
+    setAliasDraft("");
     setParentId(editing ? "" : defaultParentId || "");
     setError("");
   }, [editing, node?.id, node?.label, node?.section, node?.description, defaultParentId]);
+
+  const addAlias = () => {
+    const t = aliasDraft.trim();
+    // 이름과 같은 것, 이미 담은 것은 넣지 않는다 — 같은 말을 두 번 찾을 이유가 없다.
+    if (!t || t === label.trim() || aliases.includes(t) || aliases.length >= 8) {
+      setAliasDraft("");
+      return;
+    }
+    setAliases((prev) => [...prev, t]);
+    setAliasDraft("");
+  };
 
   const submit = (e) => {
     e.preventDefault();
@@ -66,104 +64,123 @@ export function NodeEditor({ mode, node, nodes, defaultParentId, onSubmit, onCan
       setError("이름을 입력해 주세요.");
       return;
     }
+    // 적어만 두고 엔터를 안 눌렀을 수도 있다. 그것도 함께 담는다 —
+    // 저장했는데 방금 친 말이 사라지면 없어진 줄도 모른다.
+    const pending = aliasDraft.trim();
+    const all = pending && pending !== name && !aliases.includes(pending)
+      ? [...aliases, pending]
+      : aliases;
     onSubmit({
       label: name,
       section: section === NO_SECTION ? "" : section,
       description: description.trim(),
-      // 쉼표로 나눈다. 빈 것과 이름과 같은 것은 버린다.
-      aliases: aliases
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t && t !== name)
-        .slice(0, 8),
+      aliases: all.filter((t) => t && t !== name).slice(0, 8),
       parentId: parentId || null,
     });
   };
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div>
-        <label style={labelStyle} htmlFor="node-label">이름</label>
+    <form onSubmit={submit} className="nform">
+      <div className="nform-row">
+        <label className="nform-label" htmlFor="node-label">이름</label>
         <input
           id="node-label"
+          className="nform-input"
           autoFocus
           value={label}
           maxLength={200}
           placeholder="예: 전염 모형"
           onChange={(e) => { setLabel(e.target.value); setError(""); }}
-          style={field}
         />
       </div>
 
-      <div>
-        <label style={labelStyle} htmlFor="node-section">과목·분야</label>
-        <select
-          id="node-section"
-          value={section}
-          onChange={(e) => setSection(e.target.value)}
-          style={{ ...field, cursor: "pointer" }}
-        >
-          <option value={NO_SECTION}>{NO_SECTION}</option>
-          {SECTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <p style={{ fontSize: 11, color: TDS.textTertiary, marginTop: 5, lineHeight: 1.5 }}>
-          아이콘과 그래프에서의 자리가 이 값으로 정해집니다.
-        </p>
+      <div className="nform-row">
+        <label className="nform-label" htmlFor="node-section">과목·분야</label>
+        {/* 브라우저 기본 select 는 운영체제마다 생김새가 다르다 — 판 안의 다른
+            칸들과 테두리·모서리·글자가 전부 어긋났다. 알약 칩으로 고른다:
+            무엇을 고를 수 있는지 펼치지 않아도 보이고, 지금 고른 것도 보인다. */}
+        <div className="nform-chips" role="radiogroup" aria-labelledby="node-section">
+          {[NO_SECTION, ...SECTIONS].map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={section === s}
+              className={`nform-chip${section === s ? " on" : ""}`}
+              onClick={() => setSection(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div>
-        <label style={labelStyle} htmlFor="node-desc">설명 <span style={{ fontWeight: 500 }}>(선택)</span></label>
+      <div className="nform-row">
+        <label className="nform-label" htmlFor="node-desc">설명 <span>선택</span></label>
         <textarea
           id="node-desc"
+          className="nform-input nform-area"
           value={description}
           maxLength={2000}
           rows={3}
           placeholder="이 노드가 무엇인지 한두 줄로"
           onChange={(e) => setDescription(e.target.value)}
-          style={{ ...field, resize: "vertical", lineHeight: 1.55 }}
         />
       </div>
 
-      <div>
-        <label style={labelStyle} htmlFor="node-alias">다른 이름 <span style={{ fontWeight: 500 }}>(선택, 쉼표로 구분)</span></label>
+      <div className="nform-row">
+        <label className="nform-label" htmlFor="node-alias">다른 이름 <span>선택</span></label>
+        {!!aliases.length && (
+          <div className="nform-tags">
+            {aliases.map((t) => (
+              <span key={t} className="nform-tag">
+                {t}
+                <button type="button" aria-label={`${t} 빼기`}
+                  onClick={() => setAliases((prev) => prev.filter((x) => x !== t))}>
+                  <NavIcon name="close" size={11} color={TDS.textTertiary} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <input
           id="node-alias"
-          value={aliases}
-          maxLength={200}
-          placeholder="예: 인공지능, 머신러닝"
-          onChange={(e) => setAliases(e.target.value)}
-          style={field}
+          className="nform-input"
+          value={aliasDraft}
+          maxLength={60}
+          placeholder="적고 엔터"
+          onChange={(e) => setAliasDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // 엔터가 폼을 보내지 않게 막는다 — 이름 하나 넣으려다 저장된다.
+            if (e.key === "Enter") { e.preventDefault(); addAlias(); }
+            if (e.key === "Backspace" && !aliasDraft && aliases.length) {
+              setAliases((prev) => prev.slice(0, -1));
+            }
+          }}
+          onBlur={addAlias}
         />
-        <p style={{ fontSize: 11, color: TDS.textTertiary, marginTop: 5, lineHeight: 1.5 }}>
-          생기부에 다르게 적혀 있는 말을 넣어 두세요. 출처 문장과 관계 찾기가
-          그 말로도 찾습니다 — 이름이 “AI”인데 생기부엔 “인공지능”이라 적혀 있으면
-          지금은 못 찾습니다.
-        </p>
       </div>
 
       {/* 새로 만들 때만. 고칠 때는 연결을 아래 "연결" 목록에서 다룬다 —
           한 폼에서 이름도 고치고 연결도 바꾸면 무엇을 저장하는지 흐려진다. */}
       {!editing && (
-        <div>
-          <label style={labelStyle} htmlFor="node-parent">어디에 연결할까요 <span style={{ fontWeight: 500 }}>(선택)</span></label>
+        <div className="nform-row">
+          <label className="nform-label" htmlFor="node-parent">어디에 연결할까요 <span>선택</span></label>
           <select
             id="node-parent"
+            className="nform-input nform-select"
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
-            style={{ ...field, cursor: "pointer" }}
           >
             <option value="">연결 없이 두기</option>
             {nodes.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
           </select>
-          <p style={{ fontSize: 11, color: TDS.textTertiary, marginTop: 5, lineHeight: 1.5 }}>
-            연결하지 않으면 따로 떨어진 점으로 남습니다. 나중에 이어도 됩니다.
-          </p>
         </div>
       )}
 
-      {error && <p style={{ fontSize: 12, color: TDS.danger, margin: 0 }}>{error}</p>}
+      {error && <p className="form-err" style={{ margin: 0 }}>{error}</p>}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+      <div className="nform-act">
         <Btn v="primary" s="md" type="submit" disabled={busy} style={{ flex: 1 }}>
           {busy ? "저장 중…" : editing ? "저장" : "노드 추가"}
         </Btn>
@@ -263,7 +280,8 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
           <select
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            style={{ ...field, flex: 1, minWidth: 0, cursor: "pointer" }}
+            className="nform-input nform-select"
+            style={{ flex: 1, minWidth: 0 }}
           >
             <option value="">이을 노드 고르기</option>
             {candidates.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}

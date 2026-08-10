@@ -31,7 +31,9 @@ export function GraphPanel({ title, onClose, onBack, backLabel, children }) {
             <span>{backLabel || "위로"}</span>
           </button>
         )}
-        <span className="gpanel-title">{title}</span>
+        {/* 제목은 화면 읽기용으로만 남긴다. 판 안에 노드 이름이 크게 서 있어서
+            그 위의 "노드" 는 아무것도 더 말해 주지 않았다. */}
+        <span className="gpanel-title sr-only">{title}</span>
         <button type="button" className="gpanel-x" onClick={onClose} aria-label="닫기">
           <NavIcon name="close" size={14} color={TDS.textSecondary} />
         </button>
@@ -45,12 +47,14 @@ export function GraphPanel({ title, onClose, onBack, backLabel, children }) {
  * 패널 안의 접히는 구획.
  *
  * 탭이 아니라 디스클로저를 쓴다 — 탭은 **정보가 있다는 사실 자체를** 감춘다.
- * 접혀 있어도 제목과 개수는 보이므로, 학생은 "출처가 2문장 있는데 지금은 접어
- * 뒀다"를 알 수 있다. 폐지한 노드 상세 화면(S07)의 4탭이 정확히 그 실패였다.
+ * 접혀 있어도 제목이 남으므로 무엇이 있는지는 알 수 있다. 폐지한 노드 상세
+ * 화면(S07)의 4탭이 정확히 그 실패였다.
  *
- * `count` 는 0 도 보여준다. "연결 0개"는 빈 값이 아니라 **읽어야 할 사실**이다.
+ * 머리에 있던 개수는 걷었다. 펼치면 안에 "연결 1개" 가 또 적혀 있어서 같은
+ * 숫자가 두 번 섰고, 접혀 있을 때 오른쪽 끝에 뜬 숫자 하나만으로는 그것이
+ * 무엇을 센 것인지도 알 수 없었다.
  */
-export function Section({ title, count, open, onToggle, children }) {
+export function Section({ title, open, onToggle, children }) {
   return (
     <section className="gsec">
       <button
@@ -65,7 +69,6 @@ export function Section({ title, count, open, onToggle, children }) {
           color={TDS.textTertiary}
         />
         <span className="gsec-title">{title}</span>
-        {count != null && <span className="gsec-count">{count}</span>}
       </button>
       {open && <div className="gsec-body">{children}</div>}
     </section>
