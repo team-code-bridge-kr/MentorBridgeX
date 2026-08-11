@@ -17,7 +17,6 @@ import { S22 } from "./student/S22.jsx";
 import { S23 } from "./student/S23.jsx";
 import { S24 } from "./student/S24.jsx";
 import { S25 } from "./student/S25.jsx";
-import { S28 } from "./student/S28.jsx";
 import { S30 } from "./student/S30.jsx";
 import { S32 } from "./student/S32.jsx";
 import { S40 } from "./student/S40.jsx";
@@ -81,7 +80,7 @@ export function renderScreen(id, onNav) {
     S20:<S20 onNav={onNav}/>,S21:<S21 onNav={onNav}/>,
     S22:<S22 onNav={onNav}/>,S23:<S23 onNav={onNav}/>,
     S24:<S24 onNav={onNav}/>,S25:<S25 onNav={onNav}/>,
-    S28:<S28 onNav={onNav}/>,
+    
     S30:<S30 onNav={onNav}/>,
     S32:<S32 onNav={onNav}/>,
     S40:<S40 onNav={onNav}/>,S41:<S41 onNav={onNav}/>,S42:<S42 onNav={onNav}/>,S43:<S43 onNav={onNav}/>,S44:<S44 onNav={onNav}/>,

@@ -43,7 +43,7 @@ export const SCREEN_PATH = {
   S22: "/reports/view",
   S24: "/mentoring",
   S25: "/notifications",
-  S28: "/stats",
+  S28: "/stats",              // 없앤 화면 — 주소는 살려 두고 대시보드로 보낸다
   S30: "/settings",
   /* 없앤 화면. 주소는 살려 둔다 — 이미 나간 링크가 죽지 않도록 열어 주고,
      RETIRED(routes.js)가 설정으로 보낸 뒤 주소창을 /settings 로 바꾼다. */

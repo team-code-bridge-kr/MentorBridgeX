@@ -7,7 +7,7 @@
  * 📌 "실제 백엔드 연결" vs "목업" 상태 요약
  * ──────────────────────────────────────────
  * ✅ LIVE  : auth.*, graph.*, documents.*, ingest.uploadPdf,
- *            comments.*, voice.*, forms.*, notifications.*, stats.*, settings.*
+ *            comments.*, voice.*, forms.*, notifications.*, settings.*
  *            (활동 기록 S44 의 자료 검색 = 위 LIVE API 클라이언트 집계)
  * 🔶 MOCK  : auth.signInAdmin (partial), teacher.*, admin.*
  *
@@ -944,12 +944,7 @@ const api = {
     },
   },
 
-  // ══ 통계 / 설정 ✅ LIVE ═══════════════════════════════════
-  stats: {
-    async get() {
-      return request("/v1/students/me/stats");
-    },
-  },
+  // ══ 설정 ✅ LIVE ═════════════════════════════════════════
   settings: {
     async get() {
       return request("/v1/students/me/settings");

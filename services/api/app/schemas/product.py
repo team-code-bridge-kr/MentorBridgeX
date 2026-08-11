@@ -107,14 +107,3 @@ class VoiceSessionPatch(BaseModel):
     participants: list[str] | None = None
     duration_sec: int | None = None
 
-
-class StatsOut(BaseModel):
-    node_count: int = 0
-    edge_count: int = 0
-    comment_count: int = 0
-    form_count: int = 0
-    voice_count: int = 0
-    voice_duration_sec: int = 0
-    sections: list[dict] = Field(default_factory=list)
-    top_nodes: list[dict] = Field(default_factory=list)
-    recent_activities: list[dict] = Field(default_factory=list)

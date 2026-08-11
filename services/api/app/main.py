@@ -119,7 +119,6 @@ def create_app() -> FastAPI:
     app.include_router(product.settings_router)
     app.include_router(product.account_router)
     app.include_router(product.voice_router)
-    app.include_router(product.stats_router)
     app.include_router(stt_routes.router)
     app.include_router(research_routes.router)
     app.include_router(onboarding_routes.router)
