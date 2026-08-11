@@ -2465,6 +2465,25 @@ tr:hover td { background:var(--surface-container-low); }
 .set-name-inp { flex:1; min-width:0; }
 .set-note { font-size:12.5px; color:var(--tt); line-height:1.6; margin:10px 0 0; word-break:keep-all; }
 
+/* 파일 놓는 자리. div 가 아니라 단추다 — 예전 것은 마우스로만 눌렸고 탭으로
+   갈 수도 없었다. 점선은 이 앱에서 "아직 안 채워진 자리" 를 뜻한다. */
+.up-drop {
+  width:100%; padding:34px 24px; border-radius:14px; cursor:pointer;
+  border:1.5px dashed var(--brd); background:transparent; font-family:inherit;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  color:var(--tt); transition:border-color .14s, background-color .14s, color .14s;
+}
+.up-drop:hover, .up-drop:focus-visible { border-color:var(--primary); color:var(--primary); }
+.up-drop:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+/* 파일을 고르면 점선을 실선으로 — 채워졌다는 뜻이다. */
+.up-drop.is-on {
+  border-style:solid; border-color:var(--primary);
+  background:rgba(9,105,218,.05); color:var(--primary);
+}
+.up-drop-t { font-size:14.5px; font-weight:700; color:var(--tp); word-break:break-all; }
+.up-drop.is-on .up-drop-t { color:var(--primary); }
+.up-drop-s { font-size:12.5px; color:var(--td); }
+
 /* 켜짐/꺼짐 스위치. div 가 아니라 단추다 — 예전 것은 마우스로만 눌렸다. */
 .set-sw {
   flex:none; position:relative; width:44px; height:26px; padding:0;
