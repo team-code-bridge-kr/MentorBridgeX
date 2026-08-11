@@ -47,10 +47,14 @@ export function RoleStep({ value, onPick, busy }) {
           disabled={busy}
           aria-pressed={value === r.id}
         >
-          <span className="ob-role-ic" aria-hidden="true">
-            <NavIcon name={r.icon} size={24} color="currentColor" />
+          {/* 아이콘과 이름은 한 줄에. 세로로 쌓으면 아이콘이 이름과 떨어져서
+              무엇에 붙은 그림인지 한 박자 늦게 읽힌다. */}
+          <span className="ob-role-head">
+            <span className="ob-role-ic" aria-hidden="true">
+              <NavIcon name={r.icon} size={24} color="currentColor" />
+            </span>
+            <span className="ob-role-label">{r.label}</span>
           </span>
-          <span className="ob-role-label">{r.label}</span>
           <span className="ob-role-desc">{r.desc}</span>
         </button>
       ))}
