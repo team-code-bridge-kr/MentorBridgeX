@@ -3802,6 +3802,10 @@ tr:hover td { background:var(--surface-container-low); }
      쪽 넘김 대신 세로 스크롤이 된다(실제로 그랬다). 겹쳐 띄운다. */
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   z-index:4; width:max-content; max-width:calc(100% - 32px);
+  /* 안내가 덮은 자리의 구획은 눌리지 않았다 — "파란 구획을 눌러 보세요" 라고
+     해 놓고 그 위를 가로막은 셈이다. 판은 클릭을 흘려 보내고, 안에 있는
+     단추만 받는다. */
+  pointer-events:none;
   display:flex; align-items:flex-start; gap:11px;
   padding:13px 14px 13px 15px; border-radius:16px;
   background:var(--bg1); box-shadow:var(--surface-2);
@@ -3821,6 +3825,7 @@ tr:hover td { background:var(--surface-container-low); }
 .rd-coach strong { font-size:13px; font-weight:700; color:var(--tp); }
 .rd-coach span { font-size:12px; line-height:1.5; color:var(--ts); word-break:keep-all; }
 .rd-coach button {
+  pointer-events:auto;
   flex:0 0 auto; align-self:center; margin-left:4px;
   padding:6px 13px; border:none; border-radius:9999px;
   background:rgba(27,95,217,.1); color:#1B5FD9;
