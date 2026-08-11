@@ -114,16 +114,25 @@ describe("첫 화면 — 뿌리 층", () => {
     expect(all(".gcrumb-item").length).toBe(0);
   });
 
-  it("도구띠 — 만드는 일 셋이 나란히, 으뜸 단추는 하나뿐", () => {
+  it("도구띠 — 만들기는 왼쪽, 가다듬기는 오른쪽", () => {
     // 「시드로 생성」·「층 다시 세우기」는 「더보기」 팝오버 안에 숨어 있었다.
-    // 셋 다 그래프를 늘리는 일이라 한 자리에 세운다.
+    // 하는 일의 결로 갈라 양쪽에 세운다. 으뜸 단추는 하나뿐이다.
     expect(host.querySelector(".toolbar-graph")).toBeTruthy();
-    expect(all(".gtools .btn").map((b) => b.textContent.trim()))
-      .toEqual(["노드 추가", "시드로 생성", "층 다시 세우기"]);
+    const groups = all(".gtools").map((g) =>
+      [...g.querySelectorAll(".btn")].map((b) => b.textContent.trim()));
+    expect(groups).toEqual([
+      ["노드 추가", "시드로 생성"],
+      ["층 다시 세우기", "확장하기"],
+    ]);
     expect(host.querySelector(".toolbar-graph .gsearch")).toBeTruthy();
-    expect(btn("확장하기")).toBeTruthy();
     expect(btn("더보기"), "더보기는 없앴다").toBeUndefined();
     expect(all(".btn-primary").length).toBe(1);
+  });
+
+  it("개수 알약은 캔버스 밖 도구띠에 선다", () => {
+    // 캔버스 위에 얹혀 있을 때는 노드를 가리고 드래그도 방해했다.
+    expect(host.querySelector(".graph-canvas .gcount"), "캔버스 안에 있으면 안 된다").toBeNull();
+    expect(host.querySelector(".toolbar-graph .gcount")).toBeTruthy();
   });
 
   it("걷어낸 단추는 없다", () => {

@@ -3,7 +3,8 @@
  *
  * 기본은 접힌 아이콘 레일이다. 커서를 올리면 펼쳐지고, **그대로 고정된다** —
  * 커서가 벗어나자마자 닫히면 메뉴를 고르는 도중에 사라져서 쓸 수가 없다.
- * 닫는 방법은 세 가지: « 버튼, Esc, 바깥 클릭. 고정 상태는 새로고침해도 남는다.
+ * 여닫는 규칙은 하나다: **커서를 올리면 열리고 벗어나면 닫힌다.** Esc 와 바깥
+ * 클릭도 닫는다(키보드로 들어온 사람과, 사이드바 위에서 무언가를 고른 사람).
  *
  * 펼쳐진 사이드바는 본문 위에 겹친다(절대배치). 본문을 밀지 않으므로 열고 닫아도
  * 화면이 다시 계산되지 않는다.
@@ -23,9 +24,10 @@ import { useRecentActivity } from "../../hooks/useRecentActivity.js";
 import { activityDetailRoute, restoreActivity } from "../../lib/activityRestore.js";
 import mbxLogo from "../../assets/brand/mbx_logo.png";
 
-const PIN_KEY = "mbx_sidebar_pinned";
 // 커서가 스치기만 해도 열리면 성가시다 — 잠깐 머물러야 연다
 const OPEN_DELAY_MS = 140;
+// 벗어나면 닫는다. 곧바로 닫으면 레일과 사이드바 경계에서 깜빡이므로 한 박자 준다.
+const CLOSE_DELAY_MS = 180;
 
 export function Sidebar({ nav, active, current, onNav, role, dark }) {
   const { state, actions } = useStore();
@@ -34,27 +36,22 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
   const displayEmail = user?.email || "—";
   const unread = (state.notifications || []).filter((n) => !n.read).length;
 
-  // 펼침 상태는 새로고침해도 유지한다
-  const [open, setOpen] = useState(() => localStorage.getItem(PIN_KEY) === "open");
+  /* 커서를 올리면 열리고 **벗어나면 닫힌다.** 그게 전부다.
+     예전에는 열린 뒤 스스로 닫히지 않아서(벗어나도 그대로) Esc 를 누르거나
+     바깥을 클릭해야 했고, 그동안 사이드바가 본문을 덮고 있었다. 그래서 「«」
+     단추와 "방금 손으로 닫았다" 는 잠금 장치, 새로고침해도 남는 고정 상태까지
+     붙어 있었는데 — 셋 다 열고 닫는 규칙이 하나가 아니라서 생긴 군더더기다.
+     규칙을 하나로 줄이니 셋 다 필요 없다. */
+  const [open, setOpen] = useState(false);
   const railRef = useRef(null);
   const enterTimer = useRef(null);
-  // 방금 사용자가 직접 닫았다는 표시. 커서가 레일 위에 있는 채로 닫으면
-  // 곧바로 다시 열려서 "닫히지 않는" 것처럼 보인다. 커서가 한 번 벗어날
-  // 때까지 자동 열기를 쉰다.
-  const holdClosed = useRef(false);
+  const leaveTimer = useRef(null);
 
-  /** 사용자가 직접 닫는 경우(« / Esc / 바깥 클릭 / 메뉴 선택). */
   const close = () => {
     clearTimeout(enterTimer.current);
     enterTimer.current = null;
-    // 커서가 레일 밖이면 어차피 mouseenter 가 새로 오므로 잠글 필요가 없다
-    holdClosed.current = !!railRef.current?.matches(":hover");
     setOpen(false);
   };
-
-  useEffect(() => {
-    localStorage.setItem(PIN_KEY, open ? "open" : "rail");
-  }, [open]);
 
   // 열려 있는 동안만 바깥 클릭·Esc 를 듣는다
   useEffect(() => {
@@ -71,13 +68,18 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
     };
   }, [open]);
 
-  useEffect(() => () => clearTimeout(enterTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(enterTimer.current);
+    clearTimeout(leaveTimer.current);
+  }, []);
 
   // mouseenter 만으로는 부족하다: 사이드바가 닫히면서 폭이 줄어도 커서가
   // 그대로면 브라우저는 mouseenter 를 다시 쏘지 않는다. 그래서 그 자리에서
   // 마우스를 움직여도 안 열리는 "씹힘"이 생긴다. mousemove 로도 받는다.
   const onHover = () => {
-    if (open || holdClosed.current || enterTimer.current) return;
+    clearTimeout(leaveTimer.current);
+    leaveTimer.current = null;
+    if (open || enterTimer.current) return;
     enterTimer.current = setTimeout(() => {
       enterTimer.current = null;
       setOpen(true);
@@ -86,7 +88,11 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
   const onLeave = () => {
     clearTimeout(enterTimer.current);
     enterTimer.current = null;
-    holdClosed.current = false; // 벗어났으니 다시 hover 로 열 수 있다
+    clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => {
+      leaveTimer.current = null;
+      setOpen(false);
+    }, CLOSE_DELAY_MS);
   };
 
   /**
@@ -144,16 +150,6 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
           <span className="sb-logo-text sb-fade" aria-hidden="true">
             팀코드브릿지 <span className="sb-logo-product">MBX</span>
           </span>
-          <button
-            type="button"
-            className="sb-collapse sb-fade"
-            aria-label="사이드바 접기"
-            title="사이드바 접기 (Esc)"
-            aria-expanded={open}
-            onClick={close}
-          >
-            «
-          </button>
         </div>
 
         <div className="sb-section">

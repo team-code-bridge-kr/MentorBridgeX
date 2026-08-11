@@ -971,12 +971,6 @@ export function S06({ onNav }) {
           <Btn v="secondary" s="sm" onClick={()=>onNav("S09")} title="키워드를 넣어 그래프를 시작합니다.">
             <NavIcon name="plusSeed" size={15} color={TDS.primary}/> 시드로 생성
           </Btn>
-          {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
-              이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다. */}
-          <Btn v="secondary" s="sm" disabled={restruct.busy} onClick={rebuildLayers}
-               title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.">
-            <NavIcon name="graph" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
-          </Btn>
         </div>
 
         {/* 검색창을 탐구 피드와 같은 알약으로, 도구띠 한가운데에 둔다.
@@ -1001,11 +995,32 @@ export function S06({ onNav }) {
           )}
         </div>
 
-        {/* "둘러보기" 를 "확장하기" 로. 여기서 하는 일은 구경이 아니라 빈 곳을
-            찾아 **가지를 늘리는** 것이다. */}
-        <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
-          <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 확장하기
-        </Btn>
+        {/* 오른쪽 묶음 — 그래프를 **가다듬는** 일들. 왼쪽(만들기)과 나눠 둔다.
+            층 다시 세우기: 생기부 구획으로 학년·과목 층을 다시 세운다. 예전에
+            만든 그래프는 별 모양이라 이걸 한 번 눌러야 층이 생긴다. 여러 번
+            눌러도 안전하다.
+            확장하기: 빈 곳을 찾아 가지를 늘린다. */}
+        <div className="gtools">
+          <Btn v="secondary" s="sm" disabled={restruct.busy} onClick={rebuildLayers}
+               title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.">
+            <NavIcon name="graph" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
+          </Btn>
+          <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
+            <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 확장하기
+          </Btn>
+          {/* 지금 몇 개가 떠 있는지. 캔버스 위에 얹혀 있었는데 노드를 가리고
+              드래그도 방해했다 — 알려 주는 값이지 눌러야 할 것이 아니라
+              도구띠 끝으로 내려온다. */}
+          {!!nodes.length && (
+            <span className="gcount">
+              <span className="gcount-n">{nodes.length}</span>
+              <span className="gcount-l">노드</span>
+              <span className="gcount-sep" aria-hidden />
+              <span className="gcount-n">{edges.length}</span>
+              <span className="gcount-l">연결</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 경로표시. 판이 서 있으면 판 머리로 옮겨 간다 — 판을 읽는 동안 눈은
@@ -1198,20 +1213,6 @@ export function S06({ onNav }) {
               </div>
             )}
 
-            {/* 개수 (우상단).
-                판 두 개가 나란히 서서 자리를 넓게 먹고, 아이콘 둘이 서로 다른
-                색이라 캔버스 위에서 유난히 튀었다. 알약 하나에 모으고 색은
-                걷는다 — 이건 지금 몇 개가 떠 있는지 알려 주는 값이지 눌러야 할
-                것이 아니다. */}
-            {!!nodes.length && (
-              <div data-graph-panel className="gcount" style={{zIndex:Z.panel}}>
-                <span className="gcount-n">{nodes.length}</span>
-                <span className="gcount-l">노드</span>
-                <span className="gcount-sep" aria-hidden />
-                <span className="gcount-n">{edges.length}</span>
-                <span className="gcount-l">연결</span>
-              </div>
-            )}
 
             {/* 줌 컨트롤 — 휠/드래그와 같은 상태를 쓴다 */}
             {/* 오른쪽 아래는 녹음 도크가 쓰는 자리다. 겹치지 않게 왼쪽에 둔다 —
