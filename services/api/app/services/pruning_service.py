@@ -456,10 +456,16 @@ class PruningService:
             for e in snapshot.edges
         )
         if not already_linked:
+            # 선의 방향은 이 앱에서 **"source 가 target 에 매달린다"** 는 뜻이다
+            # (BELONGS_TO·MENTIONED_IN 이 모두 그렇고, 화면이 층을 세울 때도
+            # 그 규칙으로 부모를 찾는다 — api/index.js 의 layoutTree).
+            # 새 탐구 주제는 고른 노드에서 뻗어 나온 것이므로 새 노드가 source 다.
+            # 반대로 두면 새 노드가 고른 노드의 **부모**가 되어, 문서 뿌리에서
+            # 닿지 않는 외톨이가 된다 — 만들어지긴 하는데 화면에 안 나왔다.
             await self.graph.create_edge(
                 user_id,
-                source_id=node_id,
-                target_id=node.id,
+                source_id=node.id,
+                target_id=node_id,
                 relation=RelationType.EVOLVED_FROM,
             )
 
