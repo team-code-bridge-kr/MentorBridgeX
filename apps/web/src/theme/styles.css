@@ -2371,7 +2371,7 @@ tr:hover td { background:var(--surface-container-low); }
 /* 흐림을 지원하지 않는 브라우저에서는 그냥 흰 판. 반투명만 남으면 글자 뒤로
    배경이 비쳐 읽기 어려워진다. */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
-  .act-glass { background:var(--bg1); border-color:var(--brd); }
+  .act-glass, .gzoom-b, .gzoom-pct, .gcount { background:var(--bg1); border-color:var(--brd); }
 }
 
 /* 제목 + 검색을 한 줄에. 설명문은 두지 않는다. */
@@ -3203,6 +3203,8 @@ tr:hover td { background:var(--surface-container-low); }
    검색창을 오른쪽 끝 240px 짜리 작은 칸에서 한가운데 알약으로 옮겼다. 같은
    일을 하는 칸이 화면마다 다르게 생기면 같은 앱으로 안 읽힌다 — 탐구 피드와
    같은 것을 쓴다. */
+/* 만드는 일 셋을 한 덩어리로. 사이를 좁게 붙여 "한 묶음" 으로 읽히게 한다. */
+.gtools { display:flex; align-items:center; gap:6px; flex:0 0 auto; }
 .toolbar-graph .gsearch { flex:1 1 auto; min-width:200px; max-width:520px; margin-bottom:0; }
 .toolbar-graph .gsearch .feed-search-input { font-size:13.5px; height:26px; }
 
@@ -3220,22 +3222,29 @@ tr:hover td { background:var(--surface-container-low); }
   position:absolute; bottom:16px; left:16px;
   display:flex; flex-direction:column; align-items:center; gap:7px;
 }
+/* 캔버스 위에 얹히는 것들은 목록 화면의 유리(.act-glass)와 같은 처방을 쓴다.
+   예전에는 흰색 88% 라 사실상 불투명한 흰 판이었다 — 뒤가 비치지 않으니
+   "얹혀 있다" 가 아니라 "뚫려 있다" 로 보였다. 더 비추고, 더 흐리고,
+   윗면에 빛을 한 줄 걸어 두께를 준다. */
 .gzoom-b {
   width:38px; height:38px; padding:0; border-radius:9999px; cursor:pointer;
   display:grid; place-items:center; font-family:inherit;
-  background:rgba(255,255,255,.88); border:1px solid rgba(255,255,255,.9);
-  box-shadow:0 4px 14px rgba(15,23,42,.09);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 8px 22px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(20px) saturate(165%); -webkit-backdrop-filter:blur(20px) saturate(165%);
   font-size:18px; font-weight:600; color:var(--ts);
   transition:background .14s, color .14s, transform .14s;
 }
 .gzoom-b.is-fit { font-size:15px; }
 .gzoom-b:hover { background:var(--primary); color:#fff; transform:translateY(-1px); }
+/* 배율은 단추 셋과 같은 폭으로 세운다 — 혼자 넓으면 기둥이 어긋나 보인다.
+   100% 도 들어가야 하므로 최소 폭만 주고 글자에 맞춰 늘어나게 둔다. */
 .gzoom-pct {
-  padding:4px 10px; border-radius:9999px;
-  background:rgba(255,255,255,.88); border:1px solid rgba(255,255,255,.9);
-  box-shadow:0 4px 14px rgba(15,23,42,.09);
-  font-size:11px; font-weight:700; color:var(--tt); font-variant-numeric:tabular-nums;
+  min-width:38px; padding:4px 8px; border-radius:9999px; text-align:center;
+  background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 8px 22px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(20px) saturate(165%); -webkit-backdrop-filter:blur(20px) saturate(165%);
+  font-size:11px; font-weight:700; color:var(--ts); font-variant-numeric:tabular-nums;
 }
 
 /* ── 그래프 개수 알약 ──
@@ -3246,9 +3255,9 @@ tr:hover td { background:var(--surface-container-low); }
   position:absolute; top:16px; right:16px;
   display:inline-flex; align-items:center; gap:6px;
   padding:7px 14px; border-radius:9999px;
-  background:rgba(255,255,255,.86); border:1px solid rgba(255,255,255,.9);
-  box-shadow:0 6px 18px rgba(15,23,42,.08);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 8px 22px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(20px) saturate(165%); -webkit-backdrop-filter:blur(20px) saturate(165%);
   pointer-events:none;
 }
 .gcount-n { font-size:13.5px; font-weight:800; color:var(--tp); font-variant-numeric:tabular-nums; }

@@ -114,12 +114,15 @@ describe("첫 화면 — 뿌리 층", () => {
     expect(all(".gcrumb-item").length).toBe(0);
   });
 
-  it("툴바는 넷이다 — 으뜸 단추는 하나뿐", () => {
+  it("도구띠 — 만드는 일 셋이 나란히, 으뜸 단추는 하나뿐", () => {
+    // 「시드로 생성」·「층 다시 세우기」는 「더보기」 팝오버 안에 숨어 있었다.
+    // 셋 다 그래프를 늘리는 일이라 한 자리에 세운다.
     expect(host.querySelector(".toolbar-graph")).toBeTruthy();
-    expect(btn("노드 추가")).toBeTruthy();
+    expect(all(".gtools .btn").map((b) => b.textContent.trim()))
+      .toEqual(["노드 추가", "시드로 생성", "층 다시 세우기"]);
     expect(host.querySelector(".toolbar-graph .gsearch")).toBeTruthy();
     expect(btn("확장하기")).toBeTruthy();
-    expect(btn("더보기")).toBeTruthy();
+    expect(btn("더보기"), "더보기는 없앴다").toBeUndefined();
     expect(all(".btn-primary").length).toBe(1);
   });
 

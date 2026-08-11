@@ -738,7 +738,9 @@ class DocumentService:
             user_id,
             node_type=NodeType.DOCUMENT,
             label=_document_label(owner_name),
-            description=f"sections={len(parsed.sections)}",
+            # 화면(노드 판)이 이 설명을 그대로 보여준다. 예전에는 "sections=69"
+            # 라고 적혀 있었다 — 우리 코드의 말이지 학생이 읽을 말이 아니다.
+            description=f"생기부에서 읽어 온 구획 {len(parsed.sections)}개",
             external_refs={"document_section_ids": section_ids},
         )
 

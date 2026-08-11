@@ -18,7 +18,6 @@ import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
 import { GraphCrumb } from "../../components/graph/GraphCrumb.jsx";
 import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
-import { Popover } from "../../components/ui/Popover.jsx";
 
 // 밝은 판 위의 연결선 색.
 //
@@ -264,9 +263,6 @@ export function S06({ onNav }) {
    * 늘 맞지는 않는데 그 자리에서 고칠 수 없으면 그래프는 남의 것이 된다.
    */
   const [panel, setPanel] = useState(null);
-  // 툴바의 「더보기」 — 자주 안 쓰는 것들을 여기로 넣었다.
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [commentBusy, setCommentBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -966,11 +962,22 @@ export function S06({ onNav }) {
             </button>
           </div>
       )}
-      {/* 툴바 — 늘 쓰는 것만 밖에 두고 나머지는 「더보기」 안으로.
-          예전에는 열 개가 한 줄에 늘어서서 무엇이 중요한지 알 수 없었고,
-          좁은 화면에서는 그대로 넘쳐 흘렀다. 으뜸 단추(primary)는 하나뿐이다. */}
+      {/* 툴바. 만드는 일 셋을 왼쪽에 나란히 세운다 — 예전에는 뒤의 둘이
+          「더보기」 팝오버 안에 숨어 있었는데, 셋 다 "그래프를 늘리는 일"
+          이라 한 자리에 있는 편이 찾기 쉽다. 으뜸 단추(primary)는 하나뿐이다. */}
       <div className="toolbar toolbar-graph">
-        <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
+        <div className="gtools">
+          <Btn v="primary" s="sm" onClick={()=>openPanel("create")}><NavIcon name="plusSeed" size={15} color="#fff"/> 노드 추가</Btn>
+          <Btn v="secondary" s="sm" onClick={()=>onNav("S09")} title="키워드를 넣어 그래프를 시작합니다.">
+            <NavIcon name="plusSeed" size={15} color={TDS.primary}/> 시드로 생성
+          </Btn>
+          {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
+              이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다. */}
+          <Btn v="secondary" s="sm" disabled={restruct.busy} onClick={rebuildLayers}
+               title="생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.">
+            <NavIcon name="graph" size={15} color={TDS.textSecondary}/> {restruct.busy ? "세우는 중…" : "층 다시 세우기"}
+          </Btn>
+        </div>
 
         {/* 검색창을 탐구 피드와 같은 알약으로, 도구띠 한가운데에 둔다.
             예전에는 오른쪽 끝에 240px 짜리 작은 칸으로 붙어 있었다 — 같은 일을
@@ -999,41 +1006,6 @@ export function S06({ onNav }) {
         <Btn v="secondary" s="sm" onClick={()=>openPanel("explore")}>
           <NavIcon name="sparkle" size={15} color={TDS.textSecondary}/> 확장하기
         </Btn>
-        {/* ref 는 감싸는 div 가 든다 — `Btn` 은 ref 를 넘겨주지 않는 함수 컴포넌트다.
-            Popover 는 앵커 **안쪽** 클릭만 걸러 내면 되므로 감싼 것으로 충분하다. */}
-        <div style={{position:"relative"}} ref={moreRef}>
-          <Btn v="secondary" s="sm" aria-expanded={moreOpen} onClick={()=>setMoreOpen(o=>!o)}>
-            더보기
-          </Btn>
-          <Popover open={moreOpen} onClose={()=>setMoreOpen(false)} anchorRef={moreRef} label="그래프 도구" align="right">
-            <div className="pop-list">
-              <button type="button" className="pop-item gpop-item" onClick={()=>{ setMoreOpen(false); onNav("S09"); }}>
-                <span className="gpop-ic"><NavIcon name="plusSeed" size={17} color={TDS.primary}/></span>
-                <span className="gpop-body">
-                  <span className="gpop-t">시드로 생성</span>
-                  <span className="gpop-hint">키워드를 넣어 그래프를 시작합니다.</span>
-                </span>
-              </button>
-              {/* 생기부 구획으로 층을 다시 세운다. 예전에 만든 그래프는 별 모양이라
-                  이걸 한 번 눌러야 학년·과목이 생긴다. 여러 번 눌러도 안전하다.
-                  설명을 hint 로 올렸다 — title 은 마우스를 올려야만 보여서, 정작
-                  이 단추를 눌러도 되는지 망설이는 사람에게 닿지 않았다. */}
-              <button type="button" className="pop-item gpop-item" disabled={restruct.busy} onClick={rebuildLayers}>
-                <span className="gpop-ic"><NavIcon name="graph" size={17} color={TDS.primary}/></span>
-                <span className="gpop-body">
-                  <span className="gpop-t">{restruct.busy ? "세우는 중…" : "층 다시 세우기"}</span>
-                  <span className="gpop-hint">
-                    생기부 구획으로 학년·과목 층을 다시 세웁니다. 직접 만든 노드와 손으로 이은 선은 그대로 둡니다.
-                  </span>
-                </span>
-              </button>
-              {/* "내보내기" 를 뺐다. 누르면 가던 화면(S29)은 값을 코드에 박아 둔
-                  시안이었고 — "전체 데이터 내보내기 2.4 MB · 완료" 가 아무것도
-                  하지 않고 떠 있었다 — 서버에 내보내기 자체가 없다. 없는 기능을
-                  차림표에 세워 두면, 누른 사람은 자기가 뭘 잘못한 줄 안다. */}
-            </div>
-          </Popover>
-        </div>
       </div>
 
       {/* 경로표시. 판이 서 있으면 판 머리로 옮겨 간다 — 판을 읽는 동안 눈은
