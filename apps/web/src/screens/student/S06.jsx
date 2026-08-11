@@ -1023,12 +1023,6 @@ export function S06({ onNav }) {
         </div>
       </div>
 
-      {/* 경로표시. 판이 서 있으면 판 머리로 옮겨 간다 — 판을 읽는 동안 눈은
-          오른쪽에 있는데, 어디 있는지와 나가는 길은 왼쪽 끝에 있었다. 두 곳에
-          같이 두지는 않는다(§같은 것을 두 번 말하지 않는다).
-          판이 없을 때만 제 줄에 선다. 도구띠에 함께 두면 층이 깊어질수록
-          길어져서 검색창을 밀어낸다. */}
-      {!panelOpen && <GraphCrumb trail={trail} onGo={goToLayer} />}
       {/* 캔버스 + 패널. 좁은 화면에서 세로로 나뉘어야 하므로 인라인이 아니라
           클래스로 둔다 — 인라인 스타일에는 @media 를 걸 수 없다. */}
       <div className="gbody">
@@ -1163,11 +1157,16 @@ export function S06({ onNav }) {
                 평소에는 접어 둔다. 한 번 읽으면 그만인 표인데 늘 펴 두면
                 캔버스 왼쪽 위 한 뼘을 계속 차지하고, 노드가 그 아래로 들어가면
                 가려진다. 궁금할 때만 편다. */}
+            {/* 좌상단 기둥 — 범례와 경로표시가 세로로 선다.
+                경로표시는 판 머리에 있었는데, 판을 닫으면 사라져서 "지금 어느
+                층인지" 를 볼 길이 판을 여는 것뿐이었다. 캔버스 위로 올려 두면
+                판이 있든 없든 늘 보인다. */}
+            <div className="gtopleft" style={{zIndex:Z.panel}}>
             {!!nodes.length && (
               <div
                 data-graph-panel
                 className={`glegend${legendOpen ? " is-open" : ""}`}
-                style={{...OVERLAY_SURFACE, zIndex:Z.panel}}
+                style={{...OVERLAY_SURFACE}}
               >
                 <button
                   type="button"
@@ -1213,6 +1212,10 @@ export function S06({ onNav }) {
               </div>
             )}
 
+            {/* 경로표시 — 범례 바로 아래. 뿌리 층에서는 세우지 않는다
+                ("내 생기부" 한 칸짜리 경로는 길이 아니라 이름이다). */}
+            <GraphCrumb trail={trail} onGo={goToLayer} className="gcrumb-canvas" />
+            </div>{/* 좌상단 기둥 끝 */}
 
             {/* 줌 컨트롤 — 휠/드래그와 같은 상태를 쓴다 */}
             {/* 오른쪽 아래는 녹음 도크가 쓰는 자리다. 겹치지 않게 왼쪽에 둔다 —
@@ -1258,7 +1261,7 @@ export function S06({ onNav }) {
             비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
 
         {!sel && panel === "create" && (
-          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel} trail={trail} onCrumb={goToLayer}>
+          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel}>
             <NodeEditor
               mode="create"
               nodes={nodes}
@@ -1271,7 +1274,7 @@ export function S06({ onNav }) {
         )}
 
         {!sel && panel === "explore" && (
-          <GraphPanel width={panelW} title="확장하기" onClose={closePanel} trail={trail} onCrumb={goToLayer}>
+          <GraphPanel width={panelW} title="확장하기" onClose={closePanel}>
             <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
@@ -1299,10 +1302,6 @@ export function S06({ onNav }) {
             width={panelW}
             title="노드"
             onClose={closePanel}
-            /* 어디 있는지와 나가는 길을 겸한다. 바로 앞 칸이 「위로」다.
-               뿌리 층에서는 아무것도 서지 않는다 — 없는 길을 그리지 않는다. */
-            trail={trail}
-            onCrumb={goToLayer}
           >
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>

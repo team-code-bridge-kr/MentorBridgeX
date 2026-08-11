@@ -3326,9 +3326,16 @@ tr:hover td { background:var(--surface-container-low); }
    캔버스 왼쪽 위 한 뼘을 계속 차지하고, 노드가 그 아래로 들어가면 가려진다.
    판 자체는 손을 막지 않는다(`pointer-events:none`) — 막으면 그 아래 노드를
    누를 수 없어 좌상단 구획이 통째로 죽는다. 여는 단추만 손을 받는다. */
-.glegend {
+/* 캔버스 좌상단 기둥 — 범례와 경로표시가 세로로 선다. 둘 다 "지금 무엇을
+   보고 있나" 를 말해 주는 것이라 한자리에 모은다. */
+.gtopleft {
   position:absolute; top:16px; left:16px;
-  max-height:calc(100% - 32px); overflow-y:auto;
+  max-height:calc(100% - 32px);
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  pointer-events:none;
+}
+.glegend {
+  max-height:100%; overflow-y:auto;
   pointer-events:none;
   transition:box-shadow .16s;
 }
@@ -3457,10 +3464,22 @@ tr:hover td { background:var(--surface-container-low); }
 /* 경로표시가 여러 줄로 접힐 수 있으므로 ✕ 는 위에 붙여 둔다 — 가운데에 두면
    길이 깊어질수록 닫기가 아래로 흘러내린다. */
 .gpanel-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
-/* 판 머리에 선 경로표시 — 여기가 어디이고 어떻게 나가는지를 겸한다.
-   제 줄에 설 때의 바깥 여백은 버린다(판이 이미 여백을 갖고 있다). */
-.gcrumb-in-panel { flex:1 1 auto; min-width:0; padding:0; margin-top:1px; row-gap:1px; }
-.gcrumb-in-panel .gcrumb-item { max-width:150px; font-size:12.5px; padding:3px 7px; }
+/* 캔버스 위에 뜬 경로표시. 범례와 같은 재질·같은 곡률이라 한 기둥으로 읽힌다.
+   손이 닿는 것은 칸(버튼)뿐이다 — 판 전체가 클릭을 먹으면 그 아래 노드를
+   누를 수 없다(범례에서 같은 문제를 겪었다). */
+.gcrumb-canvas {
+  pointer-events:none;
+  max-width:min(46vw, 520px); padding:5px 8px; border-radius:16px;
+  background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 8px 22px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.7);
+  backdrop-filter:blur(20px) saturate(165%); -webkit-backdrop-filter:blur(20px) saturate(165%);
+  row-gap:1px;
+}
+.gcrumb-canvas .gcrumb-item { pointer-events:auto; max-width:170px; font-size:12px; padding:3px 7px; }
+.gcrumb-canvas .gcrumb-item.is-here { color:var(--primary); }
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .gcrumb-canvas { background:var(--bg1); border-color:var(--brd); }
+}
 .gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }
 /* 제목을 `sr-only`(position:absolute) 로 감춘 뒤로, 뿌리 층에서는 흐름에 남는
    것이 ✕ 하나뿐이다 — 그냥 두면 왼쪽에 붙는다. 닫기는 늘 오른쪽 끝이다. */
