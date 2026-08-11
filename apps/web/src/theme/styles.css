@@ -3747,7 +3747,12 @@ tr:hover td { background:var(--surface-container-low); }
 /* 계정 삭제 — 되돌릴 수 없는 화면이라 급히 지나가지 못하게 생겼어야 한다 */
 /* 생기부 편집기의 머리 — 제목 아래 저장 시각이 한 줄 더 붙는다 */
 .doc-head-name { flex:1; min-width:0; }
-.doc-head-name .form-title { font-size:18px; }
+/* 과목 알약은 제목에 붙어야 한다. `.form-title` 은 `flex:1` 이라(뒤따르는
+   단추를 오른쪽 끝으로 밀려고) 알약을 화면 반대편까지 밀어냈다 — 제목은
+   왼쪽에, 「과학탐구실험」은 「이 영역 지우기」 옆에 떨어져 있었다.
+   이 안에서는 제목이 제 글자만큼만 차지한다. */
+.doc-head-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.doc-head-name .form-title { font-size:18px; flex:0 1 auto; }
 
 .del-warn-t { font-weight:700; margin-bottom:8px; }
 .del-warn-list { margin:0; padding-left:18px; font-size:13px; line-height:1.9; }

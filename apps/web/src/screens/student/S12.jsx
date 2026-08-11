@@ -116,7 +116,7 @@ export function S12({ onNav }) {
         <div className="form-head">
           <Back label="생기부" onClick={() => onNav("S11")} />
           <div className="doc-head-name">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="doc-head-row">
               <h1 className="form-title">{meta.t}</h1>
               {/* 과목이 있으면 그게 이 문서의 이름이다 — 영역명보다 먼저 눈에 띄어야 한다. */}
               {subject && <span className="subj-pill">{subject}</span>}
