@@ -2134,19 +2134,17 @@ tr:hover td { background:var(--surface-container-low); }
 /* 손가락으로 쓰는 화면에는 :hover 가 없다 — 누르는 동안만이라도 답한다. */
 .ob-role:active:not(:disabled) { border-color:var(--primary); box-shadow:none; }
 .ob-role:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
-/* 고른 카드 — 바탕을 칠하지도, 표를 달지도 않는다. 파란 테두리와 파란 이름
-   뿐이다. 커서를 올린 카드와 테두리 색은 같지만 그쪽은 그림자가 떠 있고
-   이름이 검정이라, 나란히 놓고 보면 갈린다. */
-.ob-role.is-on { border-color:var(--blue-500); }
-.ob-role.is-on .ob-role-ic,
-.ob-role.is-on .ob-role-label { color:var(--primary); }
+/* 고른 카드에는 아무 표시도 하지 않는다.
+   이 화면은 고르는 순간 다음으로 넘어간다 — 머물러서 "내가 뭘 골랐더라" 를
+   확인할 일이 없다. 그런데 파랗게 남겨 두니 커서를 올린 카드와 헷갈려서,
+   지금 손이 어디 있는지를 되레 가렸다. 파란 테두리는 **커서가 있는 곳** 하나만
+   가리킨다. 고른 값은 aria-pressed 로 남으므로 화면 읽기에는 그대로 전해진다. */
 .ob-role:disabled { opacity:.6; cursor:default; }
 /* 아이콘은 판 없이 그대로 놓는다. 네모난 판을 깔아 보니 카드 안에 작은 카드가
    또 있는 꼴이라, 눌러야 할 것이 판인지 카드인지 헷갈렸다. 고른 카드에서는
    아이콘만 파랑으로 든다. */
 .ob-role-head { display:flex; align-items:center; gap:10px; align-self:stretch; }
 .ob-role-ic { display:inline-flex; flex:none; color:var(--tt); transition:color .14s; }
-.ob-role.is-on .ob-role-ic { color:var(--primary); }
 /* 카드가 큰데 글씨가 작으면 안이 빈 것처럼 보인다 — 카드 크기에 맞춰 키운다 */
 .ob-role-label { font-size:20px; font-weight:700; color:var(--tp); letter-spacing:-.01em; }
 .ob-role-desc {
