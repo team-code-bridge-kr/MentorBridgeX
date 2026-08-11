@@ -1313,8 +1313,11 @@ export function S06({ onNav }) {
             width={panelW}
             title="노드"
             onClose={closePanel}
+            tight
           >
-            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+            {/* 오른쪽 34px 은 못박아 둔 ✕ 자리다. 이름이 길면 그 앞에서 접힌다 —
+                비켜 주는 대신 위를 비워 두면 아무것도 없는 띠가 한 줄 생긴다. */}
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16,paddingRight:34}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>
                 <NavIcon name={iconForNode(sel)} size={26} color="#fff"/>
               </div>
@@ -1340,7 +1343,7 @@ export function S06({ onNav }) {
                 <Btn v="secondary" s="sm" onClick={()=>setEditing(true)} style={{flex:1}}>
                   <NavIcon name="pen" size={14} color={TDS.textSecondary}/> 수정
                 </Btn>
-                <Btn v="ghost" s="sm" onClick={()=>setConfirmDelete(true)} style={{color:TDS.danger}}>
+                <Btn v="outline-danger" s="sm" onClick={()=>setConfirmDelete(true)}>
                   <NavIcon name="trash" size={14} color={TDS.danger}/> 삭제
                 </Btn>
               </div>

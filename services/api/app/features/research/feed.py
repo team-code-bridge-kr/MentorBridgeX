@@ -13,7 +13,7 @@ import base64
 import re
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import Select, and_, case, false, or_, select, tuple_
+from sqlalchemy import Select, and_, case, false, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
@@ -62,24 +62,44 @@ FEEDBACK_VALUES = {FEEDBACK_LIKE, FEEDBACK_HIDE}
 FUTURE_TOLERANCE = timedelta(days=2)
 
 
-def encode_cursor(published_at: datetime, article_id: str, pref: int = 0) -> str:
+def day_bucket(published_at: datetime) -> datetime:
+    """그 글이 실린 **날**. SQL 쪽 `_day_expr()` 과 반드시 같은 값이어야 한다.
+
+    keyset 커서가 날짜 묶음 경계를 넘어야 하는데, 파이썬과 Postgres 가 하루를
+    다르게 자르면 그 경계에서 글이 겹치거나 통째로 사라진다. 양쪽 다 **UTC 로
+    옮긴 뒤** 자정으로 내린다(Postgres 세션 시간대에 기대지 않는다).
+    """
+    return published_at.astimezone(UTC).replace(
+        tzinfo=None, hour=0, minute=0, second=0, microsecond=0
+    )
+
+
+def encode_cursor(
+    published_at: datetime, article_id: str, pref: int = 0, news: int = 0
+) -> str:
     """다음 페이지의 시작점.
 
     취향순에서는 정렬 키가 (선호 여부, 발행일, id) 세 값이라 커서도 셋을 담는다.
     앞의 두 자리만 담으면 선호 묶음과 나머지 묶음의 경계에서 페이지가 겹치거나
     통째로 건너뛴다.
+
+    「전체」 최신순에서는 정렬 키가 (날짜, 기사 먼저, 발행 시각, id) 넷이다.
+    날짜는 발행 시각에서 나오므로 커서에 더 담을 것은 **기사인지 여부** 하나다.
     """
-    raw = f"{published_at.astimezone(UTC).isoformat()}|{article_id}|{pref}"
+    raw = f"{published_at.astimezone(UTC).isoformat()}|{article_id}|{pref}|{news}"
     return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
 
 
-def decode_cursor(cursor: str) -> tuple[datetime, str, int] | None:
+def decode_cursor(cursor: str) -> tuple[datetime, str, int, int] | None:
     try:
         raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
         parts = raw.split("|")
         iso, article_id = parts[0], parts[1]
+        # 옛 커서(자리가 셋 이하)도 그대로 받는다 — 화면을 열어 둔 채 배포되면
+        # 다음 페이지 요청이 낡은 커서를 들고 온다.
         pref = int(parts[2]) if len(parts) > 2 else 0
-        return datetime.fromisoformat(iso), article_id, pref
+        news = int(parts[3]) if len(parts) > 3 else 0
+        return datetime.fromisoformat(iso), article_id, pref, news
     except (ValueError, IndexError, UnicodeDecodeError):
         return None  # 조작되었거나 낡은 커서 — 첫 페이지로 취급한다
 
@@ -139,12 +159,22 @@ def matched_keywords(search_text: str, keywords: list[str]) -> list[str]:
     return matched
 
 
+def _day_expr():
+    """SQL 쪽 날짜 묶음. `day_bucket()` 과 같은 값을 내야 한다 — 주석 참고."""
+    return func.date_trunc("day", func.timezone("UTC", ArticleRow.published_at))
+
+
+def _news_expr():
+    """기사면 1, 논문이면 0. 큰 값이 먼저 서므로 기사가 앞이다."""
+    return case((ArticleRow.kind == KIND_NEWS, 1), else_=0)
+
+
 def build_feed_query(
     *,
     user_id: str,
     keywords: list[str],
     tab: str,
-    cursor: tuple[datetime, str, int] | None,
+    cursor: tuple[datetime, str, int, int] | None,
     limit: int,
     query: str = "",
     days: int = 0,
@@ -222,11 +252,30 @@ def build_feed_query(
     if sort == SORT_TASTE and preferred:
         pref_expr = case((keyword_filter(preferred), 1), else_=0)
 
+    # 「전체」 최신순은 **같은 날 안에서 기사를 논문보다 앞에** 세운다.
+    #
+    # arXiv 는 하루에도 수백 편이 오늘 날짜로 들어온다. 순수 최신순이면 그
+    # 무더기가 앞을 다 덮어서, 「전체」를 열면 화면이 논문으로만 찬다(실제로
+    # 첫 화면 전부가 arXiv 였다). 그렇다고 기사를 통째로 앞세우면 논문은
+    # 수만 건 뒤로 밀려 「전체」에서 영영 안 보인다 — 날짜로 먼저 묶고 그
+    # 안에서만 기사를 올린다. 어제 기사보다 오늘 논문이 먼저다.
+    #
+    # 뉴스·논문 탭은 한 종류뿐이라 뜻이 없고, 오래된순·취향순은 사용자가
+    # 정렬을 골라 둔 것이라 건드리지 않는다.
+    news_first = tab == TAB_ALL and sort == SORT_LATEST
+    day_expr = _day_expr() if news_first else None
+    news_expr = _news_expr() if news_first else None
+
     # keyset 커서는 정렬 방향과 짝이 맞아야 한다. 방향이 뒤집히면 비교도 뒤집는다.
     ascending = sort == SORT_OLDEST
     if cursor is not None:
-        published_at, article_id, pref = cursor
-        if pref_expr is not None:
+        published_at, article_id, pref, news = cursor
+        if day_expr is not None:
+            quad = tuple_(day_expr, news_expr, ArticleRow.published_at, ArticleRow.id)
+            stmt = stmt.where(
+                quad < tuple_(day_bucket(published_at), news, published_at, article_id)
+            )
+        elif pref_expr is not None:
             triple = tuple_(pref_expr, ArticleRow.published_at, ArticleRow.id)
             stmt = stmt.where(triple < tuple_(pref, published_at, article_id))
         else:
@@ -234,7 +283,14 @@ def build_feed_query(
             target = tuple_(published_at, article_id)
             stmt = stmt.where(pair > target if ascending else pair < target)
 
-    if pref_expr is not None:
+    if day_expr is not None:
+        order = (
+            day_expr.desc(),
+            news_expr.desc(),
+            ArticleRow.published_at.desc(),
+            ArticleRow.id.desc(),
+        )
+    elif pref_expr is not None:
         order = (pref_expr.desc(), ArticleRow.published_at.desc(), ArticleRow.id.desc())
     elif ascending:
         order = (ArticleRow.published_at.asc(), ArticleRow.id.asc())

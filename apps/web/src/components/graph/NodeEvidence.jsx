@@ -73,13 +73,9 @@ export function NodeEvidence({ nodeId, label }) {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: TDS.textTertiary, margin: 0 }}>출처 문장</p>
-        {state.total > 0 && (
-          <span style={{ fontSize: 11, color: TDS.textTertiary }}>생기부 {state.total}곳</span>
-        )}
-      </div>
-
+      {/* "출처 문장" 과 "생기부 N곳" 을 걷었다. 바로 위에 「출처」 머리글이
+          서 있어 같은 말을 두 번 했고, 개수는 인용문 아래 「+N건 더 보기」가
+          이미 말한다 — 회색 글씨 두 줄이 정작 읽어야 할 인용문을 밀어냈다. */}
       {state.loading && (
         <p style={{ fontSize: 12, color: TDS.textDisabled, margin: 0 }}>생기부에서 찾는 중…</p>
       )}

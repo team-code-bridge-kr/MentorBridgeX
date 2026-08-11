@@ -47,6 +47,7 @@ from .feed import (
 )
 from .ingest.runner import run_ingest
 from .models import (
+    KIND_NEWS,
     KW_MANUAL,
     KW_PRESET,
     ArticleFeedbackRow,
@@ -364,7 +365,11 @@ async def get_feed(
         last_article = rows[-1][0]
         # 취향순이면 커서에 "선호 묶음인지"까지 담아야 다음 페이지가 어긋나지 않는다
         last_pref = 1 if preferred and matched_keywords(last_article.search_text, preferred) else 0
-        next_cursor = encode_cursor(last_article.published_at, last_article.id, last_pref)
+        # 「전체」 최신순은 같은 날 안에서 기사가 먼저다 — 커서도 그 자리를 담는다
+        last_news = 1 if last_article.kind == KIND_NEWS else 0
+        next_cursor = encode_cursor(
+            last_article.published_at, last_article.id, last_pref, last_news
+        )
     return FeedOut(items=items, next_cursor=next_cursor)
 
 

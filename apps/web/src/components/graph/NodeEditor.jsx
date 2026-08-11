@@ -321,14 +321,13 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: TDS.textTertiary, margin: 0 }}>
-          연결 {linked.length}개
-        </p>
-        {!adding && candidates.length > 0 && (
+      {/* "연결 N개" 를 걷었다. 바로 위 「연결」 머리글이 같은 말이고, 개수는
+          아래 목록을 세면 나온다. 「연결 추가」는 그대로 오른쪽 끝에 둔다. */}
+      {!adding && candidates.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
           <Btn v="secondary" s="sm" onClick={() => setAdding(true)} disabled={busy}>연결 추가</Btn>
-        )}
-      </div>
+        </div>
+      )}
 
       {adding && (
         <NodePicker
