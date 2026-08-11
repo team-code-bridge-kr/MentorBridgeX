@@ -8,6 +8,22 @@
 import { useMemo, useState } from "react";
 import { MAX_MAJORS } from "../../lib/onboardingData.js";
 
+/**
+ * 목록에 없는 학과를 직접 적었을 때 붙이는 표시.
+ *
+ * 저장 칸(mentor_profiles.track_id)은 원래 목록의 **id** 를 담는 자리다.
+ * 적어 넣은 이름을 그대로 넣으면 나중에 둘을 구분할 수 없으므로 앞에 표를
+ * 단다. 목록(마스터 데이터)에는 손대지 않는다 — 온보딩에서 아무나 학과를
+ * 만들 수 있게 되면 목록이 금방 오타로 뒤덮인다.
+ */
+const CUSTOM = "custom:";
+/** 저장 칸이 40자라 표(7자)를 뺀 만큼만 받는다. */
+const CUSTOM_MAX = 33;
+
+export function customMajorName(trackId) {
+  return trackId?.startsWith(CUSTOM) ? trackId.slice(CUSTOM.length) : "";
+}
+
 /* ── M1 전공 / 직무 ──────────────────────────────────────── */
 
 export function MentorProfileStep({
@@ -24,6 +40,8 @@ export function MentorProfileStep({
     if (!needle) return tracks.slice(0, 8);
     return tracks.filter((t) => t.name.toLowerCase().includes(needle)).slice(0, 8);
   }, [tracks, q]);
+  const custom = customMajorName(trackId);
+  const typed = q.trim().slice(0, CUSTOM_MAX);
 
   return (
     <>
@@ -57,8 +75,37 @@ export function MentorProfileStep({
               {t.name}
             </button>
           ))}
-          {found.length === 0 && <p className="ob-hint">그런 이름의 학과가 목록에 없어요.</p>}
+          {/* 직접 적은 학과도 고른 것으로 함께 세운다 — 안 그러면 적어 넣고
+              나서 아무것도 안 골라진 것처럼 보인다. */}
+          {custom && (
+            <button
+              type="button"
+              className="ob-major is-on"
+              onClick={() => onChange({ mentor_track_id: "" })}
+              disabled={busy}
+              aria-pressed="true"
+              title="지우기"
+            >
+              <span className="ob-check" aria-hidden="true">✓</span>
+              {custom}
+            </button>
+          )}
         </div>
+        {found.length === 0 && !custom && (
+          <div className="ob-nofind">
+            <p className="ob-hint">앗! 학과가 검색되지 않아요. 직접 추가해볼까요?</p>
+            {typed && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => onChange({ mentor_track_id: CUSTOM + typed })}
+                disabled={busy}
+              >
+                ‘{typed}’ 추가하기
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="inp-group">
