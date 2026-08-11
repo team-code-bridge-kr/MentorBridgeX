@@ -6,9 +6,11 @@
  * 누르면 둘이 나란히 서서 720px 를 먹고 캔버스가 사라졌다. 이제 자리는 하나이고,
  * 무엇을 세울지는 S06 의 `panel` 한 값이 정한다.
  *
- * 생김새는 생기부 리더(`components/doc/PdfReader.jsx`)의 `.rd-panel` 을 그대로
- * 따른다 — 문서 **옆에** 붙고 절대 위에 띄우지 않는다. 좁은 화면에서는 아래로
- * 내려간다(`.gpanel` @media 900px).
+ * **아래에서 올라오는 시트다.** 오른쪽에 세로로 서 있을 때는 캔버스 폭을
+ * 330~430px 씩 먹어서 그래프가 눌렸고, 출처 문장처럼 긴 글은 좁은 칸에서
+ * 열 줄씩 흘렀다. 아래에 가로로 누우면 그래프는 폭을 그대로 쓰고, 글은
+ * 넓게 읽힌다. 구획(출처·연결·다음 탐구·코멘트)은 폭이 남는 만큼 옆으로
+ * 늘어선다(`.gpanel-body` 의 격자).
  */
 import { NavIcon } from "../NavIcon.jsx";
 import TDS from "../../theme/tokens.js";
@@ -18,10 +20,10 @@ import TDS from "../../theme/tokens.js";
  * 지금 어느 층인지 볼 수 있다 — 한때 이 판 머리에 두었는데 판을 닫는 순간
  * 길이 사라졌다.
  */
-export function GraphPanel({ title, onClose, width, children }) {
+export function GraphPanel({ title, onClose, height, children }) {
   return (
-    // `width` 가 없으면 CSS 의 기본 폭(clamp)을 쓴다. 손으로 끈 뒤에만 px 로 굳는다.
-    <aside className="gpanel" style={width ? { width } : undefined}>
+    // `height` 가 없으면 CSS 의 기본 높이(clamp)를 쓴다. 손으로 끈 뒤에만 px 로 굳는다.
+    <aside className="gpanel" style={height ? { height } : undefined}>
       <div className="gpanel-head">
         {/* 제목은 화면 읽기용으로만 남긴다. 판 안에 노드 이름이 크게 서 있어서
             그 위의 "노드" 는 아무것도 더 말해 주지 않았다. */}
