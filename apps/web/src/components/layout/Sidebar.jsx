@@ -27,7 +27,7 @@ const PIN_KEY = "mbx_sidebar_pinned";
 // 커서가 스치기만 해도 열리면 성가시다 — 잠깐 머물러야 연다
 const OPEN_DELAY_MS = 140;
 
-export function Sidebar({ nav, active, onNav, role, dark }) {
+export function Sidebar({ nav, active, current, onNav, role, dark }) {
   const { state, actions } = useStore();
   const user = state.session?.user;
   const displayName = user?.name || (dark ? "시스템 관리자" : "게스트");
@@ -252,35 +252,40 @@ export function Sidebar({ nav, active, onNav, role, dark }) {
           </div>
         </div>
 
+        {/* 하단 유틸. 다섯이 한 줄에 서 있으므로 생김새가 하나여야 한다 —
+            색은 CSS 한 곳(.sb-util-btn)에서 정하고 아이콘은 그것을 물려받는다
+            (currentColor). 예전에는 넷은 NavIcon, 로그아웃만 손으로 그린 svg
+            였는데 색이 한 칸 흐려서 저 혼자 꺼져 있는 것처럼 보였다. */}
         <div className="sb-util sb-fade">
           {!dark && S_UTIL.map((u) => (
             <button
               key={u.id}
               type="button"
-              className={`sb-util-btn${active === u.id ? " active" : ""}`}
+              /* 위 목록이 이미 불을 켰으면 여기는 켜지 않는다 — 교사 메뉴에는
+                 알림·설정이 위에도 있어서 둘 다 켜지면 어느 쪽이 지금인지
+                 알 수 없다. */
+              className={`sb-util-btn${!active && current === u.id ? " active" : ""}`}
+              aria-current={!active && current === u.id ? "page" : undefined}
               onClick={() => { close(); onNav(u.id); }}
               aria-label={u.label}
               title={u.label}
             >
-              <NavIcon name={u.icon} size={16} color={dark ? "#7c8aa3" : "#6b7a90"} />
+              <NavIcon name={u.icon} size={16} color="currentColor" />
               {u.badge === "notifications" && unread > 0 && (
                 <span className="sb-util-dot" aria-label={`읽지 않은 알림 ${unread}개`} />
               )}
             </button>
           ))}
+          {/* 나가기는 오른쪽 끝에 떨어뜨린다. 옮겨 다니는 단추들 사이에 끼어
+              있으면 화면 하나 여는 줄 알고 누른다. */}
           <button
             type="button"
-            className="sb-util-btn"
+            className="sb-util-btn sb-util-out"
             aria-label="로그아웃"
             title="로그아웃"
             onClick={() => actions.signOut()}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={dark ? "#7c8aa3" : "#8b95a1"} strokeWidth="1.7"
-              strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <path d="M16 17l5-5-5-5" /><path d="M21 12H9" />
-            </svg>
+            <NavIcon name="logout" size={16} color="currentColor" />
           </button>
         </div>
       </div>

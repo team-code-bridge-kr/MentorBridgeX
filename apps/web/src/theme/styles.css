@@ -325,19 +325,29 @@ a { text-decoration:none; color:inherit; }
 .sb-rail-only { display:none; width:100%; border:none; background:transparent; }
 .sb-rail:not(.sb-open) .sb-rail-only { display:flex; }
 
-/* 하단 유틸 (알림·통계·설정·로그아웃) */
-.sb-util { display:flex; gap:2px; padding:0 14px 12px; }
+/* 하단 유틸 (검색·알림·통계·설정·로그아웃)
+   다섯이 한 줄에 서므로 생김새는 하나다. 색을 단추에 두고 아이콘이
+   currentColor 로 물려받게 해서, 켜짐·머무름이 아이콘까지 함께 간다 —
+   배경만 바뀌고 아이콘은 그대로면 "눌린 것"으로만 보이고 "여기"로는 안 읽힌다. */
+.sb-util { display:flex; align-items:center; gap:4px; padding:0 14px 12px; }
 .sb-util-btn {
-  position:relative; width:30px; height:30px; border-radius:8px; border:none;
-  background:transparent; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
-  transition:background .12s;
+  position:relative; width:32px; height:32px; border-radius:9px; border:none;
+  background:transparent; color:var(--ts); cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:background .12s, color .12s;
 }
-.sb-util-btn:hover { background:var(--bg3); }
-.sb-util-btn.active { background:var(--blue-50); }
+.sb-util-btn:hover { background:var(--bg3); color:var(--tp); }
+.sb-util-btn.active { background:var(--blue-50); color:var(--primary); }
 .sb-util-btn:focus-visible { outline:2px solid var(--blue-500); outline-offset:1px; }
+/* 나가기는 오른쪽 끝으로. 옮겨 다니는 단추들과 한 덩어리로 보이면 안 된다. */
+.sb-util-out { margin-left:auto; }
+.sb-util-out:hover { background:rgba(255,218,214,.38); color:var(--danger); }
+/* 읽지 않음 표시. 종 위에 겹쳐 앉아 있어서 종이 찌그러져 보였다 — 모서리
+   밖으로 빼고 흰 테를 둘러 아이콘 위에 얹힌 것으로 읽히게 한다. */
 .sb-util-dot {
-  position:absolute; top:5px; right:5px; width:6px; height:6px;
+  position:absolute; top:4px; right:4px; width:7px; height:7px;
   border-radius:50%; background:var(--danger);
+  box-shadow:0 0 0 2px var(--bg1);
 }
 @media (max-width:768px) {
   .ra, .sb-collapse { display:none; }
@@ -364,28 +374,9 @@ a { text-decoration:none; color:inherit; }
 .hdr-actions { display:flex; align-items:center; gap:8px; }
 .icon-btn { width:34px; height:34px; border-radius:var(--r8); background:var(--bg1); border:1px solid var(--brd); display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer; position:relative; transition:background .12s; }
 .icon-btn:hover { background:var(--bgd); }
-/* 알림 행 — 다른 화면의 카드와 같은 표면. 안 읽은 것만 파랗게 든다. */
-.notif-item {
-  position:relative; display:flex; gap:14px; align-items:flex-start;
-  padding:16px 18px; border-radius:18px; margin-bottom:10px; cursor:pointer;
-  background:var(--blue-50); border:none;
-  transition:box-shadow .16s, transform .16s, background .16s;
-}
-.notif-item:hover { box-shadow:var(--surface-2); transform:translateY(-1px); }
-.notif-item:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
-.notif-item.read { background:var(--bg1); box-shadow:var(--surface-1); }
-.notif-unread { position:absolute; left:7px; top:23px; width:7px; height:7px; border-radius:50%; background:var(--blue-500); }
-.notif-ic {
-  width:38px; height:38px; border-radius:11px; flex-shrink:0; margin-left:6px;
-  display:flex; align-items:center; justify-content:center; background:#fff;
-}
-.notif-item.read .notif-ic { background:var(--bg3); margin-left:0; }
-.notif-body { flex:1; min-width:0; }
-.notif-title { font-size:15px; font-weight:700; color:var(--tp); }
-.notif-item.read .notif-title { font-weight:500; }
-.notif-desc { font-size:13px; color:var(--ts); margin-top:3px; line-height:1.5; max-width:74ch; }
-.notif-time { font-size:12px; color:var(--tt); flex-shrink:0; white-space:nowrap; }
-
+/* 알림 행(.notif-*)은 걷었다 — 알림 화면이 활동 기록·음성 세션과 같은
+   유리 목록(.act-list)을 쓴다(S25.jsx). 아래 .notif-dot 만 헤더의 종에
+   남아 있다. */
 .notif-dot { position:absolute; top:7px; right:7px; width:9px; height:9px; background:var(--danger); border-radius:50%; border:2px solid var(--bg1); }
 
 /* ── Card ──
@@ -2248,6 +2239,14 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .ra-ic.is-todo { background:var(--warningbg); }
 .ra-badge.is-todo { background:var(--warningbg); color:var(--warning); }
+/* 안 읽음 — 색만으로 알리지 않는다. 글자로도 "안 읽음" 이라고 적는다. */
+.ra-badge.is-new { background:rgba(9,105,218,.10); color:var(--primary); }
+/* 읽은 알림은 할 일이 없다(읽음 표시가 유일한 조작이었다). 손대는 느낌을
+   거두어 "여기는 끝났다" 로 읽히게 한다 — 흐리게 죽이지는 않는다. 읽었다고
+   내용이 덜 중요해지는 것은 아니다. */
+.ra-item:disabled { cursor:default; }
+.ra-row.is-read .ra-ic { background:var(--bg3); }
+.act-list .ra-row.is-read:hover { background:transparent; }
 
 .act-head { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
 /* 제목 옆에 검색이 아니라 단추가 서는 화면(음성 세션)에서는 단추를 오른쪽 끝으로 */

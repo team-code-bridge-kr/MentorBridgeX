@@ -37,6 +37,15 @@ const TURN_MS = 150;         // 문서 크로스페이드
 const RETURN_MS = 260;       // 연타 판정 — 이보다 빠르면 페이드를 건너뛴다
 const FLASH_MS = 620;        // 깜빡임 한 번
 const COACH_SEEN = "mbx_reader_coach";
+/**
+ * 안내를 늘 띄워 둘지.
+ *
+ * **고치는 동안만 true 다.** 원래는 처음 온 사람에게 한 번만 나오고 봤다는
+ * 사실이 이 브라우저에 남는데, 그러면 문구 하나 고칠 때마다 localStorage 를
+ * 지우고 새로고침해야 보인다. 다 고치고 나면 false 로 되돌린다 — true 로
+ * 두면 두 번째 방문부터는 잔소리가 된다.
+ */
+const COACH_ALWAYS = true;
 
 const TYPE_KIND = {
   award: "수상", autonomous: "자율활동", club: "동아리활동", volunteer: "봉사활동",
@@ -352,6 +361,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
   const [panelOpen, setPanelOpen] = useState(false);
   // 처음 온 사람에게만 한 번. 봤다는 사실은 이 브라우저에 남긴다.
   const [coach, setCoach] = useState(() => {
+    if (COACH_ALWAYS) return true;
     try { return localStorage.getItem(COACH_SEEN) !== "1"; } catch { return true; }
   });
   const [flash, setFlash] = useState("");
@@ -510,6 +520,8 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
   }, [turn]);
 
   const dismissCoach = useCallback(() => {
+    // 고치는 동안에는 닫히지 않는다 — 구획을 눌러 보면서 문구를 봐야 한다.
+    if (COACH_ALWAYS) return;
     setCoach(false);
     try { localStorage.setItem(COACH_SEEN, "1"); } catch { /* 사생활 보호 모드 */ }
   }, []);
@@ -567,7 +579,7 @@ export function PdfReader({ docs = [], keywords = [], filename = "", mask = true
           {/* 처음 한 번만. 파란 띠가 눌리는 것인 줄 모르면 이 화면은 그냥 PDF
               뷰어다. 그렇다고 늘 띄워 두면 두 번째부터는 잔소리다 — 한 번 보고
               나면 다시 나오지 않는다. */}
-          {coach && !panelOpen && (
+          {coach && (COACH_ALWAYS || !panelOpen) && (
             <div className="rd-coach" role="status">
               <span className="rd-coach-dot" aria-hidden="true" />
               <div>

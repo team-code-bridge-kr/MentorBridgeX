@@ -48,6 +48,10 @@ function mapNotif(n) {
     t: n.title,
     d: n.body,
     time,
+    // 원본 시각도 넘긴다. 알림 화면이 활동 기록·음성 세션과 같은 날짜 묶음
+    // (오늘·어제·최근 7일·이전)을 쓰는데, 이미 "5일 전" 으로 빚어 버리면
+    // 다시 날짜로 되돌릴 수가 없다.
+    at: n.created_at || null,
     read: !!n.read,
   };
 }

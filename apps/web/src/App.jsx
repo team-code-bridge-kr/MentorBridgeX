@@ -199,7 +199,11 @@ function AppShell() {
   return (
     <>
       <div className="app">
-        <Sidebar nav={sideNav} active={activeNav} onNav={nav} role={role} dark={layout === "admin"} />
+        {/* `current` 는 하단 유틸(알림·설정 …)이 자기 화면일 때 불을 켜기 위한
+            것이다. 그 화면들은 위 메뉴에 없어서 activeNav 가 늘 null 이었고,
+            그래서 알림 화면에 서 있어도 사이드바 어디에도 불이 없었다. */}
+        <Sidebar nav={sideNav} active={activeNav} current={navTarget} onNav={nav}
+                 role={role} dark={layout === "admin"} />
         <div className="main">
           {showHdr && (
             <div className="hdr">
