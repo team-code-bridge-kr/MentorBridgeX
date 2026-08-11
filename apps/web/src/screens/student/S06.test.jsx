@@ -206,6 +206,30 @@ describe("들어가고 나오기", () => {
     expect(all(".gcrumb-item").length).toBe(0);    // 뿌리로 — 경로는 사라진다
   });
 
+  it("판이 서면 경로표시도 판 안으로 옮겨 간다", async () => {
+    // 판을 읽는 동안 눈은 오른쪽에 있다. 길이 왼쪽 끝에만 있으면 거기까지
+    // 되짚어 올라가야 한다. 두 곳에 같이 두지는 않는다 — 어느 쪽이 진짜인지
+    // 알 수 없어진다.
+    await click(label("수학"));
+    expect(all(".gcrumb").length).toBe(1);
+    expect(host.querySelector(".gcrumb").closest(".gpanel")).toBeTruthy();
+
+    await tapBackground();                            // 판만 닫는다
+    expect(all(".gcrumb").length).toBe(1);            // 길은 남는다
+    expect(host.querySelector(".gcrumb").closest(".gpanel")).toBeNull();
+  });
+
+  it("판 안 경로표시의 앞 칸이 나가는 길이다", async () => {
+    // 「〈 부모」 단추를 따로 두지 않는다 — 경로표시가 그 일을 겸한다.
+    await click(label("수학"));
+    await click(label("2학년 미적분"));
+    const crumbs = all(".gpanel .gcrumb-item");
+    expect(crumbs.map((b) => b.textContent)).toEqual(["내 생기부", "수학", "2학년 미적분"]);
+    await click(crumbs[1]);                           // 바로 앞 칸 = 한 겹 위
+    expect(all(".gcrumb-item").map((b) => b.textContent)).toEqual(["내 생기부", "수학"]);
+    expect(all(".gpanel").length).toBe(0);            // 고른 노드는 놓는다
+  });
+
   it("뿌리에서 배경을 눌러도 더 갈 곳이 없다", async () => {
     expect(all(".gcrumb-item").length).toBe(0);
     await tapBackground();

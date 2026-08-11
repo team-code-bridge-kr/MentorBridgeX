@@ -16,6 +16,7 @@ import { showLoading, showNote, withLoading } from "../../components/LoadingDock
 import { NodeConnections, NodeDeleteConfirm, NodeEditor } from "../../components/graph/NodeEditor.jsx";
 import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
+import { GraphCrumb } from "../../components/graph/GraphCrumb.jsx";
 import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
 import { Popover } from "../../components/ui/Popover.jsx";
 
@@ -372,6 +373,8 @@ export function S06({ onNav }) {
   }, []);
 
   const closePanel = useCallback(() => { setSel(null); setPanel(null); }, []);
+  /** 경로표시의 한 칸으로 가기. 고른 노드는 놓는다 — 다른 층의 것이니까. */
+  const goToLayer = useCallback((n) => { setFocusId(n.id); setSel(null); }, []);
   /** 옆 판이 서 있는가. 폭 손잡이가 이때만 선다. */
   const panelOpen = Boolean(sel) || Boolean(panel);
 
@@ -1024,26 +1027,12 @@ export function S06({ onNav }) {
         </div>
       </div>
 
-      {/* 경로표시는 제 줄로 내렸다. 도구띠에 함께 두면 층이 깊어질수록 길어져서
-          검색창을 밀어냈다. 뿌리 층에서는 세우지 않는다 — "내 생기부" 한 칸만
-          있는 경로는 길이 아니라 이름이다. */}
-      {trail.length > 1 && (
-        <nav className="gcrumb" aria-label="현재 위치">
-          {trail.map((n, i) => (
-            <span key={n.id}>
-              {i > 0 && <span className="gcrumb-sep" aria-hidden>›</span>}
-              <button
-                type="button"
-                className={`gcrumb-item${i === trail.length - 1 ? " is-here" : ""}`}
-                aria-current={i === trail.length - 1 ? "true" : undefined}
-                onClick={() => { setFocusId(n.id); setSel(null); }}
-              >
-                {n.label}
-              </button>
-            </span>
-          ))}
-        </nav>
-      )}
+      {/* 경로표시. 판이 서 있으면 판 머리로 옮겨 간다 — 판을 읽는 동안 눈은
+          오른쪽에 있는데, 어디 있는지와 나가는 길은 왼쪽 끝에 있었다. 두 곳에
+          같이 두지는 않는다(§같은 것을 두 번 말하지 않는다).
+          판이 없을 때만 제 줄에 선다. 도구띠에 함께 두면 층이 깊어질수록
+          길어져서 검색창을 밀어낸다. */}
+      {!panelOpen && <GraphCrumb trail={trail} onGo={goToLayer} />}
       {/* 캔버스 + 패널. 좁은 화면에서 세로로 나뉘어야 하므로 인라인이 아니라
           클래스로 둔다 — 인라인 스타일에는 @media 를 걸 수 없다. */}
       <div className="gbody">
@@ -1287,7 +1276,7 @@ export function S06({ onNav }) {
             비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
 
         {!sel && panel === "create" && (
-          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel}>
+          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel} trail={trail} onCrumb={goToLayer}>
             <NodeEditor
               mode="create"
               nodes={nodes}
@@ -1300,7 +1289,7 @@ export function S06({ onNav }) {
         )}
 
         {!sel && panel === "explore" && (
-          <GraphPanel width={panelW} title="확장하기" onClose={closePanel}>
+          <GraphPanel width={panelW} title="확장하기" onClose={closePanel} trail={trail} onCrumb={goToLayer}>
             <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
@@ -1328,9 +1317,10 @@ export function S06({ onNav }) {
             width={panelW}
             title="노드"
             onClose={closePanel}
-            /* 뿌리 층에서는 나갈 데가 없다 — 없는 길을 단추로 세우지 않는다. */
-            onBack={trail.length > 1 ? () => { setSel(null); goUp(); } : undefined}
-            backLabel={trail.length > 1 ? trail[trail.length - 2].label : ""}
+            /* 어디 있는지와 나가는 길을 겸한다. 바로 앞 칸이 「위로」다.
+               뿌리 층에서는 아무것도 서지 않는다 — 없는 길을 그리지 않는다. */
+            trail={trail}
+            onCrumb={goToLayer}
           >
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:`radial-gradient(circle at 35% 30%, ${meta.color}, ${meta.color}dd)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 4px 14px ${meta.ring}`,border:"2px solid rgba(255,255,255,.35)"}}>

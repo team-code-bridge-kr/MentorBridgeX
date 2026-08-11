@@ -3223,22 +3223,16 @@ tr:hover td { background:var(--surface-container-low); }
 /* 끄는 동안에는 판 안의 글이 잡히지 않게 한다 — 끌다가 글이 선택되면
    손잡이를 놓쳤다고 느낀다. */
 .gbody:has(.gpanel-grip.is-on) { user-select:none; cursor:col-resize; }
-.gpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px; }
-/* 뒤로 가기 — 판을 읽는 동안 눈은 오른쪽에 있다. 나가는 길이 위쪽 경로표시뿐이면
-   거기까지 되짚어 올라가야 한다. 판 안에도 같은 길을 둔다. */
-.gpanel-back {
-  display:inline-flex; align-items:center; gap:4px; flex:0 1 auto; min-width:0;
-  padding:5px 10px 5px 7px; border-radius:9999px; cursor:pointer; font-family:inherit;
-  border:1px solid var(--brd); background:var(--bg2);
-  font-size:12px; font-weight:700; color:var(--primary);
-}
-.gpanel-back span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.gpanel-back:hover { background:var(--blue-50); border-color:var(--primary); }
-/* 뒤로 가기가 서면 제목은 자리를 양보한다 — 둘 다 늘어나면 ✕ 가 밀린다 */
-.gpanel-back + .gpanel-title { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* 경로표시가 여러 줄로 접힐 수 있으므로 ✕ 는 위에 붙여 둔다 — 가운데에 두면
+   길이 깊어질수록 닫기가 아래로 흘러내린다. */
+.gpanel-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+/* 판 머리에 선 경로표시 — 여기가 어디이고 어떻게 나가는지를 겸한다.
+   제 줄에 설 때의 바깥 여백은 버린다(판이 이미 여백을 갖고 있다). */
+.gcrumb-in-panel { flex:1 1 auto; min-width:0; padding:0; margin-top:1px; row-gap:1px; }
+.gcrumb-in-panel .gcrumb-item { max-width:150px; font-size:12.5px; padding:3px 7px; }
 .gpanel-title { font-size:16px; font-weight:700; color:var(--tp); }
-/* 제목을 `sr-only`(position:absolute) 로 감춘 뒤로 흐름에 남는 것이 ✕ 하나다.
-   space-between 은 하나뿐이면 왼쪽에 붙여 버린다 — 닫기는 늘 오른쪽 끝이다. */
+/* 제목을 `sr-only`(position:absolute) 로 감춘 뒤로, 뿌리 층에서는 흐름에 남는
+   것이 ✕ 하나뿐이다 — 그냥 두면 왼쪽에 붙는다. 닫기는 늘 오른쪽 끝이다. */
 .gpanel-x { margin-left:auto; }
 .gpanel-x {
   width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center;

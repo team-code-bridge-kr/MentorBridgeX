@@ -11,27 +11,23 @@
  * 내려간다(`.gpanel` @media 900px).
  */
 import { NavIcon } from "../NavIcon.jsx";
+import { GraphCrumb } from "./GraphCrumb.jsx";
 import TDS from "../../theme/tokens.js";
 
 /**
- * @param onBack  있으면 머리에 뒤로 가기가 선다. 파고들어 온 층에서 한 겹
- *   나가는 길이다 — 닫기(✕)는 판만 닫고 층은 그대로 두므로, 두 일을 한
- *   단추로 겸할 수 없다. 여태 나가는 길은 위쪽 경로표시뿐이었는데, 판을 읽는
- *   동안 눈은 오른쪽에 있어서 거기까지 되짚어 올라가야 했다.
- * @param backLabel 어디로 나가는지. 이름 없이 갈매기만 두면 어디로 가는지 모른다.
+ * @param trail  뿌리 → 지금 층까지의 길. 주면 판 머리에 경로표시가 선다.
+ *   판이 서 있는 동안 왼쪽 제 줄에서는 내린다 — 같은 길을 화면 양끝에 두
+ *   번 그리면 어느 쪽이 진짜인지 알 수 없다(GraphCrumb 주석).
+ *   나가는 길도 이것이 겸한다. 바로 앞 칸을 누르면 한 겹 위로 간다 —
+ *   닫기(✕)는 판만 닫고 층은 그대로 두므로 두 일을 한 단추로 겸할 수 없다.
+ * @param onCrumb 경로표시의 한 칸을 눌렀을 때. 그 층으로 간다.
  */
-export function GraphPanel({ title, onClose, onBack, backLabel, width, children }) {
+export function GraphPanel({ title, onClose, trail, onCrumb, width, children }) {
   return (
     // `width` 가 없으면 CSS 의 기본 폭(clamp)을 쓴다. 손으로 끈 뒤에만 px 로 굳는다.
     <aside className="gpanel" style={width ? { width } : undefined}>
       <div className="gpanel-head">
-        {onBack && (
-          <button type="button" className="gpanel-back" onClick={onBack}
-            title={`${backLabel || "위"}(으)로 나가기`}>
-            <NavIcon name="chevronLeft" size={15} color={TDS.primary} />
-            <span>{backLabel || "위로"}</span>
-          </button>
-        )}
+        {trail && <GraphCrumb trail={trail} onGo={onCrumb} className="gcrumb-in-panel" />}
         {/* 제목은 화면 읽기용으로만 남긴다. 판 안에 노드 이름이 크게 서 있어서
             그 위의 "노드" 는 아무것도 더 말해 주지 않았다. */}
         <span className="gpanel-title sr-only">{title}</span>
