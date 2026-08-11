@@ -28,6 +28,7 @@ import {
 } from "../../components/onboarding/StudentSteps.jsx";
 import { MentorFieldStep, MentorProfileStep } from "../../components/onboarding/MentorSteps.jsx";
 import { ClassroomStep, TeacherProfileStep } from "../../components/onboarding/TeacherSteps.jsx";
+import mbxLogo from "../../assets/brand/mbx_logo.png";
 
 const STUDENT_STEPS = 5;
 const SHORT_STEPS = 2; // 멘토 · 교사
@@ -126,7 +127,22 @@ export function S03({ onNav }) {
   /* ── STEP 0 역할 ─────────────────────────────────────── */
   if (step === 0) {
     return (
-      <Shell total={0} title="어떤 목적으로 오셨나요?" note="나중에 설정에서 바꿀 수 있어요">
+      <Shell
+        total={0}
+        /* 인사 한 줄을 앞에 둔다. 로그인하자마자 나오는 첫 화면인데 곧바로
+           질문부터 들이밀면 서류처럼 읽힌다. 손 흔드는 이모지는 인사에 붙는
+           것이라 자리를 벌지 않는다 — 온보딩에서 이모지는 여기와 마지막
+           「준비됐어요! 🎉」 둘뿐이다. */
+        title={
+          <>
+            안녕하세요 <span className="ob-title-emoji" aria-hidden="true">👋</span>
+            <br />
+            <img className="ob-title-logo" src={mbxLogo} alt="" aria-hidden="true" />
+            MBX에 어떤 목적으로 오셨나요?
+          </>
+        }
+        note="나중에 설정에서 바꿀 수 있어요"
+      >
         {errorLine}
         <RoleStep value={role} busy={saving} onPick={(r) => go(1, { role: r })} />
       </Shell>
