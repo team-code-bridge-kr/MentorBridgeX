@@ -326,7 +326,9 @@ export function S03({ onNav }) {
             type="button"
             className="btn btn-primary btn-md"
             onClick={() => go(4, { majors })}
-            disabled={saving || majors.length === 0}
+            /* 목록에 없어서 직접 적은 것만 있어도 넘어갈 수 있다 — 그 사람도
+               자기 관심사를 말한 것이다. */
+            disabled={saving || (majors.length === 0 && manual.length === 0)}
           >
             다음
           </button>
@@ -344,6 +346,16 @@ export function S03({ onNav }) {
             // 바로 다음 화면에서 또 고르라고 하면 같은 질문을 두 번 하는 셈이다.
             setMajors([]);
             go(5, { majors: [] });
+          }}
+          extra={manual}
+          /* 적는 즉시 서버에 남긴다. 다음 단계를 건너뛰어도 사라지지 않아야
+             한다 — 목록에 없어서 적은 것이 제일 아까운 값이다. manual 은
+             더하기만 하므로(on_conflict_do_nothing) 기존 것을 지우지 않고,
+             preset 은 서버가 학과 핵심 키워드로 다시 채운다. */
+          onAddExtra={(name, remove) => {
+            if (remove) { setManual(manual.filter((x) => x !== name)); return; }
+            setManual([...manual, name]);
+            setKeywords([], [name]).catch(() => {});
           }}
         />
       </Shell>

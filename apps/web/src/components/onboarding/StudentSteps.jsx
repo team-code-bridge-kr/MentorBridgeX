@@ -88,10 +88,29 @@ export function FieldStep({ tracks, value, onChange, busy }) {
 
 /* ── STEP 3 학과 ─────────────────────────────────────────── */
 
-export function MajorStep({ tracks, trackGroup, value, onChange, onUnsure, busy }) {
+/**
+ * @param extra 목록에 없어서 직접 적은 학과 이름. 관심 키워드로 저장된다.
+ * @param onAddExtra 그 이름을 더한다.
+ *
+ * 학과 목록은 마스터 데이터라 여기서 새 학과를 만들지 않는다(서버도 목록에
+ * 없는 id 는 거절한다). 대신 적어 넣은 이름을 **관심 키워드**로 넣는다 —
+ * 피드에 뜰 글을 정하는 것이 결국 키워드라, 학생이 원하는 것은 그쪽으로
+ * 가야 실제로 이뤄진다.
+ */
+export function MajorStep({
+  tracks, trackGroup, value, onChange, onUnsure, busy, extra = [], onAddExtra,
+}) {
   const fields = (trackGroup || "").split(",").filter(Boolean);
   const inGroup = tracks.filter((t) => fields.includes(t.field));
   const [warn, setWarn] = useState("");
+  const [draft, setDraft] = useState("");
+
+  const addExtra = () => {
+    const w = draft.trim();
+    if (w.length < 2 || extra.includes(w)) return;
+    onAddExtra(w);
+    setDraft("");
+  };
 
   const toggle = (id) => {
     setWarn("");
@@ -128,6 +147,45 @@ export function MajorStep({ tracks, trackGroup, value, onChange, onUnsure, busy 
           </button>
         ))}
       </div>
+      {/* 목록에 없는 학과. "아직 모르겠어요" 는 **모를 때**의 길이고, 이건
+          **알지만 목록에 없을 때**의 길이다 — 둘은 다른 상황이다. */}
+      <p className="ob-hint">찾는 학과가 없나요? 적어 주시면 그 주제로 모아드릴게요.</p>
+      <div className="ob-kw-add">
+        <input
+          className="inp"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExtra(); } }}
+          placeholder="예: 문헌정보학"
+          maxLength={40}
+          disabled={busy}
+          aria-label="목록에 없는 학과 직접 적기"
+        />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={addExtra}
+          disabled={busy || draft.trim().length < 2}
+        >
+          ＋ 추가
+        </button>
+      </div>
+      {extra.length > 0 && (
+        <div className="ob-kw-row ob-kw-manual">
+          {extra.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="ob-kw is-on"
+              onClick={() => onAddExtra(m, true)}
+              disabled={busy}
+              aria-label={`${m} 빼기`}
+            >
+              {m} ×
+            </button>
+          ))}
+        </div>
+      )}
       {warn && (
         <p className="ob-warn" role="status">
           {warn}
