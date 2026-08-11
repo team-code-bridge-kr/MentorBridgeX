@@ -53,10 +53,10 @@ const FLY_MS = 380;
  */
 const VIEW_KEY = "mbx_graph_view";
 const LEGEND_KEY = "mbx_graph_legend";
-const PANEL_H_KEY = "mbx_graph_panel_h";
+const PANEL_W_KEY = "mbx_graph_panel_w";
 // 판이 이보다 좁으면 글이 두 글자씩 접히고, 넓으면 캔버스가 사라진다.
-const PANEL_MIN = 220;
-const PANEL_MAX = 680;
+const PANEL_MIN = 300;
+const PANEL_MAX = 720;
 
 function readSaved() {
   try {
@@ -292,41 +292,41 @@ export function S06({ onNav }) {
    *
    * 브라우저에 남긴다. 한 번 맞춰 둔 폭을 들어올 때마다 다시 맞춰야 하면
    * 조절하는 뜻이 없다. */
-  const [panelH, setPanelH] = useState(() => {
+  const [panelW, setPanelW] = useState(() => {
     try {
-      const v = Number(localStorage.getItem(PANEL_H_KEY));
+      const v = Number(localStorage.getItem(PANEL_W_KEY));
       return v >= PANEL_MIN && v <= PANEL_MAX ? v : null;
     } catch { return null; }
   });
   const [gripping, setGripping] = useState(false);
-  const panelHRef = useRef(panelH);
-  useEffect(() => { panelHRef.current = panelH; }, [panelH]);
+  const panelWRef = useRef(panelW);
+  useEffect(() => { panelWRef.current = panelW; }, [panelW]);
   useEffect(() => {
     try {
-      if (panelH == null) localStorage.removeItem(PANEL_H_KEY);
-      else localStorage.setItem(PANEL_H_KEY, String(Math.round(panelH)));
+      if (panelW == null) localStorage.removeItem(PANEL_W_KEY);
+      else localStorage.setItem(PANEL_W_KEY, String(Math.round(panelW)));
     } catch { /* 사생활 보호 모드 */ }
-  }, [panelH]);
+  }, [panelW]);
 
-  /** 지금 실제로 서 있는 높이. 아직 손대지 않았으면 화면에서 재 온다. */
-  const currentPanelH = useCallback(() => {
-    if (panelHRef.current != null) return panelHRef.current;
+  /** 지금 실제로 서 있는 폭. 아직 손대지 않았으면 화면에서 재 온다. */
+  const currentPanelW = useCallback(() => {
+    if (panelWRef.current != null) return panelWRef.current;
     const el = document.querySelector(".gpanel");
-    return el ? el.getBoundingClientRect().height : 340;
+    return el ? el.getBoundingClientRect().width : 380;
   }, []);
 
-  const clampH = (h) => Math.max(PANEL_MIN, Math.min(PANEL_MAX, h));
-  const nudgeHeight = useCallback((by) => {
-    setPanelH(clampH(currentPanelH() + by));
-  }, [currentPanelH]);
+  const clampW = (w) => Math.max(PANEL_MIN, Math.min(PANEL_MAX, w));
+  const nudgeWidth = useCallback((by) => {
+    setPanelW(clampW(currentPanelW() + by));
+  }, [currentPanelW]);
 
-  /** 끌어서 높이 조절. 위로 끌수록 시트가 높아진다. */
+  /** 끌어서 폭 조절. 왼쪽으로 끌수록 판이 넓어진다. */
   const startResize = useCallback((e) => {
     e.preventDefault();
-    const startY = e.clientY;
-    const startH = currentPanelH();
+    const startX = e.clientX;
+    const startW = currentPanelW();
     setGripping(true);
-    const move = (ev) => setPanelH(clampH(startH - (ev.clientY - startY)));
+    const move = (ev) => setPanelW(clampW(startW - (ev.clientX - startX)));
     const up = () => {
       setGripping(false);
       window.removeEventListener("pointermove", move);
@@ -334,7 +334,7 @@ export function S06({ onNav }) {
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
-  }, [currentPanelH]);
+  }, [currentPanelW]);
   /* 범례를 폈는지. 세션이 아니라 브라우저에 남긴다 — 한 번 접어 둔 사람이
      다음에 들어와서 또 접어야 하면 접는 뜻이 없다. */
   const [legendOpen, setLegendOpen] = useState(() => {
@@ -1236,23 +1236,23 @@ export function S06({ onNav }) {
           </div>
         </div>
 
-        {/* 높이 손잡이. 시트와 캔버스 **사이**에 선다 — 시트 안에 넣으면 시트가
+        {/* 판 폭 손잡이. 판과 캔버스 **사이**에 선다 — 판 안에 넣으면 판이
             스크롤될 때 손잡이도 같이 올라가 버린다. */}
         {panelOpen && (
           <div
             className={`gpanel-grip${gripping ? " is-on" : ""}`}
             role="separator"
-            aria-label="아래 판 높이 조절"
-            aria-orientation="horizontal"
+            aria-label="옆 판 폭 조절"
+            aria-orientation="vertical"
             tabIndex={0}
             onPointerDown={startResize}
-            onDoubleClick={() => setPanelH(null)}
+            onDoubleClick={() => setPanelW(null)}
             onKeyDown={(e) => {
               // 손으로 끄는 것만 길이면 키보드로는 못 쓴다. 화살표로도 움직인다.
-              if (e.key === "ArrowUp") { e.preventDefault(); nudgeHeight(24); }
-              if (e.key === "ArrowDown") { e.preventDefault(); nudgeHeight(-24); }
+              if (e.key === "ArrowLeft") { e.preventDefault(); nudgeWidth(24); }
+              if (e.key === "ArrowRight") { e.preventDefault(); nudgeWidth(-24); }
             }}
-            title="끌어서 높이 조절 (두 번 누르면 처음 높이)"
+            title="끌어서 폭 조절 (두 번 누르면 처음 폭)"
           />
         )}
 
@@ -1261,7 +1261,7 @@ export function S06({ onNav }) {
             비켜난다(§14: 패널을 둘로 늘리면 좁은 화면에서 캔버스가 사라진다). */}
 
         {!sel && panel === "create" && (
-          <GraphPanel height={panelH} title="노드 추가" onClose={closePanel}>
+          <GraphPanel width={panelW} title="노드 추가" onClose={closePanel}>
             <NodeEditor
               mode="create"
               nodes={nodes}
@@ -1274,7 +1274,7 @@ export function S06({ onNav }) {
         )}
 
         {!sel && panel === "explore" && (
-          <GraphPanel height={panelH} title="확장하기" onClose={closePanel}>
+          <GraphPanel width={panelW} title="확장하기" onClose={closePanel}>
             <GraphExplore
               onOpenDoc={(s)=>{
                 sessionStorage.setItem("mbx_doc_id", s.section_id);
@@ -1299,7 +1299,7 @@ export function S06({ onNav }) {
         {/* Detail panel */}
         {sel&&(()=>{ const eList=edgesOf(sel.id); const meta=KIND_META[sel.kind]||KIND_META.topic; return (
           <GraphPanel
-            height={panelH}
+            width={panelW}
             title="노드"
             onClose={closePanel}
           >
@@ -1323,13 +1323,10 @@ export function S06({ onNav }) {
             </div>
 
             {/* 고치기·지우기 — 다른 화면으로 보내지 않는다. AI 가 잘못 뽑은 것을
-                보는 그 자리에서 바로 고칠 수 있어야 한다.
-                단추는 제 글자 폭만 쓴다. 예전 세로 판에서는 「수정」이 폭을 다
-                채우는 것이 맞았지만, 가로로 누운 시트에서는 1,300px 짜리
-                단추가 된다. */}
+                보는 그 자리에서 바로 고칠 수 있어야 한다. */}
             {!editing && !confirmDelete && (
               <div style={{display:"flex",gap:8,marginBottom:4}}>
-                <Btn v="secondary" s="sm" onClick={()=>setEditing(true)}>
+                <Btn v="secondary" s="sm" onClick={()=>setEditing(true)} style={{flex:1}}>
                   <NavIcon name="pen" size={14} color={TDS.textSecondary}/> 수정
                 </Btn>
                 <Btn v="ghost" s="sm" onClick={()=>setConfirmDelete(true)} style={{color:TDS.danger}}>
@@ -1374,10 +1371,7 @@ export function S06({ onNav }) {
                 까닭은 접혀 있어도 제목과 개수가 남기 때문이다 — 탭은 그것이 있다는
                 사실 자체를 감춘다(폐지한 S07 의 4탭이 정확히 그 실패였다). */}
             {!editing && !confirmDelete && (
-              /* 구획들을 감싸는 상자 자체가 격자다. `.gpanel-body` 에 격자를
-                 걸면 이 상자 하나만 칸을 차지하고 안은 그대로 한 줄로 쌓인다 —
-                 실제로 그랬다. 격자는 **구획들의 바로 위**에 있어야 한다. */
-              <div className="gsecs">
+              <div style={{marginTop:16}}>
                 {/* 출처가 맨 위인 까닭: 고치거나 지우려는 순간에는 판단할 근거가
                     먼저 필요하다. */}
                 <Section title="출처">

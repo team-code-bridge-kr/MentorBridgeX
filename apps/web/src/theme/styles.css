@@ -3412,13 +3412,11 @@ tr:hover td { background:var(--surface-container-low); }
    생기부 리더(`.rd-panel`)와 같은 규칙이다 — 캔버스 **옆에** 붙고 절대 위에
    띄우지 않는다. 좁은 화면에서는 아래로 나뉜다(패널이 캔버스를 덮으면 안 된다).
    자리는 하나뿐이라 무엇을 세울지는 S06 의 상태가 정한다. */
-/* 캔버스가 위, 판이 아래. 판이 오른쪽에 세로로 설 때는 캔버스 폭을 330~430px
-   먹어서 그래프가 눌렸다 — 그래프는 가로로 넓게 봐야 하는 것이다. */
-.gbody { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.gbody { flex:1; min-height:0; display:flex; align-items:stretch; overflow:hidden; }
 /* 위쪽 여백은 도구띠가 이미 냈다. 여기서 또 20px 를 주면 띠와 캔버스 사이만
    유난히 벌어져, 걷어낸 선 자리가 빈틈으로 남는다. */
 .gstage {
-  flex:1 1 auto; min-height:0; min-width:0; overflow:hidden; position:relative;
+  flex:1; min-width:0; overflow:hidden; position:relative;
   padding:0 clamp(16px,2vw,24px) clamp(16px,2vw,24px);
 }
 /* 옆 판.
@@ -3427,58 +3425,45 @@ tr:hover td { background:var(--surface-container-low); }
    구분되지 않았다. 캔버스와 같은 카드로 만든다 — 같은 둥근 모서리·같은
    테두리에 그림자를 얹어 한 겹 위로 띄운다. */
 .gpanel {
-  position:relative;
-  flex:0 0 auto; height:clamp(220px, 34vh, 420px);
-  margin:0 clamp(16px,2vw,24px) clamp(16px,2vw,24px);
-  border:1px solid var(--brd); border-radius:18px;
+  flex:0 0 auto; width:clamp(330px, 30%, 430px);
+  margin:0 clamp(16px,2vw,24px) clamp(16px,2vw,24px) 0;
+  border:1px solid var(--brd); border-radius:16px;
   background:var(--bg1);
-  box-shadow:0 -8px 30px rgba(15,23,42,.10);
-  overflow-y:auto; padding:16px 20px 20px;
-  /* 오른쪽 아래 떠 있는 빠른 실행 단추(60px + 여백)가 시트 오른쪽 끝을
-     덮는다. 그 폭만큼 비워 둔다 — 세로 판일 때는 맨 아래 단추가 깔렸는데,
-     가로로 누우니 가려지는 곳이 오른쪽 끝이다. */
-  padding-right:96px;
+  box-shadow:0 10px 30px rgba(15,23,42,.10);
+  overflow-y:auto; padding:18px 18px 28px;
+  /* 아래 여백을 넉넉히. 오른쪽 아래 떠 있는 빠른 실행 단추(60px + 여백)가
+     이 판의 맨 끝 단추를 덮고 있었다 — 「코멘트 남기기」가 로고 뒤에 깔려
+     눌리지 않았다. 판이 끝까지 스크롤됐을 때도 단추가 나오도록 비워 둔다. */
+  padding-bottom:104px;
 }
-/* 판이 서면 캔버스와 판 사이가 두 번 벌어진다. 캔버스 쪽 여백을 좁혀
-   한 번만 벌어지게 한다. */
-.gbody:has(.gpanel) .gstage { padding-bottom:0; }
-
-/* 시트 안은 격자다. 폭이 남는 만큼 구획(출처·연결·다음 탐구·코멘트)이 옆으로
-   늘어선다 — 아래에 눕힌 까닭이 폭을 쓰려는 것이므로, 한 줄로 세워 두면
-   옮긴 뜻이 없다. 머리(노드 이름·수정·삭제)는 한 줄을 다 쓴다. */
-/* 구획들이 폭이 남는 만큼 옆으로 늘어선다 — 아래에 눕힌 까닭이 폭을 쓰려는
-   것이므로 한 줄로 세워 두면 옮긴 뜻이 없다. 머리(노드 이름·수정·삭제)는
-   이 상자 **밖**에 있어서 늘 한 줄을 다 쓴다. */
-.gsecs {
-  margin-top:16px;
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
-  gap:4px 24px; align-items:start;
-}
+/* 판이 서면 캔버스와 판 사이가 두 번 벌어진다(캔버스 오른쪽 여백 + 판 왼쪽
+   여백). 캔버스 쪽 여백을 좁혀 한 번만 벌어지게 한다. */
+.gbody:has(.gpanel) .gstage { padding-right:0; }
 
 /* 폭 손잡이 — 판과 캔버스 **사이**에 선다. 판 안에 넣으면 판이 스크롤될 때
    손잡이도 같이 올라간다.
    보이는 것은 가는 선 하나지만 잡는 자리는 14px 다 — 1px 짜리를 정확히
    집으라고 하면 아무도 못 쓴다. */
 .gpanel-grip {
-  flex:0 0 auto; height:14px; align-self:stretch; cursor:row-resize;
+  flex:0 0 auto; width:14px; align-self:stretch; cursor:col-resize;
   display:flex; align-items:center; justify-content:center;
-  margin:0 clamp(16px,2vw,24px);
+  margin-bottom:clamp(16px,2vw,24px);
   touch-action:none;
 }
 .gpanel-grip::before {
-  content:""; height:3px; width:44px; border-radius:9999px;
-  background:var(--brd); transition:background .14s, width .14s;
+  content:""; width:3px; height:44px; border-radius:9999px;
+  background:var(--brd); transition:background .14s, height .14s;
 }
 .gpanel-grip:hover::before,
 .gpanel-grip:focus-visible::before,
-.gpanel-grip.is-on::before { background:var(--primary); width:72px; }
+.gpanel-grip.is-on::before { background:var(--primary); height:72px; }
 .gpanel-grip:focus-visible { outline:none; }
 /* 끄는 동안에는 판 안의 글이 잡히지 않게 한다 — 끌다가 글이 선택되면
    손잡이를 놓쳤다고 느낀다. */
-.gbody:has(.gpanel-grip.is-on) { user-select:none; cursor:row-resize; }
-/* 닫기는 시트 오른쪽 위 모서리에 띄운다. 제 줄을 차지하면 가로로 누운 시트에서
-   1,300px 짜리 빈 줄이 생기고, 정작 노드 이름은 그 아래로 밀린다. */
-.gpanel-head { position:absolute; top:14px; right:16px; z-index:1; }
+.gbody:has(.gpanel-grip.is-on) { user-select:none; cursor:col-resize; }
+/* 경로표시가 여러 줄로 접힐 수 있으므로 ✕ 는 위에 붙여 둔다 — 가운데에 두면
+   길이 깊어질수록 닫기가 아래로 흘러내린다. */
+.gpanel-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
 /* 캔버스 위에 뜬 경로표시. 범례와 같은 재질·같은 곡률이라 한 기둥으로 읽힌다.
    손이 닿는 것은 칸(버튼)뿐이다 — 판 전체가 클릭을 먹으면 그 아래 노드를
    누를 수 없다(범례에서 같은 문제를 겪었다). */
@@ -3504,13 +3489,15 @@ tr:hover td { background:var(--surface-container-low); }
   border:none; border-radius:8px; background:var(--bg3); color:var(--ts); cursor:pointer;
 }
 .gpanel-x:hover { background:var(--bg2); color:var(--tp); }
-/* 좁은 화면 — 이제는 넓은 화면도 같은 모양(위 캔버스 · 아래 시트)이라 자리를
-   따로 잡을 것이 없다. 여백만 줄이고, 손으로 끈 높이는 무시한다(작은 화면에서
-   큰 화면의 높이를 그대로 쓰면 캔버스가 사라진다). 격자도 한 줄로 되돌린다. */
+/* 좁은 화면 — 세로로 나눈다. 패널이 캔버스를 덮으면 안 된다(리더와 같은 규칙). */
 @media (max-width:900px) {
+  .gbody { flex-direction:column; }
   .gstage { padding:12px; }
-  .gpanel { height:46dvh !important; margin:0 12px 12px; padding-right:20px; }
-  .gsecs { grid-template-columns:1fr; }
+  /* 좁은 화면에서는 아래로 내려간다. 카드 모양은 그대로 두되 위쪽만 붙인다 —
+     화면 폭을 다 쓰는 판이 사방에 여백을 두면 읽을 자리가 그만큼 준다. */
+  /* 아래로 내려가면 가로 폭을 끄는 일은 뜻이 없다. 손잡이를 치우고 폭도
+     화면에 맡긴다(손으로 굳혀 둔 px 를 여기서는 무시해야 한다). */
+  .gpanel { width:auto !important; height:46dvh; margin:0 12px 12px; }
   .gpanel-grip { display:none; }
 }
 
