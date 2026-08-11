@@ -19,7 +19,6 @@ import { S24 } from "./student/S24.jsx";
 import { S25 } from "./student/S25.jsx";
 import { S28 } from "./student/S28.jsx";
 import { S30 } from "./student/S30.jsx";
-import { S31 } from "./student/S31.jsx";
 import { S32 } from "./student/S32.jsx";
 import { S40 } from "./student/S40.jsx";
 import { S41 } from "./student/S41.jsx";
@@ -83,7 +82,7 @@ export function renderScreen(id, onNav) {
     S22:<S22 onNav={onNav}/>,S23:<S23 onNav={onNav}/>,
     S24:<S24 onNav={onNav}/>,S25:<S25 onNav={onNav}/>,
     S28:<S28 onNav={onNav}/>,
-    S30:<S30 onNav={onNav}/>,S31:<S31 onNav={onNav}/>,
+    S30:<S30 onNav={onNav}/>,
     S32:<S32 onNav={onNav}/>,
     S40:<S40 onNav={onNav}/>,S41:<S41 onNav={onNav}/>,S42:<S42 onNav={onNav}/>,S43:<S43 onNav={onNav}/>,S44:<S44 onNav={onNav}/>,
     T01:<T01 onNav={onNav}/>,T02:<T02 onNav={onNav}/>,
@@ -116,7 +115,7 @@ export function renderScreen(id, onNav) {
 ────────────────────────────────────────────────────────────── */
 /* 역할 공용 화면: 음성·양식·알림·설정 등은 학생/교사가 함께 사용 →
    어느 역할로 로그인해도 접근 가능하고, 현재 로그인한 역할의 레이아웃(사이드바)로 표시 */
-const SHARED_SCREENS = ["S15","S17","S20","S21","S22","S25","S30","S31","S32"];
+const SHARED_SCREENS = ["S15","S17","S20","S21","S22","S25","S30","S32"];
 function getLayout(s, sessionRole){
   if(["S01","S03","S04","A00"].includes(s))return "full";
   // 공용 화면(음성·양식·알림·설정)은 현재 로그인한 역할의 레이아웃으로 표시

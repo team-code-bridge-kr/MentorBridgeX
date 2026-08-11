@@ -366,6 +366,7 @@ async def create_comment(
             title="새 코멘트",
             body=f"{author}님이 [{body.target}]에 코멘트를 남겼습니다.",
             icon="comment",
+            category="comment",
         )
         return _comment_out(row)
 
@@ -390,6 +391,7 @@ async def create_comment(
         body=f"{author}님이 [{body.target}]에 코멘트를 남겼습니다.",
         icon="comment",
         session=session,
+        category="comment",
     )
     return _comment_out(row)
 
@@ -747,15 +749,22 @@ async def delete_my_account(
 # ── Settings ──────────────────────────────────────────────────
 
 
+"""알림 스위치의 기본값 — **여기 있는 것만 화면에 스위치로 선다.**
+
+「주간 리포트(이메일)」와 「푸시 알림」을 걷었다. 메일을 보내는 곳도 브라우저
+푸시를 받는 곳도 서버에 없어서, 켜도 꺼도 아무 일이 일어나지 않았다.
+"""
+DEFAULT_PREFS = {"comment": True, "activity": True}
+
+
 @settings_router.get("", response_model=SettingsOut)
 async def get_settings_me(
     user: UserRow | MemoryUser = Depends(get_current_user),
     session: AsyncSession | None = Depends(get_db_session),
 ) -> SettingsOut:
-    default_prefs = {"comment": True, "system": True, "weekly": False, "push": True}
     if is_offline_demo():
         db = get_memory_db()
-        prefs = getattr(db, "settings", {}).get(user.id, default_prefs)
+        prefs = getattr(db, "settings", {}).get(user.id, DEFAULT_PREFS)
         return SettingsOut(
             display_name=user.display_name,
             email=user.email,
@@ -768,7 +777,7 @@ async def get_settings_me(
         select(UserSettingsRow).where(UserSettingsRow.user_id == user.id)
     )
     row = result.scalar_one_or_none()
-    prefs = json.loads(row.prefs) if row else default_prefs
+    prefs = json.loads(row.prefs) if row else DEFAULT_PREFS
     return SettingsOut(
         display_name=user.display_name,
         email=user.email,
@@ -788,8 +797,7 @@ async def patch_settings_me(
         db = get_memory_db()
         if not hasattr(db, "settings"):
             db.settings = {}  # type: ignore[attr-defined]
-        default = {"comment": True, "system": True, "weekly": False, "push": True}
-        prefs = db.settings.get(user.id, default)
+        prefs = db.settings.get(user.id, DEFAULT_PREFS)
         if body.prefs is not None:
             prefs = {**prefs, **body.prefs}
             db.settings[user.id] = prefs
@@ -809,8 +817,7 @@ async def patch_settings_me(
         select(UserSettingsRow).where(UserSettingsRow.user_id == user.id)
     )
     row = result.scalar_one_or_none()
-    _default = {"comment": True, "system": True, "weekly": False, "push": True}
-    prefs = json.loads(row.prefs) if row else _default
+    prefs = json.loads(row.prefs) if row else DEFAULT_PREFS
     if body.prefs is not None:
         prefs = {**prefs, **body.prefs}
     if row:
@@ -1147,14 +1154,42 @@ async def transcribe_voice_session(
 # ── Notification helper ───────────────────────────────────────
 
 
+async def _notif_enabled(
+    user_id: str, category: str, session: AsyncSession | None
+) -> bool:
+    """이 사람이 이 갈래의 알림을 켜 두었는가.
+
+    설정 화면의 스위치를 **여기서 읽는다.** 예전에는 어디에서도 읽지 않아서,
+    꺼 놓아도 알림이 그대로 쌓였다 — 끌 수 없는 스위치였다.
+    `system` 처럼 스위치가 없는 갈래는 늘 보낸다(점검 안내 같은 것).
+    """
+    if category not in DEFAULT_PREFS:
+        return True
+    if is_offline_demo():
+        db = get_memory_db()
+        prefs = getattr(db, "settings", {}).get(user_id, DEFAULT_PREFS)
+    elif session is not None:
+        result = await session.execute(
+            select(UserSettingsRow).where(UserSettingsRow.user_id == user_id)
+        )
+        row = result.scalar_one_or_none()
+        prefs = json.loads(row.prefs) if row else DEFAULT_PREFS
+    else:
+        return True
+    return bool(prefs.get(category, DEFAULT_PREFS[category]))
+
+
 async def _push_notification(
     user_id: str,
     title: str,
     body: str,
     icon: str = "bell",
     session: AsyncSession | None = None,
+    category: str = "system",
 ) -> None:
     """자동 알림 생성 (이벤트 트리거용)."""
+    if not await _notif_enabled(user_id, category, session):
+        return
     nid = str(uuid4())
     now = _now()
     if is_offline_demo():

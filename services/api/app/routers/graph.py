@@ -55,6 +55,7 @@ async def create_seed(
             body=f"{labels}{suffix} 키워드로 지식 그래프가 시작되었습니다.",
             icon="graph",
             session=session,
+            category="activity",
         )
     return nodes
 

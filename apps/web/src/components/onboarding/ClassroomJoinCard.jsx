@@ -9,7 +9,12 @@
 import { useEffect, useState } from "react";
 import api from "../../api/index.js";
 
-export function ClassroomJoinCard() {
+/**
+ * @param className 껍데기 클래스. 설정 화면은 유리 카드(.set-card.act-glass)를
+ *   쓰고 온보딩은 흰 카드를 쓴다 — 두 곳이 같은 카드를 입으면 한쪽이 배경에서
+ *   떠 보인다.
+ */
+export function ClassroomJoinCard({ className = "card card-p" }) {
   const [rooms, setRooms] = useState([]);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,8 +45,8 @@ export function ClassroomJoinCard() {
   };
 
   return (
-    <div className="card card-p">
-      <div className="ob-set-title">학급</div>
+    <div className={className}>
+      <h2 className="set-card-title">학급</h2>
       {rooms.length > 0 ? (
         <ul className="ob-class-list">
           {rooms.map((r) => (

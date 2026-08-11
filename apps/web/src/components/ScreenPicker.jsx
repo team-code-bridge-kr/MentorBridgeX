@@ -15,7 +15,6 @@ const ALL_SCREENS=[
   
   {id:"S21",icon:"📄",label:"결과물 목록",g:"학생"},{id:"S22",icon:"📖",label:"결과물 상세",g:"학생"},
   {id:"S23",icon:"✂️",label:"가지치기 추천",g:"학생"},
-  {id:"S31",icon:"👤",label:"계정 정보",g:"학생"},
   {id:"S32",icon:"🗑️",label:"계정 삭제",g:"학생"},
   ...T_NAV.map(n=>({...n,g:"교사"})),
   {id:"T01",icon:"📋",label:"자격 검증 신청",g:"교사"},{id:"T02",icon:"⏳",label:"자격 검증 상태",g:"교사"},

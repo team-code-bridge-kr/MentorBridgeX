@@ -2176,6 +2176,12 @@ tr:hover td { background:var(--surface-container-low); }
   font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing:.16em; text-transform:uppercase;
 }
+/* 고정폭 글꼴과 자간은 **입력한 코드**를 읽기 쉬우라고 준 것이다. 안내 글자에까지
+   걸리면 "참 여   코 드   6자리" 처럼 벌어져서 오히려 읽기 어려웠다. */
+.ob-code-inp::placeholder {
+  font-family:'Pretendard', 'Apple SD Gothic Neo', -apple-system, sans-serif;
+  letter-spacing:normal; text-transform:none;
+}
 .ob-set-title { font-size:14px; font-weight:700; color:var(--tp); margin-bottom:12px; }
 
 /* ── 모바일 ──────────────────────────────────────────────── */
@@ -2283,6 +2289,57 @@ tr:hover td { background:var(--surface-container-low); }
   background:rgba(9,105,218,.10); border-color:rgba(9,105,218,.28); color:var(--primary);
 }
 .act-filter:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+
+/* ── 설정 화면 ────────────────────────────────────────────
+   목록 화면들과 같은 유리 표면 위에 선다. 안쪽은 "이름: 값" 줄의 반복이라
+   여기서 규칙을 한 번만 정한다 — 화면마다 다시 짜면 줄 높이와 선 색이
+   조금씩 달라진다. */
+.set-prof {
+  display:flex; align-items:center; gap:16px;
+  padding:18px 20px; border-radius:18px; margin-bottom:18px;
+}
+.set-prof-meta { flex:1; min-width:0; }
+.set-prof-name { font-size:18px; font-weight:700; color:var(--tp); }
+.set-prof-mail { font-size:13px; color:var(--tt); margin-top:2px; overflow:hidden; text-overflow:ellipsis; }
+.set-prof-tags { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex:none; }
+.set-tag {
+  padding:3px 10px; border-radius:9999px; white-space:nowrap;
+  background:rgba(9,105,218,.10); color:var(--primary); font-size:11.5px; font-weight:700;
+}
+.set-tag.is-quiet { background:rgba(15,23,42,.05); color:var(--tt); font-weight:600; }
+
+.set-card { padding:18px 20px; border-radius:18px; margin-bottom:12px; }
+.set-card-title { font-size:13px; font-weight:700; color:var(--tp); margin:0 0 6px; }
+/* 줄 사이는 아주 옅은 선으로만. 유리 위에서는 진한 선이 유리 두께처럼 보인다. */
+.set-row {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:13px 0; border-top:1px solid rgba(15,23,42,.06);
+}
+.set-card-title + .set-row { border-top:none; }
+.set-k { font-size:13.5px; color:var(--ts); font-weight:600; }
+.set-v { font-size:13.5px; color:var(--tp); font-weight:600; text-align:right; overflow-wrap:anywhere; }
+.set-sub { font-size:12px; color:var(--td); margin-top:3px; word-break:keep-all; }
+/* 설명이 두 줄이 되는 줄은 위쪽을 맞춘다 — 가운데 정렬하면 단추가 떠 보인다 */
+.set-row.is-act { align-items:flex-start; }
+.set-row.is-act .btn { flex:none; margin-top:1px; }
+.set-row.is-edit { gap:10px; }
+.set-row.is-edit .set-k { flex:none; min-width:56px; }
+.set-name-inp { flex:1; min-width:0; }
+.set-note { font-size:12.5px; color:var(--tt); line-height:1.6; margin:10px 0 0; word-break:keep-all; }
+
+/* 켜짐/꺼짐 스위치. div 가 아니라 단추다 — 예전 것은 마우스로만 눌렸다. */
+.set-sw {
+  flex:none; position:relative; width:44px; height:26px; padding:0;
+  border:none; border-radius:9999px; background:var(--bg3); cursor:pointer;
+  transition:background .16s;
+}
+.set-sw.is-on { background:var(--primary); }
+.set-sw:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.set-sw-knob {
+  position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.22); transition:left .16s;
+}
+.set-sw.is-on .set-sw-knob { left:21px; }
 
 .act-group { margin-bottom:20px; }
 .act-group-title { font-size:11.5px; font-weight:700; color:var(--tt); margin-bottom:7px; padding-left:2px; }
