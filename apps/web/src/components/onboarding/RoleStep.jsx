@@ -54,9 +54,6 @@ export function RoleStep({ value, onPick, busy }) {
               <NavIcon name={r.icon} size={24} color="currentColor" />
             </span>
             <span className="ob-role-label">{r.label}</span>
-            {/* 고른 것에는 표를 단다. 고름과 커서-올림을 **색만으로** 가르면
-                둘 다 파래져서, 지금 커서가 어느 카드에 있는지 알 수 없다. */}
-            {value === r.id && <span className="ob-role-check" aria-hidden="true">✓</span>}
           </span>
           <span className="ob-role-desc">{r.desc}</span>
         </button>
