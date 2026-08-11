@@ -2010,22 +2010,28 @@ tr:hover td { background:var(--surface-container-low); }
    폰에서는 이미 이렇게 하고 있었으니(아래 @media) 이제 어디서나 같다.
 
    글 폭은 따로 묶는다 — 바탕이 넓어졌다고 한 줄이 화면 끝까지 늘어나면
-   읽기 어렵다. 세로로는 가운데로 모은다(단계마다 길이가 달라서, 위에
-   붙여 두면 짧은 단계에서 아래가 텅 빈다). */
+   읽기 어렵다.
+
+   **세로 자리는 위에 못 박는다.** 가운데로 모아 두었더니 단계마다 내용
+   길이가 달라서 제목이 위아래로 200px 씩 뛰었다(제목 y: 119~318). 다음을
+   누를 때마다 화면이 통째로 미끄러지는 셈이라 눈이 매번 제목을 다시
+   찾아야 했다. 위를 고정하면 제목·진행바가 늘 같은 자리에 있고, 길이 차이는
+   아래쪽에서만 난다. */
 .ob-wrap {
   min-height:100vh; background:var(--bg1);
   display:flex; align-items:stretch; justify-content:center;
   padding:0; overflow-y:auto;
 }
 .ob-card {
-  width:100%; background:var(--bg1); padding:40px 24px 32px;
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  width:100%; background:var(--bg1);
+  padding:clamp(40px, 11vh, 104px) 24px 32px;
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:center;
 }
 .ob-card > * { width:100%; max-width:600px; }
 .ob-card-loading { text-align:center; color:var(--tt); font-size:14px; padding:60px 20px; }
 
 /* 진행바 — 완료 칸은 파랑, 남은 칸은 연회색 */
-.ob-progress { display:flex; gap:6px; margin-bottom:28px; }
+.ob-progress, .ob-progress-gap { display:flex; gap:6px; height:4px; margin-bottom:28px; }
 .ob-progress-cell {
   flex:1; height:4px; border-radius:2px; background:var(--bg3);
   transition:background-color .2s;
@@ -2082,7 +2088,11 @@ tr:hover td { background:var(--surface-container-low); }
   vertical-align:-.34em; margin-right:.14em;
 }
 .ob-sub { font-size:14px; color:var(--tt); margin:0 0 24px; word-break:keep-all; }
-.ob-body { margin-bottom:24px; }
+/* 짧은 단계에서도 바닥(이전으로 · 다음)이 덜 튀도록 조금 받쳐 둔다.
+   가장 짧은 학년(143px)·학과(183)·관심(192) 이 여기에 들어온다. 더 키우면
+   단추 자리는 더 붙잡히지만 짧은 화면에 빈 곳이 커져서, 이번엔 화면이
+   비어 보이는 쪽이 거슬린다. 긴 단계(계열 390·미리보기 430)는 그냥 늘어난다. */
+.ob-body { margin-bottom:24px; min-height:200px; }
 .ob-hint { font-size:13px; color:var(--tt); margin:10px 0 0; word-break:keep-all; }
 .ob-warn { font-size:13px; color:var(--danger); margin:10px 0 0; word-break:keep-all; }
 .ob-optional { font-weight:400; color:var(--tt); }

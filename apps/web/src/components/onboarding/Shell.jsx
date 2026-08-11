@@ -47,7 +47,11 @@ export function Shell({
   return (
     <div className="ob-wrap">
       <div className="ob-card">
-        {total > 0 && <Progress total={total} current={current} />}
+        {/* 진행바가 없는 단계(역할 고르기)에서도 그 자리는 비워 둔다 — 안 그러면
+            첫 화면에서 다음으로 넘어갈 때 제목이 진행바 높이만큼 툭 내려간다. */}
+        {total > 0
+          ? <Progress total={total} current={current} />
+          : <div className="ob-progress-gap" aria-hidden="true" />}
         <h1 className="ob-title">
           {/* 핵심 단어만 파랑으로 — 문장 전체를 강조하면 아무것도 강조되지 않는다 */}
           {accent ? (
