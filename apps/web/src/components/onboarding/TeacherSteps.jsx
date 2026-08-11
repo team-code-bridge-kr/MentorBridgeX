@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { SavedField } from "./SavedField.jsx";
 
 const TEACH_GRADES = ["1", "2", "3"];
 
@@ -21,34 +22,23 @@ export function TeacherProfileStep({ school, subject, grades, onChange, busy }) 
 
   return (
     <>
-      <div className="inp-group">
-        <label className="inp-label" htmlFor="t-school">
-          학교
-        </label>
-        <input
-          id="t-school"
-          className="inp"
-          value={school || ""}
-          onChange={(e) => onChange({ school: e.target.value })}
-          placeholder="○○고등학교"
-          maxLength={120}
-          disabled={busy}
-        />
-      </div>
-      <div className="inp-group">
-        <label className="inp-label" htmlFor="t-subject">
-          담당 과목
-        </label>
-        <input
-          id="t-subject"
-          className="inp"
-          value={subject || ""}
-          onChange={(e) => onChange({ subject: e.target.value })}
-          placeholder="화학 / 진로 / 담임"
-          maxLength={60}
-          disabled={busy}
-        />
-      </div>
+      <SavedField
+        id="t-school"
+        label="학교"
+        value={school}
+        onSave={(v) => onChange({ school: v })}
+        placeholder="○○고등학교"
+        disabled={busy}
+      />
+      <SavedField
+        id="t-subject"
+        label="담당 과목"
+        value={subject}
+        onSave={(v) => onChange({ subject: v })}
+        placeholder="화학 / 진로 / 담임"
+        maxLength={60}
+        disabled={busy}
+      />
       <div className="inp-group">
         <span className="inp-label">담당 학년</span>
         <div className="ob-major-row">

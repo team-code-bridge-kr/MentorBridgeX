@@ -7,6 +7,7 @@
 
 import { useMemo, useState } from "react";
 import { MAX_MAJORS } from "../../lib/onboardingData.js";
+import { SavedField } from "./SavedField.jsx";
 
 /**
  * 목록에 없는 학과를 직접 적었을 때 붙이는 표시.
@@ -108,20 +109,15 @@ export function MentorProfileStep({
         )}
       </div>
 
-      <div className="inp-group">
-        <label className="inp-label" htmlFor="mentor-aff">
-          현재 소속 <span className="ob-optional">(선택)</span>
-        </label>
-        <input
-          id="mentor-aff"
-          className="inp"
-          value={affiliation || ""}
-          onChange={(e) => onChange({ mentor_affiliation: e.target.value })}
-          placeholder="○○대학교 / ○○ 회사"
-          maxLength={120}
-          disabled={busy}
-        />
-      </div>
+      <SavedField
+        id="mentor-aff"
+        label="현재 소속"
+        optional
+        value={affiliation}
+        onSave={(v) => onChange({ mentor_affiliation: v })}
+        placeholder="○○대학교 / ○○ 회사"
+        disabled={busy}
+      />
 
       <div className="inp-group">
         <span className="inp-label">구분</span>
