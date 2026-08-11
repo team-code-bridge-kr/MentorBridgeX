@@ -25,8 +25,6 @@ export function GradeStep({ value, onPick, busy }) {
           aria-pressed={value === g.id}
         >
           <span className="ob-grade-label">{g.label}</span>
-          {/* 무엇이 달라지는지 적어 둔다 — 다만 **정말 달라질 때만**(GRADES 주석) */}
-          {g.effect && <span className="ob-grade-effect">{g.effect}</span>}
         </button>
       ))}
     </div>

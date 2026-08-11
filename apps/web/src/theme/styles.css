@@ -2112,7 +2112,10 @@ tr:hover td { background:var(--surface-container-low); }
 /* ── STEP 0 역할 ─────────────────────────────────────────── */
 /* 학생 카드가 넓다 — 세 칸이 똑같으면 어느 쪽이 보통인지 안 보인다 */
 .ob-role-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.ob-role {
+/* 고르는 카드 한 벌 — 역할·학년·계열이 같은 것을 쓴다.
+   셋 다 "하나 골라 주세요" 인데 여태 크기도 곡률도 hover 도 다 달랐다.
+   같은 일을 하는 칸이 단계마다 다르게 생기면 같은 조작인 줄 모른다. */
+.ob-role, .ob-grade, .ob-field {
   display:flex; flex-direction:column; align-items:flex-start; gap:8px;
   padding:20px 18px; border-radius:16px; border:1.5px solid var(--brd);
   background:var(--bg1); cursor:pointer; text-align:left;
@@ -2132,24 +2135,34 @@ tr:hover td { background:var(--surface-container-low); }
    테두리가 한 톤 밝아지는 것뿐이라 눈에 안 들어왔다 — 손을 올려도 아무 일이
    없는 것 같아서 눌러 봐야 아는 상태가 됐다. 테두리를 진한 파랑으로 세우고
    그림자를 키운다. 바탕은 여전히 흰색이라 고른 카드와 안 헷갈린다. */
-.ob-role:hover:not(:disabled),
-.ob-role:focus-visible:not(:disabled) {
+.ob-role:hover:not(:disabled), .ob-role:focus-visible:not(:disabled),
+.ob-grade:hover:not(:disabled), .ob-grade:focus-visible:not(:disabled),
+.ob-field:hover:not(:disabled), .ob-field:focus-visible:not(:disabled) {
   border-color:var(--primary);
   box-shadow:0 6px 18px rgba(9,105,218,.16);
 }
 .ob-role:hover:not(:disabled) .ob-role-ic,
 .ob-role:focus-visible:not(:disabled) .ob-role-ic { color:var(--primary); }
 .ob-role:hover:not(:disabled) .ob-role-desc,
-.ob-role:focus-visible:not(:disabled) .ob-role-desc { color:var(--tp); }
+.ob-role:focus-visible:not(:disabled) .ob-role-desc,
+.ob-field:hover:not(:disabled) .ob-field-sample,
+.ob-field:focus-visible:not(:disabled) .ob-field-sample { color:var(--tp); }
 /* 손가락으로 쓰는 화면에는 :hover 가 없다 — 누르는 동안만이라도 답한다. */
-.ob-role:active:not(:disabled) { border-color:var(--primary); box-shadow:none; }
-.ob-role:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
+.ob-role:active:not(:disabled),
+.ob-grade:active:not(:disabled),
+.ob-field:active:not(:disabled) { border-color:var(--primary); box-shadow:none; }
+.ob-role:focus-visible, .ob-grade:focus-visible, .ob-field:focus-visible {
+  outline:2px solid var(--blue-500); outline-offset:2px;
+}
 /* 고른 카드에는 아무 표시도 하지 않는다.
    이 화면은 고르는 순간 다음으로 넘어간다 — 머물러서 "내가 뭘 골랐더라" 를
    확인할 일이 없다. 그런데 파랗게 남겨 두니 커서를 올린 카드와 헷갈려서,
    지금 손이 어디 있는지를 되레 가렸다. 파란 테두리는 **커서가 있는 곳** 하나만
    가리킨다. 고른 값은 aria-pressed 로 남으므로 화면 읽기에는 그대로 전해진다. */
-.ob-role:disabled { opacity:.6; cursor:default; }
+.ob-role:disabled, .ob-grade:disabled { opacity:.6; cursor:default; }
+.ob-field:disabled { opacity:.45; cursor:not-allowed; }
+/* 고른 카드는 파란 테두리만. 바탕을 칠하면 커서가 올라간 카드와 헷갈린다. */
+.ob-grade.is-on, .ob-field.is-on { border-color:var(--blue-500); }
 /* 아이콘은 판 없이 그대로 놓는다. 네모난 판을 깔아 보니 카드 안에 작은 카드가
    또 있는 꼴이라, 눌러야 할 것이 판인지 카드인지 헷갈렸다. 고른 카드에서는
    아이콘만 파랑으로 든다. */
@@ -2162,32 +2175,16 @@ tr:hover td { background:var(--surface-container-low); }
   transition:color .18s ease .09s;   /* 테두리(.14s)가 뜬 뒤에 뒤따른다 */
 }
 
-/* ── STEP 1 학년 ─────────────────────────────────────────── */
-.ob-grade-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.ob-grade {
-  display:flex; flex-direction:column; gap:4px; align-items:flex-start;
-  padding:16px 18px; border-radius:14px; border:1.5px solid var(--brd);
-  background:var(--bg1); cursor:pointer; text-align:left; font-family:inherit;
-  transition:border-color .14s, background-color .14s;
+/* ── STEP 1 학년 · STEP 2 계열 ───────────────────────────
+   칸 사이도 역할 화면과 같은 12px 로. 글씨는 .ob-role-label/-desc 와 같다. */
+.ob-grade-grid, .ob-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.ob-grade-label, .ob-field-label {
+  font-size:20px; font-weight:700; color:var(--tp); letter-spacing:-.01em;
 }
-.ob-grade:hover:not(:disabled) { border-color:var(--blue-300); }
-.ob-grade.is-on { border-color:var(--blue-500); background:var(--blue-50); }
-.ob-grade-label { font-size:15px; font-weight:700; color:var(--tp); }
-.ob-grade-effect { font-size:12.5px; color:var(--tt); word-break:keep-all; }
-
-/* ── STEP 2 계열 ─────────────────────────────────────────── */
-.ob-field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.ob-field {
-  display:flex; flex-direction:column; gap:4px; align-items:flex-start;
-  padding:16px; border-radius:14px; border:1.5px solid var(--brd);
-  background:var(--bg1); cursor:pointer; text-align:left; font-family:inherit;
-  transition:border-color .14s, background-color .14s;
+.ob-field-sample {
+  font-size:14.5px; color:var(--tt); line-height:1.5; word-break:keep-all;
+  transition:color .18s ease .09s;
 }
-.ob-field:hover:not(:disabled) { border-color:var(--blue-300); }
-.ob-field.is-on { border-color:var(--blue-500); background:var(--blue-50); }
-.ob-field:disabled { opacity:.45; cursor:not-allowed; }
-.ob-field-label { font-size:14.5px; font-weight:700; color:var(--tp); }
-.ob-field-sample { font-size:12px; color:var(--tt); word-break:keep-all; }
 /* 못 찾았을 때 — 안내 한 줄 + 그 자리에서 바로 넣는 단추.
    "없어요" 로 끝내면 막다른 길이다. 무엇을 하면 되는지까지 같이 준다. */
 .ob-nofind { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:2px; }
