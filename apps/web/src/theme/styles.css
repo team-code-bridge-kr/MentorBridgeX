@@ -2118,12 +2118,22 @@ tr:hover td { background:var(--surface-container-low); }
    카드의 옅은 파랑(--blue-50)과 거의 같은 색이라 둘이 나란히 켜지면 어느
    쪽에 커서가 있는지 알 수 없었다 — 커서를 교사에 올려도 학생이 켜져 있는
    것처럼 보였다. 커서-올림은 테두리와 글씨로, 고름은 채운 바탕과 표로. */
-.ob-role:hover:not(:disabled) {
-  border-color:var(--blue-400);
-  box-shadow:0 4px 14px rgba(9,105,218,.10);
+/* 커서를 올린 표시는 **또렷해야** 한다. 앞서 옅은 파랑 바탕을 걷어 냈더니
+   테두리가 한 톤 밝아지는 것뿐이라 눈에 안 들어왔다 — 손을 올려도 아무 일이
+   없는 것 같아서 눌러 봐야 아는 상태가 됐다. 테두리를 진한 파랑으로 세우고
+   그림자를 키운다. 바탕은 여전히 흰색이라 고른 카드와 안 헷갈린다. */
+.ob-role:hover:not(:disabled),
+.ob-role:focus-visible:not(:disabled) {
+  border-color:var(--primary);
+  box-shadow:0 6px 18px rgba(9,105,218,.16);
 }
-.ob-role:hover:not(:disabled) .ob-role-ic { color:var(--primary); }
-.ob-role:hover:not(:disabled) .ob-role-desc { color:var(--tp); }
+.ob-role:hover:not(:disabled) .ob-role-ic,
+.ob-role:focus-visible:not(:disabled) .ob-role-ic { color:var(--primary); }
+.ob-role:hover:not(:disabled) .ob-role-desc,
+.ob-role:focus-visible:not(:disabled) .ob-role-desc { color:var(--tp); }
+/* 손가락으로 쓰는 화면에는 :hover 가 없다 — 누르는 동안만이라도 답한다. */
+.ob-role:active:not(:disabled) { border-color:var(--primary); box-shadow:none; }
+.ob-role:focus-visible { outline:2px solid var(--blue-500); outline-offset:2px; }
 /* 고른 카드 — 채운 바탕 + 파란 이름 + 표. 색을 못 보는 사람에게도 표가 남는다. */
 .ob-role.is-on { border-color:var(--blue-500); background:var(--blue-50); }
 .ob-role.is-on .ob-role-ic,
