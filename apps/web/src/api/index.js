@@ -309,6 +309,23 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
     // 다른 이름(별칭). 생기부에 "인공지능" 이라 적혀 있는데 노드 이름이 "AI"
     // 면 출처도 관계도 못 찾는다 — 별칭이 그 간극을 메운다.
     aliases: Array.isArray(refs.aliases) ? refs.aliases.filter(Boolean) : [],
+    /**
+     * 이 설명을 **누가 썼는가**.
+     *
+     * `description` 은 출처가 셋이다. (1) 생기부에서 키워드를 뽑을 때 모델이
+     * 40자로 적은 "이 키워드를 고른 이유"(source=claude), (2) 다음 탐구
+     * 추천에서 따라온 활동 설명(source=pruning), (3) 학생이 직접 쓴 말.
+     * 앞의 둘은 **모델의 판단**이지 생기부에 적힌 말이 아니다.
+     *
+     * 노드 판에서 이 줄 바로 위에 「출처」(생기부 원문 인용)가 서 있어서,
+     * 표시가 없으면 이 문장도 생기부에 그렇게 적혀 있는 것으로 읽힌다.
+     * 화면이 앞에 "Bridge AI :" 를 붙이는 판단 근거가 이 값이다.
+     *
+     * 뼈대 노드(source=structure)의 "12,340자" 같은 것은 기계가 센 수치라
+     * 모델의 말이 아니다 — 표시하지 않는다. 학생이 한 번이라도 고쳐 쓰면
+     * `desc_by="user"` 가 박혀 표시가 사라진다.
+     */
+    aiDesc: refs.desc_by !== "user" && (refs.source === "claude" || refs.source === "pruning"),
     // 아이콘 결정에 쓴다: section = 과목·영역, type = 온톨로지 노드 유형
     section: sectionOf(n),
     // 생기부 구획으로 세운 뼈대 노드면 그 구획의 id. 눌렀을 때 원문으로
@@ -576,10 +593,17 @@ const api = {
       if (patch.type !== undefined) body.type = patch.type;
       // external_refs 는 보낸 열쇠만 덮어쓴다(서버가 병합한다). 그래서 과목과
       // 별칭을 따로 보내도 서로를 지우지 않는다.
-      if (patch.section !== undefined || patch.aliases !== undefined) {
+      if (
+        patch.section !== undefined ||
+        patch.aliases !== undefined ||
+        patch.descBy !== undefined
+      ) {
         body.external_refs = {};
         if (patch.section !== undefined) body.external_refs.section = patch.section;
         if (patch.aliases !== undefined) body.external_refs.aliases = patch.aliases;
+        // 학생이 설명을 고쳐 쓰면 더는 모델의 말이 아니다 — "Bridge AI :" 를
+        // 떼어낸다. `source` 는 건드리지 않는다(아이콘·묶음이 그 값을 본다).
+        if (patch.descBy !== undefined) body.external_refs.desc_by = patch.descBy;
       }
       return request(`/v1/students/me/graph/nodes/${id}`, { method: "PATCH", body });
     },

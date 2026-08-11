@@ -2893,6 +2893,33 @@ tr:hover td { background:var(--surface-container-low); }
   font-size:11px; font-weight:600; color:var(--tt); white-space:nowrap;
 }
 
+/* 노드 설명 한 줄.
+
+   모델이 쓴 문장이면 앞에 로고와 이름을 달아 **누구 말인지** 밝힌다. 이 줄
+   바로 위가 「출처」(생기부 원문 인용)라서, 표시가 없으면 학생이 "생기부에
+   이렇게 적혀 있구나" 로 읽는다 — 실제로는 모델이 키워드를 고른 이유를
+   40자로 적은 것이다.
+
+   이름표는 문장과 같은 줄에서 시작한다(inline-flex). 위에 따로 한 줄을
+   세우지 않는 까닭은 설명이 대개 한 문장이라, 이름표가 본문보다 커 보이기
+   때문이다. 대화 화면의 .ai-who 와 같은 로고·같은 파랑을 쓴다. */
+.node-desc {
+  font-size:13px; color:var(--ts); line-height:1.7;
+  margin:14px 0 0; word-break:keep-all;
+}
+.node-desc-by {
+  display:inline-flex; align-items:center; gap:5px; vertical-align:-3px;
+  margin-right:2px; font-weight:700; color:var(--blue-500); white-space:nowrap;
+}
+/* 로고가 아이콘 하나가 아니라 잠금장치 전체(육각 마크 + TCB 글자 + 화살표)라
+   작게 줄이면 뭉갠 얼룩이 된다. 18px 은 대화 화면(24px)보다 작지만 본문 13px
+   옆에서 튀지 않는 한계다. 안쪽 여백은 1px 만 준다 — 2px 를 주면 마크가 한 번
+   더 줄어 알아볼 수 없다. */
+.node-desc-by img {
+  width:18px; height:18px; border-radius:50%; object-fit:contain;
+  background:var(--bg2); padding:1px; flex-shrink:0;
+}
+
 /* 빈 곳 목록 — 누르면 그 자리로 데려간다 */
 .gap-row {
   display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%;

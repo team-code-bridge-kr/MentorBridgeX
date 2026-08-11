@@ -18,6 +18,9 @@ import { NodeEvidence } from "../../components/graph/NodeEvidence.jsx";
 import { GraphPanel, Section } from "../../components/graph/GraphPanel.jsx";
 import { GraphCrumb } from "../../components/graph/GraphCrumb.jsx";
 import { GraphExplore } from "../../components/graph/GraphExplore.jsx";
+// 대화 화면(AIConversation)의 이름표와 **같은 로고**를 쓴다 — 같은 말을 하는
+// 같은 존재라는 것이 두 화면에서 어긋나면 안 된다.
+import tcbLogo from "../../assets/brand/TeamCodeBridge_Logo_Black_Web.png";
 
 // 밝은 판 위의 연결선 색.
 //
@@ -788,9 +791,17 @@ export function S06({ onNav }) {
   const handleEdit = useCallback(async ({ label, section, description, aliases }) => {
     if (!sel) return;
     setBusy(true);
+    // 설명을 손대면 더는 모델의 말이 아니다 — 앞의 "Bridge AI :" 를 뗀다.
+    const descChanged = (description || "") !== (sel.description || "");
     try {
-      await actions.updateNode(sel.id, { label, section, description, aliases });
-      setSel((cur) => (cur ? { ...cur, label, section: section || "기타", description, aliases } : cur));
+      await actions.updateNode(sel.id, {
+        label, section, description, aliases,
+        ...(descChanged ? { descBy: "user" } : {}),
+      });
+      setSel((cur) => (cur ? {
+        ...cur, label, section: section || "기타", description, aliases,
+        aiDesc: descChanged ? false : cur.aiDesc,
+      } : cur));
       setEditing(false);
     } catch (e) {
       actions.toast("error", e.message || "노드를 수정하지 못했습니다.");
@@ -1361,8 +1372,21 @@ export function S06({ onNav }) {
               />
             )}
 
+            {/* 설명 한 줄. 바로 위 「출처」가 생기부 원문이라, 아무 표시가 없으면
+                이 문장도 생기부에 적힌 말로 읽힌다. 모델이 쓴 것이면(생기부 키워드의
+                선정 이유 · 다음 탐구 추천) 앞에 누가 한 말인지 밝힌다. */}
             {sel.description && !editing && (
-              <p style={{fontSize:13,color:TDS.textSecondary,lineHeight:1.65,margin:"14px 0 0",wordBreak:"keep-all"}}>{sel.description}</p>
+              <p className="node-desc">
+                {sel.aiDesc && (
+                  <span className="node-desc-by">
+                    <img src={tcbLogo} alt="" aria-hidden="true" />
+                    Bridge AI :
+                  </span>
+                )}
+                {/* 이름표 뒤의 한 칸은 CSS 여백이 아니라 **진짜 공백**이어야
+                    한다 — 화면 낭독기와 복사·붙여넣기는 여백을 못 읽는다. */}
+                {sel.aiDesc ? ` ${sel.description}` : sel.description}
+              </p>
             )}
 
             {/* ── 구획들 ──────────────────────────────────────────
