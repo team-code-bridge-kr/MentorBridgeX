@@ -135,7 +135,7 @@ export function S03({ onNav }) {
            「준비됐어요! 🎉」 둘뿐이다. */
         title={
           <>
-            안녕하세요 <span className="ob-title-emoji" aria-hidden="true">👋</span>
+            안녕하세요 <span className="ob-title-emoji ob-wave" aria-hidden="true">👋</span>
             <br />
             <img className="ob-title-logo" src={mbxLogo} alt="" aria-hidden="true" />
             MBX에 어떤 목적으로 오셨나요?
