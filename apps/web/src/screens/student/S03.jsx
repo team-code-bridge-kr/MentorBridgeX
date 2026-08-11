@@ -141,7 +141,9 @@ export function S03({ onNav }) {
             <span className="ob-title-mbx">MBX</span>에 어떤 목적으로 오셨나요?
           </>
         }
-        note="나중에 언제든 바꿀 수 있으니 지금은 편하게 선택해도 괜찮아요!"
+        /* 제목 바로 아래로. 카드 밑 가운데에 있을 때는 다 고르고 나서야
+           눈에 들어와서, 정작 망설이는 순간에는 읽히지 않았다. */
+        sub="나중에 언제든 바꿀 수 있으니 지금은 편하게 선택해도 괜찮아요!"
       >
         {errorLine}
         <RoleStep value={role} busy={saving} onPick={(r) => go(1, { role: r })} />
