@@ -1,9 +1,33 @@
 import { useState, useEffect } from "react";
 import TDS from "../../theme/tokens.js";
-import { Back, TFI, Btn, Card, Notice } from "../../components/ui.jsx";
+import { Back, Btn, Notice } from "../../components/ui.jsx";
 import api from "../../api/index.js";
 import { subjectMarkers } from "../../lib/subjectBlocks.js";
 import { AREA_META } from "./S11.jsx";
+
+/**
+ * 이 글에서 나온 노드만 고른다.
+ *
+ * 예전에는 그래프의 **앞 여덟 개**를 그냥 잘라 왔다(`nodes.slice(0, 8)`).
+ * 자율활동을 열어도 "국어"·"무리함수의 역함수와 넓이" 가 「연결된 노드」로
+ * 떴다 — 이어져 있지 않은데 이어졌다고 적은 셈이다.
+ *
+ * 노드는 자기가 어느 구획에서 나왔는지 갖고 있다(external_refs.section →
+ * api/index.js 의 sectionOf). 세특이면 그 값이 과목 이름이고, 나머지 일곱
+ * 영역이면 영역 이름이다. 이름이 딱 맞지 않는 경우가 있어(구획은
+ * "독서활동상황", 화면은 "독서활동") 한쪽이 다른 쪽을 품으면 같은 것으로 본다.
+ */
+function linkedTo(nodes, doc) {
+  const meta = AREA_META.find((m) => m.type === doc?.section_type);
+  const key = (doc?.subject_id || meta?.t || "").trim();
+  if (!key) return [];
+  return (nodes || [])
+    .filter((n) => {
+      const sec = (n.section || "").trim();
+      return sec && sec !== "기타" && (sec === key || sec.includes(key) || key.includes(sec));
+    })
+    .map((n) => n.label);
+}
 
 export function S12({ onNav }) {
   const docId = sessionStorage.getItem("mbx_doc_id");
@@ -33,9 +57,7 @@ export function S12({ onNav }) {
           setSubject(doc.subject_id || "");
         }
         const g = await api.graph.fetch();
-        if (!cancelled) {
-          setLinked((g.nodes || []).slice(0, 8).map((n) => n.label));
-        }
+        if (!cancelled) setLinked(linkedTo(g.nodes, doc));
       } catch (e) {
         if (!cancelled) setErr(e.message);
       }
@@ -56,7 +78,7 @@ export function S12({ onNav }) {
       if (seeds.length) {
         try { await api.graph.generateFromSeeds(seeds); } catch { /* optional */ }
         const g = await api.graph.fetch();
-        setLinked((g.nodes || []).slice(0, 8).map((n) => n.label));
+        setLinked(linkedTo(g.nodes, d));
       }
     } catch (e) {
       setErr(e.message);
@@ -90,8 +112,7 @@ export function S12({ onNav }) {
   }
 
   return (
-    <div style={{ display: "flex", height: "100%" }}>
-      <div style={{ flex: 1, padding: 28, overflowY: "auto", background: TDS.bgSecondary }}>
+    <div className="rs-wrap">
         <div className="form-head">
           <Back label="생기부" onClick={() => onNav("S11")} />
           <div className="doc-head-name">
@@ -165,36 +186,51 @@ export function S12({ onNav }) {
           </Notice>
         )}
 
-        <Notice type="info" className="mb16"><TFI>💡</TFI> 저장 시 본문 키워드를 시드로 그래프에 추가합니다.</Notice>
-        {err && <div style={{ color: TDS.danger, marginBottom: 8 }}>{err}</div>}
-        {msg && <div style={{ color: TDS.success, marginBottom: 8 }}>{msg}</div>}
-        <Card>
-          <textarea
-            className="textarea"
-            style={{ minHeight: 300, fontSize: 15, lineHeight: 1.8 }}
-            value={txt}
-            onChange={(e) => setTxt(e.target.value)}
-            placeholder="영역 내용을 입력하세요"
-          />
-          <div className="row-between mt16" style={{ marginTop: 14 }}>
-            <span style={{ fontSize: 13, color: TDS.textTertiary }}>{txt.length}자</span>
-            <div className="row g-8" style={{ gap: 8 }}>
-              <Btn v="secondary" s="sm" onClick={() => setTxt("")}>초기화</Btn>
-              <Btn v="primary" s="sm" disabled={saving} onClick={save}>{saving ? "저장 중…" : "저장 및 그래프 동기화"}</Btn>
+        {err && <div className="form-err">{err}</div>}
+        {msg && <div className="form-ok">{msg}</div>}
+
+        {/* 보고서 상세(S22)와 같은 뼈대 — 본문 한 판, 옆에 좁은 곁판.
+            두 화면 다 "긴 글 하나 + 그 글의 근거" 라서 같은 모양이어야 한다. */}
+        <div className="form-detail">
+          <div className="card card-p form-body">
+            <div className="form-edit-hint">
+              저장하면 본문에서 뽑은 말이 그래프에 시드로 더해집니다.
+            </div>
+            <textarea
+              className="textarea form-edit"
+              value={txt}
+              onChange={(e) => setTxt(e.target.value)}
+              placeholder="영역 내용을 입력하세요"
+            />
+            <div className="row-between" style={{ marginTop: 14 }}>
+              <span style={{ fontSize: 13, color: TDS.textTertiary }}>{txt.length.toLocaleString()}자</span>
+              <div className="row g-8" style={{ gap: 8 }}>
+                <Btn v="secondary" s="sm" onClick={() => setTxt("")}>초기화</Btn>
+                <Btn v="primary" s="sm" disabled={saving} onClick={save}>
+                  {saving ? "저장 중…" : "저장 및 그래프 동기화"}
+                </Btn>
+              </div>
             </div>
           </div>
-        </Card>
-      </div>
-      <div style={{ width: 280, flexShrink: 0, background: TDS.bgPrimary, borderLeft: `1px solid ${TDS.borderDefault}`, padding: 20, overflowY: "auto" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: TDS.textPrimary, marginBottom: 16 }}>연결된 노드</div>
-        {linked.map((n) => (
-          <div key={n} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: TDS.blue50, borderRadius: 10, marginBottom: 8 }}>
-            <TFI s={14} color={TDS.blue500}>🔵</TFI>
-            <span style={{ fontSize: 13, color: TDS.blue500, fontWeight: 600 }}>{n}</span>
-          </div>
-        ))}
-        {!linked.length && <div style={{ fontSize: 12, color: TDS.textTertiary }}>아직 노드가 없습니다</div>}
-      </div>
+
+          <aside className="form-side">
+            <div className="card card-p">
+              <div className="form-side-t">이어진 노드</div>
+              <div className="form-side-lead">
+                이 글에서 나와 지식 그래프에 놓인 것들입니다.
+              </div>
+              {linked.length ? (
+                <ul className="form-nodes">
+                  {linked.map((n) => <li key={n}><span className="form-node-dot" />{n}</li>)}
+                </ul>
+              ) : (
+                <div className="form-side-empty">
+                  아직 없습니다. 저장하면 본문에서 뽑은 말이 그래프에 놓입니다.
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
     </div>
   );
 }
