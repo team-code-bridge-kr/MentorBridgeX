@@ -91,8 +91,9 @@ export function S30({ onNav }) {
     try {
       const p = await api.settings.patch({ display_name: name.trim() });
       setProfile(p);
-      // 사이드바·인사말이 모두 세션의 이름을 쓴다(updateUser 주석).
-      actions.updateUser({ name: p.display_name });
+      // 사이드바·인사말·아바타가 모두 세션의 이름을 쓴다. 서버에만 저장하고
+      // 세션을 그대로 두면 화면 곳곳에 옛 이름이 남아 안 바뀐 것처럼 보인다.
+      actions.updateSessionUser({ name: p.display_name });
       setMsg("이름을 바꿨습니다.");
     } catch (e) {
       setMsg(e.message || "저장하지 못했습니다.");

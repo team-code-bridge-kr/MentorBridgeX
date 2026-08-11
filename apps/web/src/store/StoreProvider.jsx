@@ -85,17 +85,6 @@ export function StoreProvider({ children }) {
       dispatch({ type: "AUTH_OK", session });
       return session;
     },
-    /**
-     * 세션에 담긴 내 정보 한 조각을 고친다(설정에서 이름을 바꿀 때).
-     * 사이드바·인사말·아바타가 모두 세션의 이름을 쓰므로, 서버에만 저장하고
-     * 세션을 그대로 두면 화면 곳곳에 옛 이름이 남아 안 바뀐 것처럼 보인다.
-     * localStorage 는 session 이 바뀔 때 도는 효과가 알아서 맞춘다.
-     */
-    updateUser(patch) {
-      const cur = stateRef.current.session;
-      if (!cur?.user) return;
-      dispatch({ type: "AUTH_OK", session: { ...cur, user: { ...cur.user, ...patch } } });
-    },
     async signInAdmin(email, password, mfa) {
       dispatch({ type: "AUTH_START" });
       try {
