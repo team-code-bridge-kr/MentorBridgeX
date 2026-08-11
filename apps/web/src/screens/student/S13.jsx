@@ -10,10 +10,10 @@
  *
  * 화면은 알림·활동 기록·설정과 같은 유리 표면(.act-glass)을 쓴다.
  *
- * 설명문 두 줄을 걷었다. "올리면 글을 뽑아 영역별로 나누고…"는 올려 보면 바로
- * 아는 일이고, 보관 정책 세 문장은 온보딩에서 이미 한 번 약속한 말이다.
- * 다만 **한 줄은 남긴다** — 미성년자의 민감한 기록을 올리는 자리라, 어디로
- * 가는지 한마디도 없이 단추만 두지는 않는다.
+ * 화면의 설명문을 모두 걷었다(요청). 보관 정책은 온보딩의 「생기부를 미리
+ * 올려 볼까요?」 단계에 그대로 있다 — 본인만 열람 · 최신본 한 개 · 인적사항
+ * 가림. **그 화면을 건너뛰고 여기로 바로 온 사람은 그 약속을 못 본다**는 점만
+ * 기억해 둘 것. 보관 방식을 바꾸면 온보딩 쪽 문구를 반드시 함께 고쳐야 한다.
  */
 
 import { useState } from "react";
@@ -99,10 +99,14 @@ export function S13({ onNav }) {
             <span className="up-drop-t">
               {file ? file.name : "파일을 선택하거나 여기로 드래그하세요"}
             </span>
-            <span className="up-drop-s">
-              {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · 다른 파일로 바꾸려면 누르세요`
-                    : `PDF 파일 · 최대 ${MAX_MB} MB`}
-            </span>
+            {/* 파일을 고른 뒤에만 한 줄 — 무엇을 골랐는지 확인해야 하니까.
+                고르기 전의 "PDF · 최대 50MB" 는 지웠다. 지금 알 필요가 없고,
+                어긋나면(PDF 아님·너무 큼) 그때 말해 준다. */}
+            {file && (
+              <span className="up-drop-s">
+                {(file.size / 1024 / 1024).toFixed(2)} MB · 다른 파일로 바꾸려면 누르세요
+              </span>
+            )}
           </button>
           <input
             id="pdf-inp"
@@ -111,8 +115,6 @@ export function S13({ onNav }) {
             style={{ display: "none" }}
             onChange={(e) => pick(e.target.files?.[0])}
           />
-          {/* 보관 정책이 바뀌면 이 한 줄도 반드시 같이 바꿀 것 — 약속이다. */}
-          <p className="set-note">본인만 볼 수 있게 보관하고, 언제든 원본만 지울 수 있습니다.</p>
         </section>
 
         {file && (

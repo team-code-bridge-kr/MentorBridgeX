@@ -131,6 +131,7 @@ const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connect
           // 한 번 누르면 고르면서 **그 노드로 들어간다**(자식이 있으면).
           // 더블클릭도 같은 일을 한다 — 익숙한 손짓이라 남겨 둔다.
           <div key={n.id}
+            data-gnode=""
             onMouseDown={(e)=>onNodeDown(e,n)}
             onDoubleClick={drillableIds.has(n.id) ? (e)=>{ e.stopPropagation(); onDrill(n); } : undefined}
             onMouseEnter={()=>onHover(n.id)} onMouseLeave={()=>onHover(null)}
@@ -560,6 +561,12 @@ export function S06({ onNav }) {
   }, [getPos]);
 
   const onCanvasMove = useCallback((e) => {
+    /* 노드도 이름표도 아닌 곳으로 오면 강조를 푼다.
+       이름표는 **강조되는 순간 화면에서 사라진다**(activeId 면 null 을 그린다 —
+       그 자리에는 큰 이름 카드가 대신 뜬다). 사라진 요소는 mouseleave 를
+       보내지 않아서, 이름표에 커서를 올렸다가 치우면 나머지 노드가 흐린 채로
+       영영 남았다. 커서가 어디 있는지 여기서 한 번 더 확인한다. */
+    if (!e.target?.closest?.("[data-gnode]")) setHover(null);
     const pan = panning.current;
     if (pan) {
       setView(v => ({ ...v, tx: pan.tx0 + (e.clientX - pan.cx), ty: pan.ty0 + (e.clientY - pan.cy) }));
@@ -585,6 +592,8 @@ export function S06({ onNav }) {
   }, []);
 
   const onCanvasUp = useCallback((e) => {
+    // 캔버스 밖으로 나가도 강조는 푼다(onMouseLeave 가 이 함수를 함께 쓴다).
+    if (e.type === "mouseleave") setHover(null);
     if (panning.current) {
       const p = panning.current;
       panning.current = null;
@@ -1108,7 +1117,7 @@ export function S06({ onNav }) {
                 id === activeId ? null : (
                   /* 이름표도 눌러서 고를 수 있다. 동그라미보다 넓고 읽고 나서
                      누르는 자리라, 여기서 못 고르면 매번 작은 원을 조준해야 한다. */
-                  <span key={id} title={l.text}
+                  <span key={id} title={l.text} data-gnode=""
                     onMouseDown={(e)=>e.stopPropagation()}
                     onClick={()=>{ const n = nodes.find(x=>x.id===id); if(n) selectNode(n); }}
                     onMouseEnter={()=>setHover(id)} onMouseLeave={()=>setHover(null)}
