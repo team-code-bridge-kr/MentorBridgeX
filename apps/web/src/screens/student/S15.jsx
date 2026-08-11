@@ -6,10 +6,14 @@
  * 같은 일을 두 가지 방식으로 하는 것처럼 보인다.
  *
  * 그래서 여기도 같은 것을 쓴다.
- *   - 유리 표면 한 벌(.act-glass) — 검색·거르개·목록이 같은 재질
  *   - 날짜 묶음(오늘 · 어제 · 최근 7일 · 이전) — 목록이 길어지면 "언제쯤" 이
  *     있어야 찾는다
  *   - 줄 끝의 ⋯ — 이름 바꾸기와 **삭제**가 여기 들어간다
+ *
+ * 다만 **이 화면만 유리를 벗었다**(`.act-wrap.is-plain`). 배경을 흰색으로
+ * 되돌리고, 목록을 가르는 것은 생기부 뷰어와 같은 밑줄 탭이다. 유리는 뒤에
+ * 흐릴 빛이 있을 때만 유리이고, 흰 배경 위의 반투명 흰 판은 그냥 흰 판이다 —
+ * 그래서 판도 평범한 흰 카드로 떨어뜨렸다(`.is-plain .act-glass`).
  *
  * 삭제는 이번에 처음 생겼다. 잘못 눌러 만들어진 0초짜리 녹음이 목록에 그대로
  * 쌓이는데 치울 방법이 없었다 — 자기 기록인데.
@@ -108,28 +112,33 @@ export function S15({ onNav }) {
   }, [shown]);
 
   return (
-    <div className="content act-wrap">
-      <div className="act-head">
-        <h1 className="act-title">음성 세션</h1>
-        <Btn v="primary" s="sm" onClick={startNew}>
-          <NavIcon name="voice" size={15} color="#fff" /> 새 녹음 시작
-        </Btn>
-      </div>
+    <div className="content act-wrap is-plain">
+      {/* 제목 「음성 세션」을 걷었다. 왼쪽 바에서 그 이름을 눌러 들어온 자리라
+          화면이 제 이름을 한 번 더 말할 이유가 없었다 — 26px 짜리 글자가 한 줄을
+          통째로 먹고 정작 목록은 아래로 밀려 있었다. 화면 낭독기를 위해서만
+          남긴다. */}
+      <h1 className="act-title sr-only">음성 세션</h1>
 
-      {/* 거르개도 활동 기록과 같은 알약. 같은 조작이 화면마다 다르게 생기면
-          그것이 같은 것인 줄 모른다. */}
-      <div className="act-filters" role="group" aria-label="녹음 상태 거르개">
+      {/* 생기부 뷰어(.rs-tabs)와 **같은 밑줄 탭**. 알약 거르개는 유리 배경
+          위에서만 뜻이 있었는데 배경을 흰색으로 되돌리면서 근거가 사라졌고,
+          같은 앱 안에서 목록을 가르는 방식이 화면마다 다를 이유도 없다.
+          「새 녹음 시작」은 그 줄 오른쪽 끝에 선다. */}
+      <div className="rs-tabs act-tabs" role="tablist" aria-label="녹음 상태">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
-            aria-pressed={tab === t.id}
-            className={`act-filter act-glass${tab === t.id ? " is-on" : ""}`}
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`rs-tab${tab === t.id ? " on" : ""}`}
             onClick={() => setTab(t.id)}
           >
             {t.label}
           </button>
         ))}
+        <Btn v="primary" s="sm" onClick={startNew}>
+          <NavIcon name="voice" size={15} color="#fff" /> 새 녹음 시작
+        </Btn>
       </div>
 
       {err && <div className="form-err">{err}</div>}

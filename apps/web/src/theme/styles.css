@@ -2356,6 +2356,27 @@ tr:hover td { background:var(--surface-container-low); }
     radial-gradient(70% 50% at 50% 108%, rgba(99,102,241,.10) 0%, transparent 72%),
     var(--bg1);
 }
+/* 유리를 벗은 판(음성 세션).
+
+   유리는 뒤에 흐릴 빛이 있을 때만 유리다. 배경을 흰색으로 되돌리면 반투명 흰
+   판은 그냥 흰 판이고, 테두리(흰색 85%)는 배경과 같은 색이라 아예 안 보인다.
+   그래서 배경을 걷을 때는 판도 함께 평범한 흰 카드로 떨어뜨린다 — 흐림을
+   지원하지 않는 브라우저에 쓰는 그 대비책과 같은 처방이다. */
+.act-wrap.is-plain { background:var(--bg1); }
+.act-wrap.is-plain .act-glass {
+  background:var(--bg1); border-color:transparent;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  box-shadow:var(--surface-1);
+}
+/* 흰 판 위에서는 줄 사이 선과 hover 도 다시 보이게 해야 한다 — 반투명 흰색
+   (rgba(255,255,255,.72))은 흰 배경 위에서 아무 변화도 아니다. */
+.act-wrap.is-plain .act-list .ra-row:hover { background:var(--bg3); }
+
+/* 밑줄 탭 줄. 오른쪽 끝에 단추 하나가 함께 선다(음성 세션의 「새 녹음 시작」).
+   탭은 밑줄에 붙어야 하므로 줄 전체를 아래끝에 맞추고, 단추만 살짝 띄운다. */
+.act-tabs { align-items:flex-end; }
+.act-tabs > .btn { margin-left:auto; margin-bottom:5px; }
+
 /* 읽는 목록이라 본문 최대 폭(1280)까지 늘리지 않는다. 한 줄이 너무 길면
    제목과 시간이 멀어져서 어느 시간이 어느 활동의 것인지 눈으로 이어야 한다. */
 .act-page { width:100%; max-width:860px; margin:0 auto; }
