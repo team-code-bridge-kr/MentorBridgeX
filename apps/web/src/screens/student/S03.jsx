@@ -126,7 +126,7 @@ export function S03({ onNav }) {
   /* ── STEP 0 역할 ─────────────────────────────────────── */
   if (step === 0) {
     return (
-      <Shell total={0} title="어떤 목적으로 오셨나요?" emoji="👋" note="나중에 설정에서 바꿀 수 있어요">
+      <Shell total={0} title="어떤 목적으로 오셨나요?" note="나중에 설정에서 바꿀 수 있어요">
         {errorLine}
         <RoleStep value={role} busy={saving} onPick={(r) => go(1, { role: r })} />
       </Shell>
@@ -340,7 +340,6 @@ export function S03({ onNav }) {
         current={4}
         title="마지막이에요! "
         accent="관심 있는 걸 골라주세요"
-        emoji="👀"
         sub="고르지 않아도 괜찮아요"
         onBack={() => setStep(3)}
         footer={

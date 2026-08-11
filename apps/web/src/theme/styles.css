@@ -2055,7 +2055,14 @@ tr:hover td { background:var(--surface-container-low); }
 .ob-role:hover:not(:disabled) { border-color:var(--blue-300); background:var(--bg2); }
 .ob-role.is-on { border-color:var(--blue-500); background:var(--blue-50); }
 .ob-role:disabled { opacity:.6; cursor:default; }
-.ob-role-emoji { font-family:'TossFace', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-size:26px; line-height:1; }
+/* 아이콘 판. 고른 카드에서는 판이 채워져 — 테두리 색만으로 알리면 색을 못
+   보는 사람에게는 세 카드가 똑같다. */
+.ob-role-ic {
+  width:38px; height:38px; border-radius:12px; margin-bottom:2px;
+  display:grid; place-items:center; background:var(--bg2); color:var(--ts);
+  transition:background-color .14s, color .14s;
+}
+.ob-role.is-on .ob-role-ic { background:var(--primary); color:#fff; }
 .ob-role-label { font-size:16px; font-weight:700; color:var(--tp); }
 .ob-role-desc { font-size:13px; color:var(--tt); line-height:1.55; word-break:keep-all; }
 
@@ -2111,7 +2118,9 @@ tr:hover td { background:var(--surface-container-low); }
 .ob-unsure {
   display:flex; flex-direction:column; gap:3px; align-items:flex-start;
   width:100%; margin-top:18px; padding:16px 18px; border-radius:14px;
-  border:1.5px dashed var(--brd); background:var(--bg2);
+  /* 점선은 이 앱에서 **누를 수 없는 것**을 뜻한다(제안 칩·미리보기 칩).
+     이건 누르는 카드이므로 실선이다 — 위의 고르기 카드들과 같은 테두리. */
+  border:1.5px solid var(--brd); background:var(--bg2);
   font-family:inherit; font-size:14.5px; font-weight:700; color:var(--tp);
   cursor:pointer; text-align:left; transition:border-color .14s, background-color .14s;
 }

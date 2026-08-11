@@ -27,6 +27,11 @@ export function Progress({ total, current }) {
   );
 }
 
+/**
+ * @param emoji 제목 끝의 이모지. **한 곳에만 쓴다** — 마지막 「준비됐어요!」다.
+ *   질문마다 👋 👀 를 달아 두면 그림이 흔해져서 정작 축하해야 할 자리에서
+ *   아무 일도 일어나지 않는다. 앱의 나머지는 선 아이콘(NavIcon)을 쓴다.
+ */
 export function Shell({
   total,
   current,

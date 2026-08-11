@@ -25,8 +25,8 @@ export function GradeStep({ value, onPick, busy }) {
           aria-pressed={value === g.id}
         >
           <span className="ob-grade-label">{g.label}</span>
-          {/* 왜 묻는지 적어 둔다 — 답하면 무엇이 달라지는지 모르면 성의껏 안 고른다 */}
-          <span className="ob-grade-effect">{g.effect}</span>
+          {/* 무엇이 달라지는지 적어 둔다 — 다만 **정말 달라질 때만**(GRADES 주석) */}
+          {g.effect && <span className="ob-grade-effect">{g.effect}</span>}
         </button>
       ))}
     </div>
@@ -138,7 +138,7 @@ export function MajorStep({ tracks, trackGroup, value, onChange, onUnsure, busy 
 
       {/* 이 서비스의 존재 이유가 여기 있다 — 좁히는 일은 '발견' 화면이 대신한다 */}
       <button type="button" className="ob-unsure" onClick={onUnsure} disabled={busy}>
-        아직 모르겠어요 🤔
+        아직 모르겠어요
         <span className="ob-unsure-sub">
           고른 계열 전체에서 넓게 모아드릴게요. 읽다 보면 좁혀져요.
         </span>
