@@ -111,7 +111,7 @@ export function S20({ onNav }) {
           말할 뿐이었다. */}
       <div className="grid3 g-16" style={{ gap: 16, marginTop: 22 }}>
         {templates.map((tmpl) => (
-          <Card key={tmpl.id} className="tmpl-card" style={{ cursor: "pointer" }} onClick={() => !busy && generate(tmpl)}>
+          <Card key={tmpl.id} className="tmpl-card" onClick={() => !busy && generate(tmpl)}>
             {/* "사용 892회" 를 지웠다. 아무도 세지 않는 숫자였다 — 서버에
                 손으로 적어 둔 상수라 몇 명이 쓰든 892 였다. */}
             <div style={{ marginBottom: 10 }}>

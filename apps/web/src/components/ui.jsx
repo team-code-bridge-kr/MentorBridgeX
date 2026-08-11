@@ -124,7 +124,16 @@ export const Av = ({ name = "?", size = "sm", src }) => (
    단추가 들어 있는 경우가 많고, 단추 안의 단추는 키보드로 쓸 수 없다.
    손으로 누르는 편의는 여기서, 접근성은 카드 안의 단추가 맡는다. */
 export const Card = ({ children, style, className = "", onClick }) => (
-  <div className={`card card-p ${className}`} style={style} onClick={onClick}>{children}</div>
+  /* 누를 수 있으면 커서도 그렇게 말해야 한다. 여태 onClick 을 받아도 커서는
+     화살표 그대로여서, 눌러 보기 전에는 누를 수 있는 줄 몰랐다(양식 화면은
+     이걸 인라인 스타일로 따로 때우고 있었다). */
+  <div
+    className={`card card-p ${className}`}
+    style={onClick ? { cursor: "pointer", ...style } : style}
+    onClick={onClick}
+  >
+    {children}
+  </div>
 );
 /* 숫자 색은 기본이 본문색이다. 카드마다 다른 색을 칠하면 색이 아무 뜻도
    갖지 못한다 — 조치가 필요할 때(tone="danger"/"warning")만 색을 쓴다. */
