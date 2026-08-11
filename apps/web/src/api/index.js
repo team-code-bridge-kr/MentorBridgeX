@@ -714,10 +714,16 @@ const api = {
     async list() {
       return request("/v1/students/me/documents");
     },
-    async create(sectionType, content) {
+    /**
+     * 영역 하나를 새로 만든다.
+     * @param extra 세특일 때만 쓴다 — `{ subject_id, period_id }`. 세특은 한
+     *   영역이 아니라 학년별 과목이라, 이름표 없이 만들면 다른 세특들 사이에서
+     *   어느 과목 것인지 알 수 없다.
+     */
+    async create(sectionType, content, extra) {
       return request("/v1/students/me/documents", {
         method: "POST",
-        body: { section_type: sectionType, content },
+        body: { section_type: sectionType, content, ...(extra || {}) },
       });
     },
     async patch(sectionId, content) {

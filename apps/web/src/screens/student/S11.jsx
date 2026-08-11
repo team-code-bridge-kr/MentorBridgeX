@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TDS from "../../theme/tokens.js";
 import { TFI, Btn, Badge, Divider, Notice } from "../../components/ui.jsx";
 import { BookViewer } from "../../components/doc/BookViewer.jsx";
@@ -6,6 +6,7 @@ import { PdfReader } from "../../components/doc/PdfReader.jsx";
 import api from "../../api/index.js";
 import { withLoading } from "../../components/LoadingDock.jsx";
 import { hasSubjectBlocks, subjectMarkers } from "../../lib/subjectBlocks.js";
+import { AreaPicker } from "../../components/doc/AreaPicker.jsx";
 
 const AREA_META = [
   { type: "subject_specific", id: "세특", t: "세부능력 및 특기사항", d: "교사가 작성하는 교과 세부능력 및 특기사항" },
@@ -40,6 +41,8 @@ export function S11({ onNav }) {
   const [fileMeta, setFileMeta] = useState(null);
   const [err, setErr] = useState("");
   const [creating, setCreating] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const pickRef = useRef(null);
   const [splitting, setSplitting] = useState(false);
   const [splitMsg, setSplitMsg] = useState("");
   // 지우기는 두 걸음이다. 카드 하나가 세특 한 과목 전체라서, 잘못 눌러
@@ -176,26 +179,29 @@ export function S11({ onNav }) {
     }
   };
 
-  const open = (meta) => {
-    const doc = byType[meta.type];
+  const gotoEditor = (id, type, subject) => {
+    sessionStorage.setItem("mbx_doc_id", id);
+    sessionStorage.setItem("mbx_doc_type", type);
+    sessionStorage.setItem("mbx_doc_subject", subject || "");
+    onNav("S12");
+  };
+
+  /**
+   * 영역 하나를 연다. `extra`(세특의 학년·과목)가 있으면 **늘 새로 만든다** —
+   * 과목이 다르면 다른 기록이라, 있는 것을 열어 주면 남의 과목 글을 지우게 된다.
+   * 나머지 일곱 영역은 영역당 하나라 있으면 그것을 이어서 쓴다.
+   */
+  const open = (meta, extra) => {
+    const doc = !extra && byType[meta.type];
     if (doc) {
-      sessionStorage.setItem("mbx_doc_id", doc.id);
-      sessionStorage.setItem("mbx_doc_type", meta.type);
-      sessionStorage.setItem("mbx_doc_subject", doc.subject_id || "");
-      onNav("S12");
-    } else {
-      // create empty then edit
-      setCreating(true);
-      api.documents.create(meta.type, "(작성 시작)")
-        .then((d) => {
-          sessionStorage.setItem("mbx_doc_id", d.id);
-          sessionStorage.setItem("mbx_doc_type", meta.type);
-          sessionStorage.setItem("mbx_doc_subject", "");
-          onNav("S12");
-        })
-        .catch((e) => setErr(e.message))
-        .finally(() => setCreating(false));
+      gotoEditor(doc.id, meta.type, doc.subject_id);
+      return;
     }
+    setCreating(true);
+    api.documents.create(meta.type, "(작성 시작)", extra)
+      .then((d) => gotoEditor(d.id, meta.type, d.subject_id))
+      .catch((e) => setErr(e.message))
+      .finally(() => setCreating(false));
   };
 
   const bType = { 완료: "green", 미작성: "grey", 입력중: "orange" };
@@ -270,7 +276,24 @@ export function S11({ onNav }) {
             </Btn>
           )}
           <Btn v="primary" s="sm" onClick={() => onNav("S13")}><TFI>📄</TFI> PDF 업로드</Btn>
-          <Btn v="secondary" s="sm" disabled={creating} onClick={() => open(AREA_META[0])}>+ 직접 입력</Btn>
+          {/* 여덟 영역을 늘어놓고 고르게 한다. 예전에는 이 단추가 세특으로만
+              갔고, 세특이 이미 있으면 그중 가장 최근 것을 열어서 — 새로 쓰려고
+              누른 사람이 남의 과목 글 위에 쓰게 됐다. */}
+          <div style={{ position: "relative" }} ref={pickRef}>
+            <Btn v="secondary" s="sm" disabled={creating} aria-expanded={picking}
+                 onClick={() => setPicking((v) => !v)}>
+              + 직접 입력
+            </Btn>
+            <AreaPicker
+              open={picking}
+              onClose={() => setPicking(false)}
+              anchorRef={pickRef}
+              areas={AREA_META}
+              countOf={(type) => docs.filter((d) => d.section_type === type).length}
+              busy={creating}
+              onPick={open}
+            />
+          </div>
         </div>
       </div>
       {err && <div style={{ color: TDS.danger, marginBottom: 12 }}>{err}</div>}
