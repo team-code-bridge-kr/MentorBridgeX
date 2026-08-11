@@ -16,6 +16,7 @@ import { OVERLAY_TEXT } from "../../theme/graphMeta.js";
 import { SUBJECT_LEGEND } from "../../theme/nodeIcons.js";
 import { NavIcon } from "../NavIcon.jsx";
 import { Btn } from "../ui.jsx";
+import { Section } from "./GraphPanel.jsx";
 import api from "../../api/index.js";
 
 /** 과목·분야 선택지. 범례와 같은 목록이어야 아이콘이 뜻대로 붙는다. */
@@ -320,15 +321,17 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
   const candidates = nodes.filter((n) => n.id !== node.id && !linkedIds.has(n.id));
 
   return (
-    <div>
-      {/* "연결 N개" 를 걷었다. 바로 위 「연결」 머리글이 같은 말이고, 개수는
-          아래 목록을 세면 나온다. 「연결 추가」는 그대로 오른쪽 끝에 둔다. */}
-      {!adding && candidates.length > 0 && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+    // 구획 껍데기를 이 컴포넌트가 직접 두른다. 「연결 추가」를 머리글 알약 옆에
+    // 세우려면 `adding` 을 아는 쪽이 머리글도 그려야 한다 — 상태만 위로 올리면
+    // 화면(S06)이 이 목록의 속사정(후보가 남았는지)까지 알아야 했다.
+    <Section
+      title="연결"
+      action={
+        !adding && candidates.length > 0 ? (
           <Btn v="secondary" s="sm" onClick={() => setAdding(true)} disabled={busy}>연결 추가</Btn>
-        </div>
-      )}
-
+        ) : null
+      }
+    >
       {adding && (
         <NodePicker
           nodes={candidates}
@@ -409,6 +412,6 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
           </div>
         );
       })()}
-    </div>
+    </Section>
   );
 }

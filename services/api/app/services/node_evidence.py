@@ -236,6 +236,7 @@ def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
             NodeEvidenceQuote(
                 section_type=str(own.section_type),
                 section_label=_label(own),
+                section_id=str(own.id),
                 text=s,
                 # 강조할 자리가 없다. 이 구획 전체가 출처이지 어느 낱말이 아니다.
                 match_start=0,
@@ -295,6 +296,7 @@ def collect(node: GraphNode, sections: list[DocumentSection]) -> NodeEvidence:
                     NodeEvidenceQuote(
                         section_type=section.section_type,
                         section_label=_label(section),
+                        section_id=str(section.id),
                         text=text,
                         match_start=start,
                         match_end=end,

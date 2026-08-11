@@ -1407,33 +1407,34 @@ export function S06({ onNav }) {
                       노드마다 이 칸의 생김새가 달라져서 무엇을 보는 자리인지 매번
                       다시 읽어야 했다. 구획 노드는 자기 자신이 출처이므로 서버가
                       그 구획의 문장을 돌려준다. 원문으로 가는 길은 그 아래에. */}
-                  <NodeEvidence nodeId={sel.id} label={sel.label} />
-                  {sel.sectionId && (
-                    <button
-                      type="button"
-                      className="node-open"
-                      onClick={() => {
-                        sessionStorage.setItem("mbx_doc_id", sel.sectionId);
-                        sessionStorage.setItem("mbx_doc_type", "");
-                        sessionStorage.setItem("mbx_doc_subject", "");
-                        onNav("S12");
-                      }}
-                    >
-                      생기부에서 이 글 열기 →
-                    </button>
-                  )}
-                </Section>
-
-                <Section title="연결">
-                  <NodeConnections
-                    node={sel}
-                    edges={edges}
-                    nodes={nodes}
-                    busy={busy}
-                    onConnect={handleConnect}
-                    onDisconnect={handleDisconnect}
+                  {/* 「생기부에서 열기」는 이제 출처 칸이 직접 세운다. 예전에는
+                      **뼈대 노드일 때만**(sel.sectionId 가 있을 때만) 나와서,
+                      낱말 노드에서는 출처 문장을 눈앞에 두고도 원문으로 갈 길이
+                      없었다 — 문장마다 어느 구획에서 왔는지는 서버가 알고 있다. */}
+                  <NodeEvidence
+                    nodeId={sel.id}
+                    label={sel.label}
+                    sectionId={sel.sectionId}
+                    onOpen={(sectionId) => {
+                      sessionStorage.setItem("mbx_doc_id", sectionId);
+                      sessionStorage.setItem("mbx_doc_type", "");
+                      sessionStorage.setItem("mbx_doc_subject", "");
+                      onNav("S12");
+                    }}
                   />
                 </Section>
+
+                {/* 구획 껍데기는 NodeConnections 안에 있다 — 「연결 추가」를
+                    머리글 알약 옆에 세우려면 `adding` 을 아는 쪽이 머리글도
+                    그려야 한다. */}
+                <NodeConnections
+                  node={sel}
+                  edges={edges}
+                  nodes={nodes}
+                  busy={busy}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                />
 
                 <Section title="다음 탐구">
             {/* 안내문을 지웠다. 칸 이름이 이미 "다음 탐구" 이고 단추에 "추천

@@ -55,6 +55,11 @@ class LinkSuggestion:
     _seen: set = field(default_factory=set, repr=False)
 
 
+def _name(n: GraphNode) -> str:
+    """같은 것으로 볼 이름. 띄어쓰기와 대소문자 차이는 무시한다."""
+    return re.sub(r"\s+", "", (n.label or "")).lower()
+
+
 def _one_contains_other(a: GraphNode, b: GraphNode) -> bool:
     """한쪽 이름이 다른 쪽을 품고 있으면 관계가 아니다.
 
@@ -105,9 +110,17 @@ def suggest_links(
                 continue
             for i, a in enumerate(hits):
                 for b in hits[i + 1 :]:
-                    key = (a.id, b.id) if a.id < b.id else (b.id, a.id)
-                    if key in existing or _one_contains_other(a, b):
+                    id_key = (a.id, b.id) if a.id < b.id else (b.id, a.id)
+                    if id_key in existing or _one_contains_other(a, b):
                         continue
+                    # 짝은 id 가 아니라 **이름**으로 센다.
+                    #
+                    # 생기부를 두 번 올리면 그래프가 통째로 두 벌 생긴다 —
+                    # 「프로그래밍」 노드가 둘, 「컴퓨터 공학」 노드가 둘. id 로
+                    # 세면 (컴퓨터 공학, 프로그래밍) 한 짝이 최대 네 개로
+                    # 불어나서, 화면에 똑같은 근거 문장이 그대로 두 번 세 번
+                    # 실렸다. 학생이 보기에 그것은 서로 다른 제안이 아니다.
+                    key = (_name(a), _name(b)) if _name(a) < _name(b) else (_name(b), _name(a))
                     item = found.get(key)
                     if item is None:
                         first, second = (a, b) if a.id < b.id else (b, a)

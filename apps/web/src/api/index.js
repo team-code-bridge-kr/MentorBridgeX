@@ -621,6 +621,8 @@ const api = {
         total: data.total ?? 0,
         quotes: (data.quotes ?? []).map((q) => ({
           sectionLabel: q.section_label || "",
+          // 이 문장이 실린 구획 — 「생기부에서 열기」가 데려갈 곳
+          sectionId: q.section_id || "",
           text: q.text || "",
           start: q.match_start ?? 0,
           end: q.match_end ?? 0,

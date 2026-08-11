@@ -53,10 +53,21 @@ export function GraphPanel({ title, onClose, width, tight, children }) {
  *
  * 판 폭을 끌어 넓힐 수 있게 된 뒤로 자리가 모자라 접을 이유도 줄었다.
  */
-export function Section({ title, children }) {
+/**
+ * `action` — 머리글 알약 **옆에** 서는 것 하나(예: 「연결 추가」).
+ *
+ * 예전에는 그런 단추가 구획 본문 첫 줄을 통째로 차지하고 오른쪽 끝에 혼자
+ * 떠 있었다. 알약과 단추 사이가 비어서 둘이 한 줄인지 아닌지 읽히지 않았고,
+ * 목록은 그만큼 아래로 밀렸다. 머리글과 같은 줄에 두면 "이 구획에 무언가를
+ * 더한다" 가 한눈에 붙어 읽힌다.
+ */
+export function Section({ title, action, children }) {
   return (
     <section className="gsec">
-      <h3 className="gsec-title">{title}</h3>
+      <div className="gsec-head">
+        <h3 className="gsec-title">{title}</h3>
+        {action}
+      </div>
       <div className="gsec-body">{children}</div>
     </section>
   );

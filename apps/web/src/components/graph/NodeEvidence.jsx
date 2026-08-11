@@ -15,11 +15,20 @@ import TDS from "../../theme/tokens.js";
 import { NavIcon } from "../NavIcon.jsx";
 import api from "../../api/index.js";
 
-// 문장을 못 찾았을 때 왜 없는지. 빈칸만 두면 고장으로 읽힌다.
+/**
+ * 문장을 못 찾았을 때 왜 없는지. 빈칸만 두면 고장으로 읽힌다.
+ *
+ * 두 줄로 나눈다 — 첫 줄은 **무슨 일이 있었나**, 둘째 줄은 **왜 그럴 수
+ * 있나**. 한 문단으로 이으면 두 문장이 한 덩이로 읽혀서, 정작 알아야 할
+ * "찾지 못했다" 가 뒤의 추측에 묻힌다.
+ */
 const EMPTY_TEXT = {
-  student: "직접 만든 노드라 생기부에서 온 문장이 없습니다.",
-  branch: "가지치기 추천으로 만들어진 노드입니다. 생기부에는 아직 없는 내용입니다.",
-  document: "생기부에서 이 표현을 찾지 못했습니다. 표현이 조금 다르거나, 생기부를 아직 올리지 않았을 수 있습니다.",
+  student: ["직접 만든 노드라 생기부에서 온 문장이 없습니다."],
+  branch: ["가지치기 추천으로 만들어진 노드입니다.", "생기부에는 아직 없는 내용입니다."],
+  document: [
+    "생기부에서 이 표현을 찾지 못했습니다.",
+    "표현이 조금 다르거나, 생기부를 아직 올리지 않았을 수 있습니다.",
+  ],
 };
 
 /** 문장에서 노드 이름 부분만 강조해 그린다. */
@@ -48,7 +57,7 @@ function Quoted({ text, start, end }) {
 /** 접혀 있을 때 세우는 문장 수. 이만큼이면 "왜 이 노드가 있는지" 는 판단된다. */
 const PREVIEW = 3;
 
-export function NodeEvidence({ nodeId, label }) {
+export function NodeEvidence({ nodeId, label, sectionId = "", onOpen }) {
   const [state, setState] = useState({ loading: true });
   const [expanded, setExpanded] = useState(false);
 
@@ -71,6 +80,11 @@ export function NodeEvidence({ nodeId, label }) {
   // "받아 온 만큼" 이 아니라 **실제 개수**로 세어야 말이 맞는다.
   const hidden = Math.max(state.total || 0, quotes.length) - shown.length;
 
+  // 「생기부에서 열기」가 데려갈 곳. 맨 앞 문장이 실린 구획이 우선이다 —
+  // 화면에서 가장 먼저 읽는 문장이 거기 있으니, 원문을 펴도 같은 자리다.
+  // 문장이 하나도 없으면 노드 자신이 곧 구획인 경우(뼈대 노드)로 떨어진다.
+  const openTarget = quotes.find((q) => q.sectionId)?.sectionId || sectionId;
+
   return (
     <div>
       {/* "출처 문장" 과 "생기부 N곳" 을 걷었다. 바로 위에 「출처」 머리글이
@@ -86,10 +100,18 @@ export function NodeEvidence({ nodeId, label }) {
         </p>
       )}
 
+      {/* 「양식 올리기」 자리(.form-drop)와 같은 옷. 둘 다 "여기 아직 아무것도
+          없다" 를 말하는 자리라 같은 모양이어야 한다. 다만 누르는 자리가
+          아니므로 손 모양도 hover 도 없다. */}
       {!state.loading && !state.error && !quotes.length && (
-        <p style={{ fontSize: 12, color: TDS.textTertiary, margin: 0, lineHeight: 1.6, wordBreak: "keep-all" }}>
-          {EMPTY_TEXT[state.origin] || EMPTY_TEXT.document}
-        </p>
+        <div className="ev-empty">
+          <span className="ev-empty-ic">
+            <NavIcon name="record" size={20} color={TDS.primary} />
+          </span>
+          {(EMPTY_TEXT[state.origin] || EMPTY_TEXT.document).map((line, i) => (
+            <p key={i} className={i === 0 ? "ev-empty-t" : "ev-empty-s"}>{line}</p>
+          ))}
+        </div>
       )}
 
       {shown.map((q, i) => (
@@ -134,6 +156,15 @@ export function NodeEvidence({ nodeId, label }) {
         <p style={{ fontSize: 11.5, color: TDS.textTertiary, margin: "6px 0 0" }}>
           너무 많아 {quotes.length}개까지만 보여드립니다 (모두 {state.total}곳).
         </p>
+      )}
+
+      {/* 원문으로 가는 길. 뼈대 노드든 낱말 노드든 **늘 같은 자리에 같은 말**로
+          선다 — 예전에는 뼈대 노드에만 있어서, 어떤 노드는 나오고 어떤 노드는
+          안 나오는 것처럼 보였다. */}
+      {!state.loading && openTarget && onOpen && (
+        <button type="button" className="node-open" onClick={() => onOpen(openTarget)}>
+          생기부에서 열기 →
+        </button>
       )}
     </div>
   );

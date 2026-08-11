@@ -82,6 +82,10 @@ class NodeEvidenceQuote(BaseModel):
 
     section_type: str
     section_label: str
+    # 이 문장이 실린 생기부 구획의 id. 화면이 「생기부에서 열기」로 데려가는
+    # 데 쓴다 — 예전에는 뼈대 노드(자기 자신이 구획인 노드)에만 그 길이
+    # 있어서, 낱말 노드에서는 출처 문장을 보고도 원문으로 갈 수 없었다.
+    section_id: str = ""
     text: str
     match_start: int
     match_end: int

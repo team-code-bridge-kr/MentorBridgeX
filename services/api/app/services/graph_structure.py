@@ -164,7 +164,11 @@ async def rebuild(graph, user_id: str, sections: list[DocumentSection]) -> dict:
                 user_id,
                 node_type=_node_type(section),
                 label=section_label(section),
-                description=f"{len(section.content):,}자",
+                # 설명을 비운다. 예전에는 "822자" 라고 적었는데, 글자 수는 그
+                # 구획에 대해 학생이 알아야 할 것이 아니다 — 판을 열면 아래에
+                # 그 구획의 문장이 그대로 실려 있고, 길이는 그것을 보면 안다.
+                # (판의 설명 줄은 이제 모델이 쓴 말에만 쓰인다.)
+                description="",
                 external_refs={
                     "source": STRUCTURE_SOURCE,
                     "section_id": sid,
