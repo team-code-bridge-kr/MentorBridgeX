@@ -138,10 +138,10 @@ export function S03({ onNav }) {
             안녕하세요 <span className="ob-title-emoji ob-wave" aria-hidden="true">👋</span>
             <br />
             <img className="ob-title-logo" src={mbxLogo} alt="" aria-hidden="true" />
-            MBX에 어떤 목적으로 오셨나요?
+            <span className="ob-title-mbx">MBX</span>에 어떤 목적으로 오셨나요?
           </>
         }
-        note="나중에 설정에서 바꿀 수 있어요"
+        note="나중에 언제든 바꿀 수 있으니 지금은 편하게 선택해도 괜찮아요!"
       >
         {errorLine}
         <RoleStep value={role} busy={saving} onPick={(r) => go(1, { role: r })} />

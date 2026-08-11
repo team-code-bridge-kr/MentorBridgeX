@@ -782,7 +782,13 @@ tr:hover td { background:var(--surface-container-low); }
 /* 카드·입력창·추천·최근 대화가 모두 이 안에 들어간다. 히어로는 dash-wrap 의
    여백(위 24 + 아래 28 = 52px)까지 되밀어 화면을 끝까지 덮으므로, 높이도 그만큼
    더 잡는다. 내용은 가운데 정렬이라 남는 높이는 위아래로 고르게 나뉜다. */
-:root { --hero-h: calc(100% + 52px); --ai-accent:#6366f1; }
+:root {
+  --hero-h: calc(100% + 52px); --ai-accent:#6366f1;
+  /* 브랜드 물결. 대시보드 히어로와 온보딩의 「MBX」 가 같은 것을 쓴다 —
+     이름이 화면마다 다르게 빛나면 같은 이름으로 안 읽힌다. */
+  --brand-wave:linear-gradient(100deg,
+    #0969da 0%, #4f46e5 22%, #38bdf8 42%, #6366f1 62%, #0969da 100%);
+}
 
 /* 시각적으로는 감추고 스크린리더에는 읽히는 텍스트 */
 .sr-only {
@@ -869,8 +875,7 @@ tr:hover td { background:var(--surface-container-low); }
 }
 .hero-word {
   display:inline-block;
-  background:linear-gradient(100deg,
-    #0969da 0%, #4f46e5 22%, #38bdf8 42%, #6366f1 62%, #0969da 100%);
+  background:var(--brand-wave);
   background-size:220% 100%;
   -webkit-background-clip:text; background-clip:text;
   color:transparent; -webkit-text-fill-color:transparent;
@@ -2056,6 +2061,19 @@ tr:hover td { background:var(--surface-container-low); }
   .ob-wave { animation:none; }
 }
 
+/* 「MBX」 는 대시보드 히어로와 같은 물결로 빛난다. 등장 효과는 빼고 물결만
+   쓴다 — 제목은 한 번 뜨고 마는 글자라 나타나는 연출까지 얹을 자리가 아니다. */
+.ob-title-mbx {
+  display:inline-block;
+  background:var(--brand-wave); background-size:220% 100%;
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  animation:heroWave 3.4s linear infinite;
+}
+@media (prefers-reduced-motion:reduce) {
+  .ob-title-mbx { animation:none; background-position:22% 0; }
+}
+
 /* 제목 안의 MBX 표. 글자와 함께 커지도록 em 으로 잰다 — px 로 박아 두면
    폰에서 제목만 줄고 표는 그대로라 혼자 커 보인다. 글자보다 조금 크게:
    결이 촘촘한 그림이라 글자 높이에 맞추면 뭉개져서 무슨 그림인지 안 보인다. */
@@ -2091,7 +2109,12 @@ tr:hover td { background:var(--surface-container-low); }
   font-family:inherit; transition:border-color .14s, background-color .14s;
 }
 .ob-role.is-wide { grid-column:1 / -1; }
-.ob-role:hover:not(:disabled) { border-color:var(--blue-300); background:var(--bg2); }
+/* 커서를 올리면 테두리가 먼저 파래지고, 한 박자 뒤에 회색 설명이 진해진다.
+   둘을 동시에 바꾸면 카드가 통째로 번쩍여서 어느 카드에 올렸는지보다
+   "뭔가 바뀌었다" 가 먼저 읽힌다. */
+.ob-role:hover:not(:disabled) { border-color:var(--blue-400); background:var(--bg2); }
+.ob-role:hover:not(:disabled) .ob-role-ic { color:var(--primary); }
+.ob-role:hover:not(:disabled) .ob-role-desc { color:var(--tp); }
 .ob-role.is-on { border-color:var(--blue-500); background:var(--blue-50); }
 .ob-role:disabled { opacity:.6; cursor:default; }
 /* 아이콘은 판 없이 그대로 놓는다. 네모난 판을 깔아 보니 카드 안에 작은 카드가
@@ -2102,7 +2125,10 @@ tr:hover td { background:var(--surface-container-low); }
 .ob-role.is-on .ob-role-ic { color:var(--primary); }
 /* 카드가 큰데 글씨가 작으면 안이 빈 것처럼 보인다 — 카드 크기에 맞춰 키운다 */
 .ob-role-label { font-size:20px; font-weight:700; color:var(--tp); letter-spacing:-.01em; }
-.ob-role-desc { font-size:14.5px; color:var(--tt); line-height:1.5; word-break:keep-all; }
+.ob-role-desc {
+  font-size:14.5px; color:var(--tt); line-height:1.5; word-break:keep-all;
+  transition:color .18s ease .09s;   /* 테두리(.14s)가 뜬 뒤에 뒤따른다 */
+}
 
 /* ── STEP 1 학년 ─────────────────────────────────────────── */
 .ob-grade-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
