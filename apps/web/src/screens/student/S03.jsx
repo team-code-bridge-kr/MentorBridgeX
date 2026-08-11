@@ -26,11 +26,12 @@ import {
   MajorStep,
   PreviewStep,
 } from "../../components/onboarding/StudentSteps.jsx";
+import { RecordStep } from "../../components/onboarding/RecordStep.jsx";
 import { MentorFieldStep, MentorProfileStep } from "../../components/onboarding/MentorSteps.jsx";
 import { ClassroomStep, TeacherProfileStep } from "../../components/onboarding/TeacherSteps.jsx";
 import mbxLogo from "../../assets/brand/mbx_logo.png";
 
-const STUDENT_STEPS = 5;
+const STUDENT_STEPS = 6;
 const SHORT_STEPS = 2; // 멘토 · 교사
 
 export function S03({ onNav }) {
@@ -72,7 +73,7 @@ export function S03({ onNav }) {
 
   // STEP 5 에 들어설 때 실제로 받게 될 글을 가져온다
   useEffect(() => {
-    if (role !== "student" || step !== 5 || preview || previewing) return;
+    if (role !== "student" || step !== 6 || preview || previewing) return;
     setPreviewing(true);
     api.onboarding
       .preview()
@@ -81,11 +82,15 @@ export function S03({ onNav }) {
       .finally(() => setPreviewing(false));
   }, [role, step, preview, previewing]);
 
-  const finish = useCallback(async () => {
+  /** @param to 끝내고 갈 화면. 없으면 역할에 맞는 홈으로 간다. */
+  const finish = useCallback(async (to) => {
     try {
       const done = await complete();
       actions.updateSessionUser({ role: done.role, grade: done.grade, onboarded: true });
-      if (done.role === "teacher") onNav("T03");
+      // 온보딩을 끝내기 전에 다른 화면으로 보내면 껍데기가 도로 온보딩으로
+      // 되돌린다(onboarded === false). complete() 뒤에 보내야 한다.
+      if (to) onNav(to);
+      else if (done.role === "teacher") onNav("T03");
       // 멘토 전용 대시보드는 아직 없다. 가장 가까운 화면인 멘토링으로 보낸다.
       else if (done.role === "mentor") onNav("S24");
       else onNav(homeForStudent(done.grade));
@@ -409,17 +414,54 @@ export function S03({ onNav }) {
     );
   }
 
-  /* ── 학생 STEP 5 미리보기 ────────────────────────────── */
+  /* ── 학생 STEP 5 생기부 ──────────────────────────────── */
+  if (step === 5) {
+    return (
+      <Shell
+        total={total}
+        current={5}
+        title="생기부를 미리 "
+        accent="올려 볼까요?"
+        sub="지금 올려 두면 지식 그래프가 저절로 만들어져요. 나중에 올려도 괜찮아요."
+        onBack={() => setStep(majors.length ? 4 : 3)}
+        footer={
+          <>
+            {/* 건너뛰기가 먼저다. 가입 직후에 생기부 PDF 를 손에 들고 있는
+                학생은 드물다 — 지금 못 올린다고 막히면 안 된다. */}
+            <button type="button" className="ob-skip" onClick={() => go(6)} disabled={saving}>
+              나중에 할게요
+            </button>
+            {/* 올리는 일은 원래 있던 업로드 화면(S13)에 맡긴다. 파싱이 1분
+                가까이 걸리고 결과를 확인하는 화면도 따로 있어서, 온보딩
+                안에서 하면 마지막 단계에 사람을 붙잡아 두게 된다. */}
+            <button
+              type="button"
+              className="btn btn-primary btn-md"
+              onClick={() => finish("S13")}
+              disabled={saving}
+            >
+              지금 올리기
+            </button>
+          </>
+        }
+      >
+        {errorLine}
+        <RecordStep />
+      </Shell>
+    );
+  }
+
+  /* ── 학생 STEP 6 미리보기 ────────────────────────────── */
   return (
     <Shell
       total={total}
-      current={5}
+      current={6}
       title="준비됐어요!"
       emoji="🎉"
       sub={`${name ? `${name}님을 위해 ` : ""}매일 이런 글들을 모아드릴게요`}
-      onBack={() => setStep(majors.length ? 4 : 3)}
+      onBack={() => setStep(5)}
       footer={
-        <button type="button" className="btn btn-primary btn-md" onClick={finish} disabled={saving}>
+        <button type="button" className="btn btn-primary btn-md" onClick={() => finish()} disabled={saving}>
           시작하기
         </button>
       }

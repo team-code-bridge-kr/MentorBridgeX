@@ -2230,7 +2230,31 @@ tr:hover td { background:var(--surface-container-low); }
 .ob-kw-manual { margin-top:10px; }
 .ob-kw-summary { margin-top:18px; }
 
-/* ── STEP 5 미리보기 ─────────────────────────────────────── */
+/* ── STEP 5 생기부 권유 ──────────────────────────────────
+   무엇이 좋아지는지(ob-good)와 어떻게 지켜지는지(ob-safe)를 나눠 놓는다.
+   섞어 쓰면 자랑과 약속이 한 덩어리로 읽혀서 약속 쪽이 안 믿긴다. */
+.ob-good { list-style:none; margin:0 0 18px; padding:0; display:flex; flex-direction:column; gap:12px; }
+.ob-good li {
+  display:flex; align-items:flex-start; gap:11px;
+  font-size:14.5px; color:var(--ts); line-height:1.5; word-break:keep-all;
+}
+.ob-good-ic { flex:none; margin-top:1px; color:var(--primary); display:inline-flex; }
+.ob-safe { padding:16px 18px; border-radius:14px; background:var(--bg2); border:1px solid var(--brd); }
+.ob-safe-title {
+  display:flex; align-items:center; gap:7px; margin-bottom:9px;
+  font-size:13.5px; font-weight:700; color:var(--tp);
+}
+.ob-safe ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.ob-safe li {
+  position:relative; padding-left:13px;
+  font-size:13px; color:var(--tt); line-height:1.55; word-break:keep-all;
+}
+.ob-safe li::before {
+  content:""; position:absolute; left:2px; top:8px;
+  width:4px; height:4px; border-radius:50%; background:var(--td);
+}
+
+/* ── STEP 6 미리보기 ─────────────────────────────────────── */
 .ob-prev-list { display:flex; flex-direction:column; gap:10px; }
 .ob-prev {
   display:flex; gap:12px; padding:14px; border-radius:14px;
