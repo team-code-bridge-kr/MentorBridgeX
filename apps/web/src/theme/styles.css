@@ -3263,7 +3263,16 @@ tr:hover td { background:var(--surface-container-low); }
    왼쪽은 만드는 일(노드 추가·시드로 생성), 오른쪽은 가다듬는 일(층 다시
    세우기·확장하기)과 개수. */
 .gtools { display:flex; align-items:center; gap:6px; flex:0 0 auto; }
-.toolbar-graph .gsearch { flex:1 1 auto; min-width:200px; max-width:520px; margin-bottom:0; }
+/* 도구띠의 검색창.
+   탐구 피드의 줄 안 검색(`.feed-bar .feed-search.is-inline`)과 같은 처방인데,
+   그 규칙이 `.feed-bar` 아래로 묶여 있어서 여기까지 오지 않았다. 그래서 이
+   검색창만 큰 화면용 기본값(위아래 10px + 입력칸 32px)을 그대로 쓰고 있었고,
+   높이가 48px 이라 옆의 34px 짜리 단추들보다 혼자 뚱뚱했다.
+   위아래 3px 로 줄여 단추와 **정확히 같은 34px** 로 맞춘다. */
+.toolbar-graph .gsearch {
+  flex:1 1 auto; min-width:200px; max-width:520px;
+  margin-bottom:0; padding:3px 10px 3px 14px; gap:8px;
+}
 .toolbar-graph .gsearch .feed-search-input { font-size:13.5px; height:26px; }
 
 /* 경로표시. 제 줄에 선다 — 도구띠에 함께 두면 층이 깊어질수록 길어져
