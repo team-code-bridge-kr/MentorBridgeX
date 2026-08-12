@@ -815,7 +815,7 @@ export function S06({ onNav }) {
   const handleEdit = useCallback(async ({ label, section, description, aliases }) => {
     if (!sel) return;
     setBusy(true);
-    // 설명을 손대면 더는 모델의 말이 아니다 — 앞의 "Bridge AI :" 를 뗀다.
+    // 설명을 손대면 더는 모델의 말이 아니다 — 앞의 "Bridge AI 생각" 을 뗀다.
     const descChanged = (description || "") !== (sel.description || "");
     try {
       await actions.updateNode(sel.id, {
@@ -1401,13 +1401,19 @@ export function S06({ onNav }) {
 
             {/* 설명 한 줄. 바로 위 「출처」가 생기부 원문이라, 아무 표시가 없으면
                 이 문장도 생기부에 적힌 말로 읽힌다. 모델이 쓴 것이면(생기부 키워드의
-                선정 이유 · 다음 탐구 추천) 앞에 누가 한 말인지 밝힌다. */}
+                선정 이유 · 다음 탐구 추천) 앞에 누가 한 말인지 밝힌다.
+
+                「Bridge AI :」가 아니라 **「Bridge AI 생각」**이다. 이름만 달면
+                "Bridge AI 가 알려 준 사실" 로 읽히는데, 이 줄은 사실이 아니라
+                **해석**이다 — "고등학교 교과목명" 처럼 생기부 어디에도 그렇게
+                적혀 있지 않은 말이 여기 실린다. 아래 「출처」의 인용문과 이 줄이
+                무엇으로 갈리는지를 낱말 하나가 말해 준다. */}
             {sel.description && !editing && (
               <p className="node-desc">
                 {sel.aiDesc && (
                   <span className="node-desc-by">
                     <img src={tcbLogo} alt="" aria-hidden="true" />
-                    Bridge AI :
+                    Bridge AI 생각 :
                   </span>
                 )}
                 {/* 이름표 뒤의 한 칸은 CSS 여백이 아니라 **진짜 공백**이어야
