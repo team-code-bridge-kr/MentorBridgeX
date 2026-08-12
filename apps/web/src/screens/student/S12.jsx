@@ -1,8 +1,25 @@
-import { useState, useEffect } from "react";
+/**
+ * S12 — 생기부 한 영역.
+ *
+ * **읽는 화면이 먼저다.** 예전에는 열자마자 1,800자짜리 `textarea` 가 서 있었다.
+ * 이 글은 열에 아홉은 **읽으러** 오는 것인데(그래프에서 「생기부에서 열기」로
+ * 들어오는 길이 그렇다), 화면은 늘 고칠 준비를 하고 있었다. 줄글이 좁은 입력칸
+ * 안에서 벽처럼 흐르고, 문단도 소제목도 없었다.
+ *
+ * 이제 보고서 상세(S22)와 같다 — 읽기 보기가 기본이고, 「수정」을 눌러야 칸이
+ * 열린다. 본문은 `Markdown` 이 문단으로 갈라 그린다.
+ *
+ * **소제목을 지어내지는 않는다.** 이 글은 학교가 써 준 기록이라, 없는 제목을
+ * 붙이면 그때부터 우리가 쓴 글이 된다. 원문에 이미 있는 것(`[과목]` 표시,
+ * 빈 줄)만 구조로 쓴다 — `lib/subjectBlocks.js` 의 `toReadable`.
+ */
+
+import { useState, useEffect, useMemo } from "react";
 import TDS from "../../theme/tokens.js";
 import { Back, Btn, Notice } from "../../components/ui.jsx";
+import { Markdown } from "../../components/forms/Markdown.jsx";
 import api from "../../api/index.js";
-import { subjectMarkers } from "../../lib/subjectBlocks.js";
+import { subjectMarkers, toReadable } from "../../lib/subjectBlocks.js";
 import { AREA_META } from "./S11.jsx";
 
 /**
@@ -43,6 +60,10 @@ export function S12({ onNav }) {
   const [updatedAt, setUpdatedAt] = useState("");
   const [confirmDel, setConfirmDel] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  /** 읽기 보기가 기본. 「수정」을 눌러야 칸이 열린다. */
+  const [editing, setEditing] = useState(false);
+  /** 「취소」로 되돌릴 원본. 고치다 말고 나가도 저장 전 글이 남아 있어야 한다. */
+  const [saved, setSaved] = useState("");
 
   useEffect(() => {
     if (!docId) return undefined;
@@ -52,9 +73,13 @@ export function S12({ onNav }) {
         const docs = await api.documents.list();
         const doc = docs.find((d) => d.id === docId);
         if (!cancelled && doc) {
-          setTxt(doc.content === "(작성 시작)" ? "" : doc.content);
+          const body = doc.content === "(작성 시작)" ? "" : doc.content;
+          setTxt(body);
+          setSaved(body);
           setUpdatedAt(doc.updated_at || "");
           setSubject(doc.subject_id || "");
+          // 아직 아무것도 없는 영역은 읽을 것이 없다 — 바로 쓸 수 있게 연다.
+          if (!body.trim()) setEditing(true);
         }
         const g = await api.graph.fetch();
         if (!cancelled) setLinked(linkedTo(g.nodes, doc));
@@ -72,6 +97,8 @@ export function S12({ onNav }) {
     try {
       const d = await api.documents.patch(docId, txt.trim());
       setUpdatedAt(d.updated_at || "");
+      setSaved(txt.trim());
+      setEditing(false);   // 저장했으면 읽는 자리로 돌아온다
       setMsg("저장되었습니다.");
       // light sync: seed a few tokens from text into graph
       const seeds = txt.match(/[가-힣A-Za-z0-9]{2,}/g)?.slice(0, 5) || [];
@@ -102,6 +129,8 @@ export function S12({ onNav }) {
 
   // 지금 열린 글에 `[과목]` 표시가 남아 있는지. 세특일 때만 뜻이 있다.
   const markers = docType === "subject_specific" ? subjectMarkers(txt) : [];
+  /** 읽기 보기에 그릴 본문. 원문에 있는 것만 구조로 쓴다(소제목을 짓지 않는다). */
+  const readable = useMemo(() => toReadable(saved), [saved]);
 
   if (!docId) {
     return (
@@ -125,15 +154,28 @@ export function S12({ onNav }) {
               {updatedAt ? `마지막 저장: ${String(updatedAt).slice(0, 19).replace("T", " ")}` : "새 문서"}
             </div>
           </div>
-          {/* 지우기는 오른쪽 끝. 저장 단추 옆에 두면 손이 잘못 간다. */}
-          <button
-            type="button"
-            className="doc-del"
-            style={{ marginLeft: "auto" }}
-            onClick={() => setConfirmDel(true)}
-          >
-            이 영역 지우기
-          </button>
+          {/* 읽기 ↔ 고치기. 보고서 상세(S22)와 같은 자리·같은 단추다.
+              「저장」을 여기 두지 않는 까닭: 이 화면의 저장은 글만 저장하는 게
+              아니라 **그래프에 시드를 더한다**. 그 일을 머리의 작은 「저장」으로
+              부르면 무슨 일이 벌어지는지 알 수 없다 — 아래에 이름 그대로 둔다. */}
+          <div className="doc-head-acts">
+            <Btn
+              v="secondary"
+              s="sm"
+              onClick={() => {
+                if (editing) setTxt(saved);   // 취소 — 고치던 것을 버린다
+                setEditing((v) => !v);
+                setMsg("");
+                setErr("");
+              }}
+            >
+              {editing ? "취소" : "수정"}
+            </Btn>
+            {/* 지우기는 오른쪽 끝. 저장 단추 옆에 두면 손이 잘못 간다. */}
+            <button type="button" className="doc-del" onClick={() => setConfirmDel(true)}>
+              이 영역 지우기
+            </button>
+          </div>
         </div>
 
         {confirmDel && (
@@ -193,24 +235,32 @@ export function S12({ onNav }) {
             두 화면 다 "긴 글 하나 + 그 글의 근거" 라서 같은 모양이어야 한다. */}
         <div className="form-detail">
           <div className="card card-p form-body">
-            <div className="form-edit-hint">
-              저장하면 본문에서 뽑은 말이 그래프에 시드로 더해집니다.
-            </div>
-            <textarea
-              className="textarea form-edit"
-              value={txt}
-              onChange={(e) => setTxt(e.target.value)}
-              placeholder="영역 내용을 입력하세요"
-            />
-            <div className="row-between" style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 13, color: TDS.textTertiary }}>{txt.length.toLocaleString()}자</span>
-              <div className="row g-8" style={{ gap: 8 }}>
-                <Btn v="secondary" s="sm" onClick={() => setTxt("")}>초기화</Btn>
-                <Btn v="primary" s="sm" disabled={saving} onClick={save}>
-                  {saving ? "저장 중…" : "저장 및 그래프 동기화"}
-                </Btn>
-              </div>
-            </div>
+            {editing ? (
+              <>
+                <div className="form-edit-hint">
+                  저장하면 본문에서 뽑은 말이 그래프에 시드로 더해집니다.
+                </div>
+                <textarea
+                  className="textarea form-edit"
+                  value={txt}
+                  onChange={(e) => setTxt(e.target.value)}
+                  placeholder="영역 내용을 입력하세요"
+                />
+                <div className="row-between" style={{ marginTop: 14 }}>
+                  <span style={{ fontSize: 13, color: TDS.textTertiary }}>
+                    {txt.length.toLocaleString()}자
+                  </span>
+                  <div className="row g-8" style={{ gap: 8 }}>
+                    <Btn v="secondary" s="sm" onClick={() => setTxt("")}>초기화</Btn>
+                    <Btn v="primary" s="sm" disabled={saving} onClick={save}>
+                      {saving ? "저장 중…" : "저장 및 그래프 동기화"}
+                    </Btn>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <Markdown text={readable} />
+            )}
           </div>
 
           <aside className="form-side">
