@@ -296,10 +296,14 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
   const [adding, setAdding] = useState(false);
   const [hints, setHints] = useState({ loading: true, items: [] });
   const [skipped, setSkipped] = useState(() => new Set());
+  // 방금 이은 상대. 목록에서 그 줄만 잠깐 밝힌다 — 줄이 하나 늘었다는 것을
+  // 눈으로 못 잡으면, 눌러 놓고도 무엇이 달라졌는지 알 수 없다.
+  const [justAdded, setJustAdded] = useState(null);
 
   useEffect(() => {
     let alive = true;
     setSkipped(new Set());
+    setJustAdded(null);
     setHints({ loading: true, items: [] });
     api.graph
       .suggestedLinks(6, node.id)
@@ -320,6 +324,13 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
   const linkedIds = new Set(linked.map((l) => l.other.id));
   const candidates = nodes.filter((n) => n.id !== node.id && !linkedIds.has(n.id));
 
+  /** 잇고 나서 그 줄을 잠깐 밝힌다. 3초면 눈이 따라가고도 남는다. */
+  const connect = async (otherId) => {
+    await onConnect(otherId);
+    setJustAdded(otherId);
+    setTimeout(() => setJustAdded((cur) => (cur === otherId ? null : cur)), 3000);
+  };
+
   return (
     // 구획 껍데기를 이 컴포넌트가 직접 두른다. 「연결 추가」를 머리글 알약 옆에
     // 세우려면 `adding` 을 아는 쪽이 머리글도 그려야 한다 — 상태만 위로 올리면
@@ -336,7 +347,7 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
         <NodePicker
           nodes={candidates}
           placeholder="이을 노드 이름"
-          onPick={(id) => { onConnect(id); setAdding(false); }}
+          onPick={(id) => { connect(id); setAdding(false); }}
           onCancel={() => setAdding(false)}
         />
       )}
@@ -350,6 +361,7 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
 
       {linked.map((l) => (
         <div key={l.edgeId}
+          className={`nlink-row${justAdded === l.other.id ? " is-new" : ""}`}
           style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: TDS.bgTertiary, borderRadius: 9, marginBottom: 6 }}>
           <span style={{ color: TDS.textTertiary, lineHeight: 0, flexShrink: 0 }}>
             <NavIcon name="link" size={13} color={TDS.textTertiary} />
@@ -382,7 +394,13 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
           <div className="nlink-hints">
             <p className="nlink-hints-t">
               이어 볼 만한 것 {fresh.length}개
-              <span>생기부 같은 문장에 함께 적혀 있었습니다</span>
+              {/* 규칙 하나가 전부다(모델을 쓰지 않는다) — 그것을 먼저 말하고,
+                  누르면 무엇이 되는지를 이어서 말한다. 예전에는 앞줄만 있어서
+                  「잇기」를 눌러 놓고 무엇이 달라졌는지 몰랐다. */}
+              <span>
+                생기부 같은 문장에 함께 적혀 있었습니다 · 「잇기」를 누르면 위 「연결」
+                목록에 한 줄이 생깁니다
+              </span>
             </p>
             {fresh.map((s) => {
               const otherId = s.source_id === node.id ? s.target_id : s.source_id;
@@ -398,7 +416,7 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
                       "그냥 AI 가 그랬대" 로 받아들이고 아무거나 잇게 된다. */}
                   <p className="nlink-hint-why">{s.sentence}</p>
                   <div className="nlink-hint-act">
-                    <Btn v="secondary" s="sm" disabled={busy} onClick={() => onConnect(otherId)}>잇기</Btn>
+                    <Btn v="secondary" s="sm" disabled={busy} onClick={() => connect(otherId)}>잇기</Btn>
                     <button
                       type="button" className="nlink-hint-skip"
                       onClick={() => setSkipped((prev) => new Set(prev).add(otherId))}

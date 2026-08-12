@@ -3336,7 +3336,21 @@ tr:hover td { background:var(--surface-container-low); }
   display:flex; flex-direction:column; gap:2px; margin:0 0 8px;
   font-size:12px; font-weight:700; color:var(--tp);
 }
-.nlink-hints-t span { font-size:11px; font-weight:500; color:var(--tt); }
+.nlink-hints-t span { font-size:11px; font-weight:500; color:var(--tt); line-height:1.5; word-break:keep-all; }
+
+/* 방금 이은 줄. 3초 동안만 파랗게 밝혔다가 원래 회색으로 가라앉는다.
+   이은 상대가 다른 층에 있으면 캔버스에는 아무 변화도 안 보이므로, 목록에서
+   줄이 하나 늘었다는 것이 **유일하게 눈에 잡히는 변화**다. 애니메이션을 끄는
+   설정을 쓰는 사람에게는 색만 남긴다. */
+@keyframes nlink-new {
+  0%   { background:rgba(9,105,218,.20); box-shadow:0 0 0 2px rgba(9,105,218,.28); }
+  70%  { background:rgba(9,105,218,.20); box-shadow:0 0 0 2px rgba(9,105,218,.28); }
+  100% { background:var(--bg3);          box-shadow:0 0 0 2px rgba(9,105,218,0); }
+}
+.nlink-row.is-new { animation:nlink-new 3s ease-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .nlink-row.is-new { animation:none; background:rgba(9,105,218,.20) !important; }
+}
 .nlink-hint {
   padding:9px 11px; border-radius:10px; margin-bottom:7px;
   background:rgba(9,105,218,.05); border:1px solid rgba(9,105,218,.14);

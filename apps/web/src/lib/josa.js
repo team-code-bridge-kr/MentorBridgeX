@@ -17,3 +17,4 @@ export function josa(word, withFinal, without) {
 export const eul = (w) => josa(w, "을", "를");
 export const eun = (w) => josa(w, "은", "는");
 export const i = (w) => josa(w, "이", "가");
+export const gwa = (w) => josa(w, "과", "와");

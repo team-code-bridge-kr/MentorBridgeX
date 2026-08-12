@@ -378,6 +378,30 @@ export function S06({ onNav }) {
   /** 옆 판이 서 있는가. 폭 손잡이가 이때만 선다. */
   const panelOpen = Boolean(sel) || Boolean(panel);
 
+  /**
+   * Esc — 한 걸음 물러난다.
+   *
+   * 빈 배경을 누를 때(`onCanvasUp`)와 **같은 순서**다: 무언가 골라 놓았으면
+   * 그것부터 놓고, 놓을 것이 없으면 한 층 위로. 보던 것을 놓기도 전에 층이
+   * 바뀌면 어디로 갔는지 알 수 없다. 그래서 판이 열려 있을 때 Esc 를 두 번
+   * 누르면 판이 닫히고 층이 올라간다.
+   *
+   * 글을 쓰는 칸에서 누른 Esc 는 가져가지 않는다 — 검색어를 지우거나 편집을
+   * 무르는 것은 그 칸의 몫이다.
+   */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      const t = e.target;
+      const tag = t?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
+      if (sel || panel) { closePanel(); return; }
+      goUp();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sel, panel, closePanel, goUp]);
+
   // 최초 진입 시 그래프가 비어있으면 로드
   useEffect(()=>{ if(!allNodes.length && !loading) actions.loadGraph(state.session?.user?.id); /* eslint-disable-next-line */ }, []);
   // 고른 노드가 화면에서 사라지면 패널도 닫는다 — 지웠거나, 그 위 가지를 접었거나.
@@ -1427,10 +1451,16 @@ export function S06({ onNav }) {
                 {/* 구획 껍데기는 NodeConnections 안에 있다 — 「연결 추가」를
                     머리글 알약 옆에 세우려면 `adding` 을 아는 쪽이 머리글도
                     그려야 한다. */}
+                {/* **그래프 전체**를 넘긴다(지금 층이 아니라).
+                    예전에는 지금 층의 노드와 선만 넘겼다. 그래서 다른 층에 있는
+                    노드와 이으면 「연결」 목록에 줄이 생기지 않았고, 캔버스에도
+                    상대가 없으니 선이 안 그려졌다 — 「잇기」를 눌러도 화면에서는
+                    **아무 일도 일어나지 않은 것처럼** 보였다. 연결은 노드에
+                    딸린 것이지 지금 보고 있는 층에 딸린 것이 아니다. */}
                 <NodeConnections
                   node={sel}
-                  edges={edges}
-                  nodes={nodes}
+                  edges={allEdges}
+                  nodes={allNodes}
                   busy={busy}
                   onConnect={handleConnect}
                   onDisconnect={handleDisconnect}

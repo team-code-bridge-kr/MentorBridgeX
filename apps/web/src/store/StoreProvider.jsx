@@ -6,6 +6,7 @@ import { _uid } from "../utils/time.js";
 import api from "../api/index.js";
 import { saveSession, loadSession, clearSession } from "../api/client.js";
 import { armExpiry, clearTimer, SESSION_EXPIRED } from "../lib/sessionExpiry.js";
+import { eul, gwa } from "../lib/josa.js";
 
 const StoreCtx = createContext(null);
 
@@ -148,7 +149,21 @@ export function StoreProvider({ children }) {
       await api.graph.addEdge({ from: fromId, to: toId });
       const g = await api.graph.fetch();
       dispatch({ type: "GRAPH_SET", nodes: g.nodes, edges: g.edges });
-      toast("success", "연결했습니다.");
+      /**
+       * 무엇과 무엇을 이었는지 **이름으로** 말한다.
+       *
+       * "연결했습니다" 만으로는 화면 어디가 달라졌는지 찾을 수 없었다. 이은
+       * 상대가 지금 보고 있는 층에 없으면 캔버스에는 선 하나도 새로 안 그려진다
+       * — 달라지는 것은 판의 「연결」 목록 한 줄뿐이다. 그러면 학생은 눌러 놓고
+       * "아무 일도 안 일어났는데?" 로 읽는다.
+       */
+      const name = (id) => g.nodes.find((n) => n.id === id)?.label || "";
+      const a = name(fromId);
+      const b = name(toId);
+      toast(
+        "success",
+        a && b ? `‘${a}’${gwa(a)} ‘${b}’${eul(b)} 이었습니다.` : "연결했습니다.",
+      );
     },
     async disconnectNodes(edgeId) {
       await api.graph.removeEdge(edgeId);
