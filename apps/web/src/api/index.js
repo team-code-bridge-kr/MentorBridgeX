@@ -319,7 +319,7 @@ function mapNode(n, idx, total = 8, pos = null, opts = {}) {
      *
      * 노드 판에서 이 줄 바로 위에 「출처」(생기부 원문 인용)가 서 있어서,
      * 표시가 없으면 이 문장도 생기부에 그렇게 적혀 있는 것으로 읽힌다.
-     * 화면이 앞에 "Bridge AI 생각" 을 붙이는 판단 근거가 이 값이다.
+     * 화면이 앞에 "Bridge AI 해석" 을 붙이는 판단 근거가 이 값이다.
      *
      * 뼈대 노드(source=structure)의 "12,340자" 같은 것은 기계가 센 수치라
      * 모델의 말이 아니다 — 표시하지 않는다. 학생이 한 번이라도 고쳐 쓰면
@@ -601,7 +601,7 @@ const api = {
         body.external_refs = {};
         if (patch.section !== undefined) body.external_refs.section = patch.section;
         if (patch.aliases !== undefined) body.external_refs.aliases = patch.aliases;
-        // 학생이 설명을 고쳐 쓰면 더는 모델의 말이 아니다 — "Bridge AI 생각" 을
+        // 학생이 설명을 고쳐 쓰면 더는 모델의 말이 아니다 — "Bridge AI 해석" 을
         // 떼어낸다. `source` 는 건드리지 않는다(아이콘·묶음이 그 값을 본다).
         if (patch.descBy !== undefined) body.external_refs.desc_by = patch.descBy;
       }
