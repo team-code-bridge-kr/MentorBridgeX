@@ -400,17 +400,14 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
     </Section>
 
     {/* 이을 만한 짝 — 생기부 같은 문장에 함께 적혀 있던 것.
-        이미 이어진 짝은 서버가 빼고 준다. */}
+        이미 이어진 짝은 서버가 빼고 준다.
+
+        알약 아래 설명 줄은 걷었다. 근거는 카드마다 문장으로 그대로 실려 있어
+        왜 떴는지는 그걸 읽으면 알고, 「잇기」가 무엇을 하는지는 눌렀을 때
+        알림과 「연결」 목록의 강조가 말한다 — 미리 두 줄로 설명할 일이 아니다.
+        개수도 알약에 붙이지 않는다(다른 구획이 다 이름만 단다). */}
     {fresh.length > 0 && (
       <Section title="이어 볼 만한 것">
-        {/* 규칙 하나가 전부다(모델을 쓰지 않는다) — 그것을 먼저 말하고, 누르면
-            무엇이 되는지를 이어서 말한다. 개수는 알약에 붙이지 않는다. 옆의
-            「출처」·「연결」·「다음 탐구」가 다 이름만 달고 있고, 개수는 아래
-            카드를 세면 나온다. */}
-        <p className="gsec-note">
-          생기부 같은 문장에 함께 적혀 있었습니다 · 「잇기」를 누르면 위 「연결」
-          목록에 한 줄이 생깁니다
-        </p>
         {fresh.map((h) => {
           const otherId = h.source_id === node.id ? h.target_id : h.source_id;
           const otherLabel = h.source_id === node.id ? h.target_label : h.source_label;
