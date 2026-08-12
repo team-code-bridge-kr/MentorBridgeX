@@ -3331,12 +3331,13 @@ tr:hover td { background:var(--surface-container-low); }
 
 /* 이어 볼 만한 짝. 이미 이어진 것(위 목록)과 섞이지 않게 띠로 나눈다 —
    "있는 것" 과 "해 볼 만한 것" 은 뜻이 다르다. */
-.nlink-hints { margin-top:12px; padding-top:12px; border-top:1px dashed var(--brd); }
-.nlink-hints-t {
-  display:flex; flex-direction:column; gap:2px; margin:0 0 8px;
-  font-size:12px; font-weight:700; color:var(--tp);
+/* 구획 알약 바로 아래의 한 줄 설명. 「이어 볼 만한 것」처럼 무엇을 근거로
+   띄운 것인지 밝혀야 하는 구획만 쓴다 — 이름만으로 다 말해지는 구획
+   (출처·연결)에는 붙이지 않는다. */
+.gsec-note {
+  margin:-2px 0 10px; font-size:11.5px; line-height:1.6;
+  color:var(--tt); word-break:keep-all;
 }
-.nlink-hints-t span { font-size:11px; font-weight:500; color:var(--tt); line-height:1.5; word-break:keep-all; }
 
 /* 방금 이은 줄. 3초 동안만 파랗게 밝혔다가 원래 회색으로 가라앉는다.
    이은 상대가 다른 층에 있으면 캔버스에는 아무 변화도 안 보이므로, 목록에서
@@ -3351,21 +3352,24 @@ tr:hover td { background:var(--surface-container-low); }
 @media (prefers-reduced-motion: reduce) {
   .nlink-row.is-new { animation:none; background:rgba(9,105,218,.20) !important; }
 }
+/* 카드는 「다음 탐구」의 추천 카드와 같은 옷이다 — 흰 바탕에 실선 하나,
+   같은 곡률과 같은 여백. 둘 다 "이런 게 있는데 어떠냐" 를 내미는 자리라
+   한쪽만 파란 판이면 무게가 달라 보인다. */
 .nlink-hint {
-  padding:9px 11px; border-radius:10px; margin-bottom:7px;
-  background:rgba(9,105,218,.05); border:1px solid rgba(9,105,218,.14);
+  padding:14px; border-radius:12px; margin-bottom:10px;
+  background:var(--bg1); border:1px solid var(--brd);
 }
 .nlink-hint-head { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
 .nlink-hint-name {
-  flex:1; min-width:0; font-size:12.5px; font-weight:700; color:var(--tp);
+  flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--tp);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .nlink-hint-n {
   flex:none; font-size:10.5px; font-weight:700; color:var(--primary);
-  background:var(--bg1); border-radius:9999px; padding:1px 7px;
+  background:var(--blue-50); border-radius:9999px; padding:1px 7px;
 }
 .nlink-hint-why {
-  margin:0 0 8px; font-size:11.5px; line-height:1.65; color:var(--ts);
+  margin:0 0 10px; font-size:12px; line-height:1.65; color:var(--ts);
   word-break:keep-all;
   /* 문장이 길면 세 줄까지만. 여기는 읽는 자리가 아니라 판단하는 자리다. */
   display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;

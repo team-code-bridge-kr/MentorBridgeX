@@ -331,10 +331,25 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
     setTimeout(() => setJustAdded((cur) => (cur === otherId ? null : cur)), 3000);
   };
 
+  // 아직 잇지 않았고 「아니요」로 넘기지도 않은 제안. 구획을 세울지 말지가
+  // 여기서 갈리므로 그리기 전에 미리 센다.
+  const fresh = hints.loading
+    ? []
+    : hints.items.filter((h) => {
+        const other = h.source_id === node.id ? h.target_id : h.source_id;
+        return !linkedIds.has(other) && !skipped.has(other);
+      });
+
   return (
     // 구획 껍데기를 이 컴포넌트가 직접 두른다. 「연결 추가」를 머리글 알약 옆에
     // 세우려면 `adding` 을 아는 쪽이 머리글도 그려야 한다 — 상태만 위로 올리면
     // 화면(S06)이 이 목록의 속사정(후보가 남았는지)까지 알아야 했다.
+    //
+    // 「이어 볼 만한 것」은 **따로 선 구획**이다. 예전에는 연결 목록 끝에
+    // 작은 굵은 글씨로 붙어 있어서, 옆의 「출처」·「연결」·「다음 탐구」와 달리
+    // 무엇의 시작인지 알약으로 표시되지 않았다 — 판 안에서 같은 무게의 것은
+    // 같은 모양으로 서야 한다.
+    <>
     <Section
       title="연결"
       action={
@@ -382,54 +397,47 @@ export function NodeConnections({ node, edges, nodes, onConnect, onDisconnect, b
         </div>
       ))}
 
-      {/* 이을 만한 짝 — 생기부 같은 문장에 함께 적혀 있던 것.
-          이미 이어진 짝은 서버가 빼고 준다. */}
-      {(() => {
-        const fresh = hints.items.filter((s) => {
-          const other = s.source_id === node.id ? s.target_id : s.source_id;
-          return !linkedIds.has(other) && !skipped.has(other);
-        });
-        if (hints.loading || !fresh.length) return null;
-        return (
-          <div className="nlink-hints">
-            <p className="nlink-hints-t">
-              이어 볼 만한 것 {fresh.length}개
-              {/* 규칙 하나가 전부다(모델을 쓰지 않는다) — 그것을 먼저 말하고,
-                  누르면 무엇이 되는지를 이어서 말한다. 예전에는 앞줄만 있어서
-                  「잇기」를 눌러 놓고 무엇이 달라졌는지 몰랐다. */}
-              <span>
-                생기부 같은 문장에 함께 적혀 있었습니다 · 「잇기」를 누르면 위 「연결」
-                목록에 한 줄이 생깁니다
-              </span>
-            </p>
-            {fresh.map((s) => {
-              const otherId = s.source_id === node.id ? s.target_id : s.source_id;
-              const otherLabel = s.source_id === node.id ? s.target_label : s.source_label;
-              return (
-                <div key={otherId} className="nlink-hint">
-                  <div className="nlink-hint-head">
-                    <NavIcon name="link" size={12} color={TDS.primary} />
-                    <span className="nlink-hint-name">{otherLabel}</span>
-                    {s.count > 1 && <span className="nlink-hint-n">{s.count}번</span>}
-                  </div>
-                  {/* 근거 문장을 그대로 둔다. 왜 떴는지 못 읽으면 학생은
-                      "그냥 AI 가 그랬대" 로 받아들이고 아무거나 잇게 된다. */}
-                  <p className="nlink-hint-why">{s.sentence}</p>
-                  <div className="nlink-hint-act">
-                    <Btn v="secondary" s="sm" disabled={busy} onClick={() => connect(otherId)}>잇기</Btn>
-                    <button
-                      type="button" className="nlink-hint-skip"
-                      onClick={() => setSkipped((prev) => new Set(prev).add(otherId))}
-                    >
-                      아니요
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })()}
     </Section>
+
+    {/* 이을 만한 짝 — 생기부 같은 문장에 함께 적혀 있던 것.
+        이미 이어진 짝은 서버가 빼고 준다. */}
+    {fresh.length > 0 && (
+      <Section title="이어 볼 만한 것">
+        {/* 규칙 하나가 전부다(모델을 쓰지 않는다) — 그것을 먼저 말하고, 누르면
+            무엇이 되는지를 이어서 말한다. 개수는 알약에 붙이지 않는다. 옆의
+            「출처」·「연결」·「다음 탐구」가 다 이름만 달고 있고, 개수는 아래
+            카드를 세면 나온다. */}
+        <p className="gsec-note">
+          생기부 같은 문장에 함께 적혀 있었습니다 · 「잇기」를 누르면 위 「연결」
+          목록에 한 줄이 생깁니다
+        </p>
+        {fresh.map((h) => {
+          const otherId = h.source_id === node.id ? h.target_id : h.source_id;
+          const otherLabel = h.source_id === node.id ? h.target_label : h.source_label;
+          return (
+            <div key={otherId} className="nlink-hint">
+              <div className="nlink-hint-head">
+                <NavIcon name="link" size={12} color={TDS.primary} />
+                <span className="nlink-hint-name">{otherLabel}</span>
+                {h.count > 1 && <span className="nlink-hint-n">{h.count}번</span>}
+              </div>
+              {/* 근거 문장을 그대로 둔다. 왜 떴는지 못 읽으면 학생은
+                  "그냥 AI 가 그랬대" 로 받아들이고 아무거나 잇게 된다. */}
+              <p className="nlink-hint-why">{h.sentence}</p>
+              <div className="nlink-hint-act">
+                <Btn v="secondary" s="sm" disabled={busy} onClick={() => connect(otherId)}>잇기</Btn>
+                <button
+                  type="button" className="nlink-hint-skip"
+                  onClick={() => setSkipped((prev) => new Set(prev).add(otherId))}
+                >
+                  아니요
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </Section>
+    )}
+    </>
   );
 }
