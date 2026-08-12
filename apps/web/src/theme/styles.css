@@ -3311,14 +3311,19 @@ tr:hover td { background:var(--surface-container-low); }
    할 것이 아니다. */
 /* 개수 알약. 캔버스 밖(도구띠 끝)에 서므로 뒤에 흐릴 것이 없다 — 유리 대신
    옅은 회색 판이다. 알려 주는 값이라 손이 닿지 않게 둔다. */
+/* 개수 알약. 옆에 선 「층 다시 세우기」·「확장하기」(.btn-secondary.btn-sm)와
+   같은 키·같은 글씨다 — 도구띠에서 한 줄로 서는 것들이 저마다 다른 크기면
+   기둥이 어긋나 보인다. 다만 **누르는 것이 아니다**: 회색 바탕을 걷어 배경과
+   같은 색으로 두고 선 하나만 남긴다. 알려 주는 값이지 손댈 것이 아니라는
+   말을 색이 아니라 채워지지 않은 면으로 한다. */
 .gcount {
   display:inline-flex; align-items:center; gap:6px; flex:0 0 auto;
-  height:34px; padding:0 14px; border-radius:9999px;
-  background:var(--bg2); border:1px solid var(--brd);
+  height:34px; padding:0 12px; border-radius:9999px;
+  background:transparent; border:1px solid var(--brd);
   pointer-events:none; white-space:nowrap;
 }
-.gcount-n { font-size:13.5px; font-weight:800; color:var(--tp); font-variant-numeric:tabular-nums; }
-.gcount-l { font-size:12px; color:var(--tt); }
+.gcount-n { font-size:13px; font-weight:700; color:var(--tp); font-variant-numeric:tabular-nums; }
+.gcount-l { font-size:13px; font-weight:700; color:var(--tt); }
 .gcount-sep { width:1px; height:11px; background:rgba(15,23,42,.13); margin:0 4px; }
 
 /* ── 노드 상세: 출처 · 연결 추천 · 코멘트 ── */
