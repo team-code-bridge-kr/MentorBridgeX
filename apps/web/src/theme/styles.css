@@ -555,16 +555,161 @@ tr:hover td { background:var(--surface-container-low); }
 .modal-btns .btn { flex:1; }
 
 /* ── Login ── */
-.login-wrap { display:flex; height:100vh; min-height:600px; }
-.login-left {
-  flex:1;
-  background: linear-gradient(160deg, #1252b5 0%, #1b69db 35%, #3182f6 70%, #4d93ff 100%);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:clamp(32px,5vw,72px); color:#fff; min-width:0; overflow:hidden;
+/* ── 로그인 ─────────────────────────────────────────────────
+   소개 영상이 **화면 전체**의 바탕이다. 예전에는 왼쪽 절반만 파란 판이었고,
+   그 안에 16:9 상자를 두는 안도 거쳤다 — 상자는 안 잘리는 대신 작았다
+   (1280×800 에서 538px). 영상이 화면을 다 쓰면 첫인상이 완전히 달라진다.
+
+   대신 그 위에 흰 글씨와 로그인 칸이 얹히므로 **검은 막을 한 겹** 깐다.
+   막이 없으면 영상이 밝아지는 순간 글씨가 사라진다 — 7초마다 반복되는
+   영상이라 그 순간이 계속 돌아온다. */
+.login-wrap {
+  display:flex; height:100vh; min-height:600px;
+  position:relative; overflow:hidden;
+  /* 영상을 못 읽으면 이 그라데이션이 그대로 남는다 — 예전 화면이 서는 것이라
+     깨진 것처럼 보이지 않는다. */
+  background:linear-gradient(160deg, #1252b5 0%, #1b69db 35%, #3182f6 70%, #4d93ff 100%);
 }
-.login-left-content { max-width:440px; width:100%; }
-.login-right { width:clamp(340px,38vw,520px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:clamp(28px,4vw,64px); background:var(--bg1); overflow-y:auto; }
-.login-box { width:100%; max-width:380px; }
+.login-bg {
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; z-index:0; pointer-events:none;
+}
+/* 검은 막.
+   왼쪽(소개 글)은 더 세게, 오른쪽(로그인 칸)은 덜 — 흰 카드가 뜨는 자리라
+   막까지 진하면 영상이 아예 안 보인다. 위아래를 조금 더 눌러 브라우저 UI 와
+   맞닿는 가장자리를 정리한다. */
+.login-scrim {
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:
+    linear-gradient(90deg, rgba(4,18,44,.72) 0%, rgba(4,18,44,.58) 46%, rgba(4,18,44,.34) 100%),
+    linear-gradient(180deg, rgba(4,18,44,.30) 0%, transparent 22%, transparent 74%, rgba(4,18,44,.34) 100%);
+}
+.login-left {
+  flex:1; position:relative; z-index:2;
+  background:transparent;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:clamp(32px,5vw,72px); color:#fff; min-width:0;
+  /* 영상 위의 흰 글씨는 막만으로는 모자랄 때가 있다. 아주 옅은 그림자로
+     경계를 세운다 — 글자 모양이 뭉개지지 않을 만큼만. */
+  text-shadow:0 1px 14px rgba(3,16,40,.45);
+}
+.login-left-content { max-width:clamp(520px, 54vw, 760px); width:100%; }
+
+/* 이름표 — 사이드바와 **같은 짜임**이다. 팀 이름은 진하게, 제품 이름은 한 단계
+   더 진하게(팀코드브릿지의 다른 제품과 같은 규칙). 예전에는 파란 네모에 📚
+   이모지를 넣고 "생기부 관리" 라고 적었는데, 우리 로고가 따로 있는데 이모지를
+   쓸 이유가 없다. */
+.login-brand { display:flex; align-items:center; gap:14px; margin-bottom:clamp(28px,5vh,56px); }
+.login-brand-logo { width:54px; height:54px; border-radius:16px; object-fit:cover; flex:none; }
+.login-brand-logo.is-sm { width:40px; height:40px; border-radius:12px; }
+.login-brand-text { font-size:20px; font-weight:600; color:rgba(255,255,255,.86); letter-spacing:-.01em; }
+.login-brand-text b { font-weight:800; color:#fff; }
+.login-box-brand { font-size:19px; font-weight:600; color:var(--ts); letter-spacing:-.01em; }
+.login-box-brand b { font-weight:800; color:var(--tp); }
+
+/* 한 문장. 자간은 대시보드 히어로(.hero-title)와 같고 크기만 한 단계 키웠다 —
+   이 화면에는 이 문장 하나뿐이라 히어로보다 더 크게 서도 다툴 것이 없다.
+   위 상한 62px 은 좁은 화면에서 재서 잡은 값이다: 1280 폭에서 판 안쪽이 666px
+   인데 "이어진 지도로 만듭니다" 가 그보다 길어지면 줄이 한 번 더 접힌다. */
+.login-title {
+  font-size:clamp(34px, 4vw, 62px); font-weight:700; color:#fff;
+  letter-spacing:-.022em; line-height:1.22; margin:0;
+}
+
+/* 오른쪽은 이제 흰 판이 아니라 **떠 있는 카드**다. 판으로 두면 영상이 화면
+   절반에서 잘려 두 개의 다른 화면처럼 보인다. */
+.login-right {
+  width:clamp(360px,38vw,540px); position:relative; z-index:2;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:clamp(24px,3vw,48px); background:transparent; overflow-y:auto;
+}
+/* 어두운 유리 카드.
+   흰 유리 위에서는 「팀코드브릿지 MBX」를 흰색으로 둘 수 없다 — 밝은 회색
+   바탕(흰색 58% + 어두운 영상)에 흰 글씨는 1.4:1 밖에 안 나온다. 카드를
+   어둡게 뒤집으면 글자가 전부 흰색이 되고, 밤 장면 영상 위에서 유리가 더
+   유리처럼 보인다. 뒤 영상은 흐림 34px 로 형태를 지우고 빛만 통과시킨다.
+
+   흰색은 **Google 단추 하나**에만 남긴다 — 구글 브랜드 규정이기도 하고,
+   어두운 카드에서 그 하나가 눈이 처음 닿는 자리가 된다. */
+.login-box {
+  width:100%; max-width:400px; border-radius:22px;
+  padding:clamp(26px,3vw,34px) clamp(22px,2.4vw,30px);
+  background:rgba(9,20,42,.42);
+  backdrop-filter:blur(34px) saturate(160%);
+  -webkit-backdrop-filter:blur(34px) saturate(160%);
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 28px 70px rgba(2,12,32,.52), inset 0 1px 0 rgba(255,255,255,.24);
+  color:#fff;
+}
+.login-box-head { display:flex; align-items:center; gap:11px; margin-bottom:26px; }
+.login-box-brand { font-size:21px; font-weight:600; color:rgba(255,255,255,.86); letter-spacing:-.01em; }
+.login-box-brand b { font-weight:800; color:#fff; }
+
+/* Google 단추 — 카드에서 유일한 흰 판. */
+.login-google {
+  width:100%; height:56px; border-radius:14px; border:1px solid rgba(255,255,255,.5);
+  background:#fff; color:var(--tp); font-family:inherit;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  font-size:16px; font-weight:700; cursor:pointer; margin-bottom:18px;
+  transition:box-shadow .14s, transform .14s;
+}
+.login-google:hover { box-shadow:0 8px 24px rgba(0,0,0,.28); }
+.login-google:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+
+/* 「또는」 — 선 두 줄을 요소로 두지 않고 가상 요소로 긋는다. */
+.login-or { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+.login-or::before, .login-or::after {
+  content:""; flex:1; height:1px; background:rgba(255,255,255,.24);
+}
+.login-or span { font-size:13px; color:rgba(255,255,255,.66); }
+
+.login-label { display:block; font-size:14px; font-weight:600; color:rgba(255,255,255,.82); margin-bottom:7px; }
+.login-forgot { font-size:13px; color:rgba(255,255,255,.72); cursor:pointer; }
+.login-forgot:hover { color:#fff; text-decoration:underline; }
+
+/* 입력칸도 어두운 유리. 흰 칸을 얹으면 카드 안에 다른 물건이 하나 더 놓인
+   것처럼 보인다. */
+.login-box .inp {
+  height:52px; font-size:15px; color:#fff;
+  background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.28);
+}
+.login-box .inp::placeholder { color:rgba(255,255,255,.5); }
+.login-box .inp:focus {
+  background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.7);
+  box-shadow:0 0 0 4px rgba(255,255,255,.14);
+}
+.login-err {
+  margin-bottom:14px; padding:10px 12px; border-radius:10px;
+  background:rgba(255,120,110,.16); border:1px solid rgba(255,150,140,.42);
+  color:#ffd9d5; font-size:13.5px; font-weight:500;
+}
+
+/* 이메일 칸을 펴는 단추. Google 단추(흰 판)보다 한 단계 약하다 — 선도 없고
+   바탕도 없다. 둘이 같은 무게로 서면 어디로 가야 할지 다시 고르게 된다. */
+.login-more {
+  width:100%; height:48px; border:none; border-radius:var(--r12);
+  background:transparent; font-family:inherit;
+  font-size:15px; font-weight:700; color:rgba(255,255,255,.9); cursor:pointer;
+  transition:background .14s;
+}
+.login-more:hover { background:rgba(255,255,255,.12); color:#fff; }
+.login-more:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+
+/* 흐림을 못 쓰는 브라우저에서는 그냥 진한 남색 카드로 떨어진다. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+  .login-box { background:rgba(9,20,42,.88); }
+}
+
+/* 움직임을 줄여 달라고 한 사람에게는 영상을 멈춘다. 첫 프레임은 남으므로
+   화면이 검게 비지 않는다. */
+@media (prefers-reduced-motion:reduce) {
+  .login-bg { display:none; }
+}
+/* 좁은 화면 — 소개 글을 접고 로그인 칸만 남긴다. 영상은 그대로 바탕이다. */
+@media (max-width:860px) {
+  .login-left { display:none; }
+  .login-right { width:100%; }
+}
 
 /* ── Area card ── */
 .area-card {
