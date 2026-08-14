@@ -108,16 +108,23 @@ export function PdfRegionViewer({ file, onRegions }) {
       if (cancelled) return;
       const viewport = page.getViewport({ scale: BASE_SCALE });
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = viewport.width * dpr;
-      canvas.height = viewport.height * dpr;
+      // 자리는 먼저 잡는다(CSS 크기만 — 픽셀은 안 건드린다).
       canvas.style.width = `${viewport.width}px`;
       canvas.style.height = `${viewport.height}px`;
-      const ctx = canvas.getContext("2d");
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      task = page.render({ canvasContext: ctx, viewport });
+      // 보이는 캔버스에는 **가린 그림만** 올린다 — 까닭은 PdfReader 의 같은 자리 주석에.
+      const off = document.createElement("canvas");
+      off.width = viewport.width * dpr;
+      off.height = viewport.height * dpr;
+      const octx = off.getContext("2d");
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      task = page.render({ canvasContext: octx, viewport });
       try {
         await task.promise;
-        if (!cancelled) paintMask(ctx, viewport);
+        if (cancelled) return;
+        paintMask(octx, viewport);
+        canvas.width = off.width;
+        canvas.height = off.height;
+        canvas.getContext("2d").drawImage(off, 0, 0);
       } catch {
         /* 페이지를 넘기면 이전 렌더는 취소된다 — 정상 */
       }
@@ -143,16 +150,22 @@ export function PdfRegionViewer({ file, onRegions }) {
       const canvas = zoomCanvasRef.current;
       if (!canvas) return;
       const h = Math.max(40, slice.yEnd - slice.yStart);
-      canvas.width = base.width * ZOOM * (window.devicePixelRatio || 1);
-      canvas.height = h * ZOOM * (window.devicePixelRatio || 1);
-      canvas.style.width = "100%";
-      const ctx = canvas.getContext("2d");
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      const z = ZOOM * (window.devicePixelRatio || 1);
+      // 확대본도 안 보이는 곳에서 그린 뒤 옮긴다. 여기는 세 배로 키운 그림이라
+      // 렌더가 더 오래 걸리고, 그동안 인적사항이 **더 크게** 드러난다.
+      const off = document.createElement("canvas");
+      off.width = base.width * z;
+      off.height = h * z;
+      const octx = off.getContext("2d");
+      await page.render({ canvasContext: octx, viewport }).promise;
       // 확대본에도 마스크는 남아야 한다 — 원본 좌표를 확대 배율로 옮겨 칠한다
       const m = footerMask(base);
-      const z = ZOOM * (window.devicePixelRatio || 1);
-      ctx.fillStyle = "#e9edf3";
-      ctx.fillRect(0, (m.y - slice.yStart) * z, canvas.width, m.h * z);
+      octx.fillStyle = "#e9edf3";
+      octx.fillRect(0, (m.y - slice.yStart) * z, off.width, m.h * z);
+      canvas.width = off.width;
+      canvas.height = off.height;
+      canvas.style.width = "100%";
+      canvas.getContext("2d").drawImage(off, 0, 0);
       setZoomed({ region, slice, loading: false });
     },
     []

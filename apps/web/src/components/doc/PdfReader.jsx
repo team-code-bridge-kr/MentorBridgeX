@@ -257,25 +257,46 @@ function ReaderPage({ doc, pageNo, width, mask, regions, show, selected, flash, 
       const dpr = window.devicePixelRatio || 1;
       const canvas = ref.current;
       if (!canvas) return;
-      canvas.width = viewport.width * dpr;
-      canvas.height = viewport.height * dpr;
+
+      /**
+       * **보이는 캔버스에는 가린 그림만 올라간다.**
+       *
+       * 예전에는 보이는 캔버스에 바로 그리고 렌더가 끝난 뒤에 가림띠를 칠했다.
+       * pdf.js 는 조금씩 그려 나가므로, 그 사이 몇 프레임 동안 맨 아래 인적사항이
+       * **그대로 보였다.** 쪽을 넘길 때마다 깜빡이며 드러났고 화면 녹화에도 남는다.
+       *
+       * 안 보이는 캔버스에 그리고, 거기에 가림띠까지 칠한 다음, 다 된 그림을
+       * 한 번에 옮긴다. 보이는 쪽은 이전 쪽 → 가려진 새 쪽으로 바로 넘어간다.
+       * (덤으로 처음의 흰 깜빡임도 없어진다 — 예전에는 canvas.width 를 대입하는
+       * 순간 화면이 비워졌다.)
+       */
+      // 자리는 **먼저** 잡는다. 보이는 캔버스의 CSS 크기만 정하는 것이라
+      // 픽셀은 건드리지 않는다 — 이걸 안 하면 렌더가 끝날 때까지 캔버스가
+      // 기본 크기(300×150)로 서 있다가 쪽이 갑자기 커진다.
       canvas.style.width = `${viewport.width}px`;
       canvas.style.height = `${viewport.height}px`;
-      const ctx = canvas.getContext("2d");
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      task = page.render({ canvasContext: ctx, viewport });
+
+      const off = document.createElement("canvas");
+      off.width = viewport.width * dpr;
+      off.height = viewport.height * dpr;
+      const octx = off.getContext("2d");
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      task = page.render({ canvasContext: octx, viewport });
       try {
         await task.promise;
         if (cancelled) return;
         if (mask) {
           const m = footerMask(viewport);
-          ctx.fillStyle = "#e9edf3";
-          ctx.fillRect(m.x, m.y, m.w, m.h);
-          ctx.fillStyle = "#8b95a1";
-          ctx.font = "10px Pretendard, sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("인적사항 가림", m.x + m.w / 2, m.y + m.h / 2 + 3);
+          octx.fillStyle = "#e9edf3";
+          octx.fillRect(m.x, m.y, m.w, m.h);
+          octx.fillStyle = "#8b95a1";
+          octx.font = "10px Pretendard, sans-serif";
+          octx.textAlign = "center";
+          octx.fillText("인적사항 가림", m.x + m.w / 2, m.y + m.h / 2 + 3);
         }
+        canvas.width = off.width;
+        canvas.height = off.height;
+        canvas.getContext("2d").drawImage(off, 0, 0);
         setSize({ w: viewport.width, h: viewport.height });
       } catch { /* 쪽을 넘기면 앞 렌더는 취소된다 — 정상 */ }
     })();
