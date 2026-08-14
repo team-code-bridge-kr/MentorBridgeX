@@ -122,10 +122,18 @@ const GraphNodes = memo(function GraphNodes({ nodes, getPos, matchedSet, connect
   return (
     <>
       {nodes.map(n=>{
-        const dimSearch = matchedSet && !matchedSet.has(n.id);
-        const dimActive = connectedIds && n.id!==activeId && !connectedIds.has(n.id);
-        const dim = dimSearch || dimActive;
         const isActive = n.id===activeId;
+        const dimSearch = matchedSet && !matchedSet.has(n.id);
+        const dimActive = connectedIds && !connectedIds.has(n.id);
+        /**
+         * **지금 보고 있는 것은 언제나 밝다.**
+         *
+         * 예전에는 `dimSearch` 에 이 예외가 없었다. 그래서 검색어를 넣어 둔 채
+         * 검색에 안 걸리는 노드를 누르면, 판은 그 노드를 보여주는데 캔버스에서는
+         * 그 노드가 0.34 로 흐린 채였다 — 고른 것이 어디 있는지 못 찾는다.
+         * (`dimActive` 쪽에만 예외가 있어서 이 경우를 못 막았다.)
+         */
+        const dim = !isActive && (dimSearch || dimActive);
         const isDraggingThis = draggingId === n.id;
         const meta = KIND_META[n.kind] || KIND_META.topic;
         const pos = getPos(n);
