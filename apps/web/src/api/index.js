@@ -740,6 +740,76 @@ const api = {
   // ══ 가지치기 추천 (2단계) ══════════════════════════════════
   // 1단계(recommend)는 웹 검색을 하지 않습니다.
   // 2단계(research)는 학생이 '관련 자료 찾기'를 눌렀을 때만 호출하세요.
+  /**
+   * ✅ LIVE — 멘토링 대화 (학생 ↔ 멘토)
+   *
+   * **AI 대화(assistant)와 다른 곳이다.** 그쪽은 사람과 AI 가, 여기는 사람과
+   * 사람이 주고받는다. 실시간 소켓을 두지 않고 화면이 몇 초에 한 번 물어본다 —
+   * 하루에 몇 번 오가는 대화라 그걸로 충분하고, 소켓 하나에 딸려 오는
+   * 연결 유지·재접속·인증 갱신을 지지 않는다.
+   */
+  mentoring: {
+    async threads() {
+      const d = await request("/v1/students/me/mentoring/threads");
+      return {
+        threads: (d.threads || []).map((t) => ({
+          linkId: t.link_id,
+          partner: {
+            id: t.partner?.user_id || "",
+            name: t.partner?.display_name || "이름 없음",
+            role: t.partner?.role || "",
+            affiliation: t.partner?.affiliation || "",
+          },
+          last: t.last_message || "",
+          lastAt: t.last_at || null,
+          unread: t.unread || 0,
+        })),
+        unreadTotal: d.unread_total || 0,
+      };
+    },
+    async messages(linkId) {
+      const d = await request(
+        `/v1/students/me/mentoring/threads/${encodeURIComponent(linkId)}/messages`,
+      );
+      return {
+        partner: d.partner
+          ? {
+              id: d.partner.user_id,
+              name: d.partner.display_name,
+              role: d.partner.role || "",
+              affiliation: d.partner.affiliation || "",
+            }
+          : null,
+        messages: (d.messages || []).map((m) => ({
+          id: m.id,
+          body: m.body,
+          mine: !!m.mine,
+          read: !!m.read,
+          at: m.created_at,
+        })),
+      };
+    },
+    async send(linkId, body) {
+      const m = await request(
+        `/v1/students/me/mentoring/threads/${encodeURIComponent(linkId)}/messages`,
+        { method: "POST", body: { body } },
+      );
+      return { id: m.id, body: m.body, mine: true, read: false, at: m.created_at };
+    },
+    /** 멘토만. 아직 아무도 안 쓴 코드가 있으면 그것을 다시 준다. */
+    async invite() {
+      const d = await request("/v1/students/me/mentoring/invite", { method: "POST" });
+      return d.code;
+    },
+    async join(code) {
+      const t = await request("/v1/students/me/mentoring/join", {
+        method: "POST",
+        body: { code: code.trim().toUpperCase() },
+      });
+      return { linkId: t.link_id, partner: { name: t.partner?.display_name || "" } };
+    },
+  },
+
   pruning: {
     /** ✅ LIVE — POST /v1/students/me/recommendations/pruning */
     async recommend(nodeId, grade) {

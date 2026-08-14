@@ -72,6 +72,31 @@ async def delete_account(session: AsyncSession, user_id: str) -> dict[str, int]:
     )
     removed["assistant_messages"] = msg.rowcount or 0
 
+    # 멘토링도 같은 사정이다. 메시지는 `link_id` 를 가리키고, 링크는 `user_id`
+    # 가 아니라 `mentor_id`/`student_id` 를 가진다 — 둘 다 위 목록에 못 넣는다.
+    #
+    # **주고받은 말은 두 사람의 것이지만 지운다.** 한쪽이 계정을 지웠는데
+    # 그 사람이 한 말이 상대 화면에 그대로 남아 있으면, 지웠다는 말이 거짓이
+    # 된다. 상대에게는 대화가 통째로 사라지는 편이 낫다.
+    mm = await session.execute(
+        text(
+            "DELETE FROM mentor_messages WHERE link_id IN "
+            "(SELECT id FROM mentor_links WHERE mentor_id = :uid OR student_id = :uid)"
+        ),
+        {"uid": user_id},
+    )
+    removed["mentor_messages"] = mm.rowcount or 0
+    ml = await session.execute(
+        text("DELETE FROM mentor_links WHERE mentor_id = :uid OR student_id = :uid"),
+        {"uid": user_id},
+    )
+    removed["mentor_links"] = ml.rowcount or 0
+    mi = await session.execute(
+        text("DELETE FROM mentor_invites WHERE mentor_id = :uid OR used_by = :uid"),
+        {"uid": user_id},
+    )
+    removed["mentor_invites"] = mi.rowcount or 0
+
     for table in USER_TABLES:
         result = await session.execute(
             text(f"DELETE FROM {table} WHERE user_id = :uid"),  # noqa: S608 — 상수 목록

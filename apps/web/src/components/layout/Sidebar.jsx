@@ -19,6 +19,7 @@ import TDS from "../../theme/tokens.js";
 import { Av } from "../ui.jsx";
 import { NavIcon } from "../NavIcon.jsx";
 import { S_UTIL } from "../../nav/menus.js";
+import api from "../../api/index.js";
 import { RecentActivity, SIDEBAR_LIMIT } from "../sidebar/RecentActivity.jsx";
 import { useRecentActivity } from "../../hooks/useRecentActivity.js";
 import { activityDetailRoute, restoreActivity } from "../../lib/activityRestore.js";
@@ -35,6 +36,24 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
   const displayName = user?.name || (dark ? "시스템 관리자" : "게스트");
   const displayEmail = user?.email || "—";
   const unread = (state.notifications || []).filter((n) => !n.read).length;
+  /**
+   * 멘토가 답을 남겼는지. 알림과 달리 스토어에 실려 있지 않아 여기서 묻는다.
+   *
+   * 30초에 한 번이면 된다 — 멘토링 화면 자체는 5초마다 새로 받고, 이 값은
+   * "가 봐야 한다" 를 알리는 용도라 그만큼 급하지 않다. 실패하면 조용히
+   * 0 으로 둔다: 배지 하나 때문에 사이드바가 붉어질 이유가 없다.
+   */
+  const [mentorUnread, setMentorUnread] = useState(0);
+  useEffect(() => {
+    if (!state.session) return undefined;
+    let alive = true;
+    const ask = () => api.mentoring.threads()
+      .then((d) => alive && setMentorUnread(d.unreadTotal))
+      .catch(() => alive && setMentorUnread(0));
+    ask();
+    const t = setInterval(ask, 30000);
+    return () => { alive = false; clearInterval(t); };
+  }, [state.session]);
 
   /* 커서를 올리면 열리고 **벗어나면 닫힌다.** 그게 전부다.
      예전에는 열린 뒤 스스로 닫히지 않아서(벗어나도 그대로) Esc 를 누르거나
@@ -173,6 +192,11 @@ export function Sidebar({ nav, active, current, onNav, role, dark }) {
                   <NavIcon name={n.icon} size="100%" color={stroke} />
                 </span>
                 <span className="sb-label sb-fade">{n.label}</span>
+                {n.badge === "mentoring" && mentorUnread > 0 && (
+                  <span className="sb-nav-badge" aria-label={`읽지 않은 메시지 ${mentorUnread}개`}>
+                    {mentorUnread}
+                  </span>
+                )}
               </div>
             );
           })}

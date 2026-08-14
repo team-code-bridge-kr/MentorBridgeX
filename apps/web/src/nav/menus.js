@@ -22,6 +22,8 @@ export const S_NAV = [
   { id:"S11", icon:"text",     label:"생기부 뷰어" },
   { id:"S20", icon:"form",     label:"보고서 작성" },
   { id:"S15", icon:"voice",    label:"음성 세션" },
+  // 멘토와 주고받는 자리. 안 읽은 말이 있으면 알림과 같은 모양의 배지가 붙는다.
+  { id:"S24", icon:"comment",  label:"멘토링", badge:"mentoring" },
 ];
 
 /* 사이드바 하단 유틸 — 프로필 옆에 붙는다 (§3) */
@@ -36,6 +38,7 @@ export const T_NAV = [
   { id:"T03",icon:"home",label:"대시보드" },
   { id:"T06",icon:"users",label:"담당 학생" },
   { id:"T11",icon:"comment",label:"코멘트" },
+  { id:"S24",icon:"comment",label:"멘토링", badge:"mentoring" },
   { id:"S15",icon:"voice",label:"음성" },
   { id:"S20",icon:"form",label:"보고서 작성" },
   { id:"S25",icon:"bell",label:"알림" },
