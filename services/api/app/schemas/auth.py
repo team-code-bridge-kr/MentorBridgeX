@@ -6,6 +6,18 @@ class DevLoginRequest(BaseModel):
     display_name: str = Field(default="데모 학생", max_length=50)
 
 
+class RegisterRequest(BaseModel):
+    """비밀번호로 가입.
+
+    이름을 받는 까닭: 이메일 앞자리로 지어내면 `netf2005` 같은 것이 화면 곳곳에
+    사람 이름 자리로 나온다. 한 번 물어보는 편이 낫다.
+    """
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    display_name: str = Field(min_length=1, max_length=50)
+
+
 class GoogleCallbackRequest(BaseModel):
     code: str = Field(min_length=1, max_length=2048)
     redirect_uri: str | None = Field(

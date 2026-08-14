@@ -19,6 +19,9 @@ class UserRow(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # 비밀번호로 가입한 계정만 값이 있다. 구글로 만든 계정은 비어 있고,
+    # 그때는 구글로만 들어온다 (services/passwords.py 머리말 참고).
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class DocumentSectionRow(Base):
@@ -153,6 +156,12 @@ async def init_postgres() -> None:
         # 인덱스보다 먼저 만들어져야 하므로 create_all 앞에 둔다.
         await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS pg_trgm")
         await conn.run_sync(Base.metadata.create_all)
+        # Alembic 이 없고 create_all 은 **기존 테이블을 바꾸지 않는다.** 이미
+        # 만들어진 users 에 열을 더하려면 여기서 직접 붙여야 한다. Postgres 의
+        # IF NOT EXISTS 라 여러 번 떠도 안전하다.
+        await conn.exec_driver_sql(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"
+        )
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

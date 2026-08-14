@@ -22,15 +22,35 @@ export function S01({ onNav }) {
   // 영상 파일이 있는가. 못 읽으면 영상만 빼고 상자(포스터)는 남긴다.
   const [videoOk, setVideoOk] = useState(true);
   /**
-   * 이메일 칸을 폈는가.
+   * 카드가 지금 무엇을 보이는가 — `idle | login | signup`.
    *
    * 학교 계정으로 들어오는 것이 주 경로다. 그런데 이메일·비밀번호 두 칸과
    * 「로그인」이 늘 펼쳐져 있어서 카드가 세로로 길었고, **무엇으로 들어가야
    * 하는지**가 흐렸다 — 같은 무게의 길이 둘로 보였다. 접어 두고 필요한
    * 사람만 편다.
    */
-  const [pwOpen, setPwOpen] = useState(false);
+  const [view, setView] = useState("idle");
+  const [name, setName] = useState("");
   const emailRef = useRef(null);
+  const nameRef = useRef(null);
+
+  /** 펴면서 첫 칸에 커서를 둔다. 펴 놓고 다시 눌러야 하면 한 번 더 손이 간다. */
+  const open = (next) => {
+    setView(next);
+    setLocalErr("");
+    requestAnimationFrame(() => (next === "signup" ? nameRef : emailRef).current?.focus());
+  };
+
+  const doSignUp = async () => {
+    setLocalErr("");
+    if (!name.trim()) { setLocalErr("이름을 입력하세요."); return; }
+    if (!emailOk) { setLocalErr("올바른 이메일 형식을 입력하세요."); return; }
+    if (pw.length < 8) { setLocalErr("비밀번호는 8자 이상이어야 합니다."); return; }
+    try {
+      await withLoading("계정을 만드는 중이에요…", () => actions.signUp(email, pw, name));
+      /* 게이팅이 자동으로 온보딩으로 보낸다 */
+    } catch (e) { setLocalErr(e.message); }
+  };
   const busy = state.authLoading;
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -52,6 +72,7 @@ export function S01({ onNav }) {
     } catch (e) { setLocalErr(e.message); }
   };
   const onKey = e => { if (e.key === "Enter" && !busy) doPasswordLogin(); };
+  const onKeyUp2 = e => { if (e.key === "Enter" && !busy) doSignUp(); };
   const errMsg = localErr || state.authError;
 
   return (
@@ -119,8 +140,6 @@ export function S01({ onNav }) {
             {busy ? "로그인 중…" : "Google로 시작하기"}
           </button>
 
-          <div className="login-or"><span>또는</span></div>
-
           {/* 시간이 지나 나간 것은 오류가 아니다. 빨간 상자로 겁주지 않는다. */}
           {signedOut && !errMsg && (
             <div className="login-note">{signedOut}</div>
@@ -129,43 +148,67 @@ export function S01({ onNav }) {
             <div className="login-err">{errMsg}</div>
           )}
 
-          {/* 접혀 있을 때는 길 하나만 보인다. 펴는 단추는 학교 계정 단추보다
-              한 단계 약하게 — 둘이 같은 무게로 서면 어디로 가야 할지 다시
-              고르게 된다. */}
-          {!pwOpen && (
-            <button type="button" className="login-more" onClick={() => {
-              setPwOpen(true);
-              // 펴자마자 첫 칸에 커서를 둔다. 펴 놓고 다시 눌러야 하면 한 번 더 손이 간다.
-              requestAnimationFrame(() => emailRef.current?.focus());
-            }}>
-              이메일로 로그인
-            </button>
+          {/* 카드는 세 모습이다 — 접힘 / 로그인 / 가입.
+
+              접혀 있을 때는 길이 하나만 보인다(학교 계정). 이메일과 가입은 그
+              아래 약한 글씨로 둔다. 셋이 같은 무게로 서면 처음 온 사람이 어디로
+              가야 할지 다시 고르게 된다. */}
+          {view === "idle" && (
+            <>
+              <button type="button" className="login-more" onClick={() => open("login")}>
+                이메일로 로그인
+              </button>
+              <p className="login-swap">
+                처음이신가요? <button type="button" onClick={() => open("signup")}>회원가입</button>
+              </p>
+            </>
           )}
 
-          {pwOpen && (
+          {view === "login" && (
             <>
               <div style={{marginBottom:14}}>
                 <label className="login-label">이메일</label>
                 <input ref={emailRef} className="inp" placeholder="school@example.ac.kr" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKey} disabled={busy} autoComplete="username" />
               </div>
-              <div style={{marginBottom:24}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                  <label className="login-label">비밀번호</label>
-                  <span className="login-forgot">비밀번호 찾기</span>
-                </div>
+              <div style={{marginBottom:20}}>
+                <label className="login-label">비밀번호</label>
                 <input className="inp" type="password" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={onKey} disabled={busy} autoComplete="current-password" />
               </div>
+              <Btn v="primary" s="lg" fw onClick={doPasswordLogin} disabled={busy} style={busy?{opacity:.7,cursor:"not-allowed"}:undefined}>
+                {busy ? "로그인 중…" : "로그인"}
+              </Btn>
+              <p className="login-swap">
+                처음이신가요? <button type="button" onClick={() => open("signup")}>회원가입</button>
+              </p>
             </>
           )}
 
-          {/* 데모 계정·교사 신청·관리자 콘솔 줄을 걷었다.
-
-              데모 계정은 **아이디와 비밀번호를 화면에 적어 두는 일**이라 로그인
-              화면에 있을 것이 아니었고, 교사 신청과 관리자 콘솔은 학생이 쓰는
-              화면에서 갈 곳이 아니다(주소를 알면 그대로 들어간다 — 길만 감춘
-              것이 아니라 애초에 여기 둘 이유가 없었다). */}
-          {pwOpen && (
-            <Btn v="primary" s="lg" fw onClick={doPasswordLogin} disabled={busy} style={busy?{opacity:.7,cursor:"not-allowed"}:undefined}>{busy ? "로그인 중…" : "로그인"}</Btn>
+          {view === "signup" && (
+            <>
+              {/* 이름을 묻는다. 이메일 앞자리로 지어내면 `netf2005` 같은 것이
+                  화면 곳곳에서 사람 이름 자리에 선다. 한 번 물어보는 편이 낫다. */}
+              <div style={{marginBottom:14}}>
+                <label className="login-label">이름</label>
+                <input ref={nameRef} className="inp" placeholder="홍길동" value={name} onChange={e=>setName(e.target.value)} onKeyDown={onKeyUp2} disabled={busy} autoComplete="name" maxLength={50} />
+              </div>
+              <div style={{marginBottom:14}}>
+                <label className="login-label">이메일</label>
+                <input className="inp" placeholder="school@example.ac.kr" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={onKeyUp2} disabled={busy} autoComplete="username" />
+              </div>
+              <div style={{marginBottom:20}}>
+                <label className="login-label">비밀번호 <span className="login-hint">8자 이상</span></label>
+                <input className="inp" type="password" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={onKeyUp2} disabled={busy} autoComplete="new-password" />
+              </div>
+              {/* 가입하고 다시 로그인 화면으로 보내지 않는다 — 방금 정한 것을 한 번
+                  더 적으라는 뜻이 되고, 그 사이 오타 한 번이면 자기가 만든 계정에
+                  못 들어간다. 서버가 가입과 동시에 토큰을 준다. */}
+              <Btn v="primary" s="lg" fw onClick={doSignUp} disabled={busy} style={busy?{opacity:.7,cursor:"not-allowed"}:undefined}>
+                {busy ? "만드는 중…" : "가입하고 시작하기"}
+              </Btn>
+              <p className="login-swap">
+                이미 계정이 있나요? <button type="button" onClick={() => open("login")}>로그인</button>
+              </p>
+            </>
           )}
         </div>
       </div>

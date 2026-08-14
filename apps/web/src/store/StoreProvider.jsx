@@ -67,6 +67,19 @@ export function StoreProvider({ children }) {
         throw e;
       }
     },
+    /** 가입. 서버가 만들면서 곧바로 토큰을 주므로 로그인과 같은 자리에 앉힌다. */
+    async signUp(email, password, displayName) {
+      dispatch({ type: "AUTH_START" });
+      try {
+        const s = await api.auth.register(email, password, displayName);
+        saveSession(s);
+        dispatch({ type: "AUTH_OK", session: s });
+        return s;
+      } catch (e) {
+        dispatch({ type: "AUTH_ERR", error: e.message });
+        throw e;
+      }
+    },
     async signInGoogle() {
       dispatch({ type: "AUTH_START" });
       try {

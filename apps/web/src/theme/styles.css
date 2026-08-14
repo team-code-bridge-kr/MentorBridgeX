@@ -641,7 +641,10 @@ tr:hover td { background:var(--surface-container-low); }
   box-shadow:0 28px 70px rgba(2,12,32,.52), inset 0 1px 0 rgba(255,255,255,.24);
   color:#fff;
 }
-.login-box-head { display:flex; align-items:center; gap:11px; margin-bottom:26px; }
+.login-box-head {
+  display:flex; align-items:center; justify-content:center; gap:11px;
+  margin-bottom:26px;
+}
 .login-box-brand { font-size:21px; font-weight:600; color:rgba(255,255,255,.86); letter-spacing:-.01em; }
 .login-box-brand b { font-weight:800; color:#fff; }
 
@@ -654,18 +657,27 @@ tr:hover td { background:var(--surface-container-low); }
   transition:box-shadow .14s, transform .14s;
 }
 .login-google:hover { box-shadow:0 8px 24px rgba(0,0,0,.28); }
+/* 「또는」 줄을 걷었다 — 아래에 길이 하나뿐이라 갈림길이라고 알릴 것이 없었다.
+   그 줄이 갖던 여백은 이 단추가 갖는다. */
 .login-google:focus-visible { outline:2px solid #fff; outline-offset:3px; }
 
-/* 「또는」 — 선 두 줄을 요소로 두지 않고 가상 요소로 긋는다. */
-.login-or { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
-.login-or::before, .login-or::after {
-  content:""; flex:1; height:1px; background:rgba(255,255,255,.24);
-}
-.login-or span { font-size:13px; color:rgba(255,255,255,.66); }
 
 .login-label { display:block; font-size:14px; font-weight:600; color:rgba(255,255,255,.82); margin-bottom:7px; }
-.login-forgot { font-size:13px; color:rgba(255,255,255,.72); cursor:pointer; }
-.login-forgot:hover { color:#fff; text-decoration:underline; }
+.login-hint { font-weight:500; color:rgba(255,255,255,.58); }
+
+/* 로그인 ↔ 가입을 오가는 한 줄. 단추처럼 보이지 않게 둔다 — 카드에서 눌러야
+   할 것은 위의 둘(구글·로그인)뿐이고, 이건 "다른 길도 있다" 는 안내다. */
+.login-swap {
+  margin:16px 0 0; text-align:center;
+  font-size:13.5px; color:rgba(255,255,255,.66);
+}
+.login-swap button {
+  border:none; background:none; padding:0; margin-left:4px; font-family:inherit;
+  font-size:13.5px; font-weight:700; color:#fff; cursor:pointer;
+  text-underline-offset:3px;
+}
+.login-swap button:hover { text-decoration:underline; }
+.login-swap button:focus-visible { outline:2px solid #fff; outline-offset:3px; border-radius:4px; }
 
 /* 입력칸도 어두운 유리. 흰 칸을 얹으면 카드 안에 다른 물건이 하나 더 놓인
    것처럼 보인다. */

@@ -374,6 +374,37 @@ const api = {
      * ✅ LIVE — POST /v1/auth/dev-login
      * 비밀번호는 MVP에서 검증하지 않음. email 로컬파트로 display_name 생성.
      */
+    /**
+     * ✅ LIVE — POST /v1/auth/register
+     *
+     * 서버가 계정을 만들면서 **토큰까지 같이** 준다. 가입해 놓고 로그인 화면으로
+     * 되돌려 보내면 방금 정한 비밀번호를 한 번 더 적어야 하고, 그 사이 오타
+     * 하나면 자기가 만든 계정에 못 들어간다.
+     */
+    async register(email, password, displayName) {
+      const data = await request("/v1/auth/register", {
+        method: "POST",
+        body: {
+          email: email.trim().toLowerCase(),
+          password,
+          display_name: displayName.trim(),
+        },
+        auth: false,
+      });
+      setToken(data.access_token);
+      return {
+        token: data.access_token,
+        user: {
+          id:        data.user_id,
+          email:     data.email,
+          name:      data.display_name,
+          role:      data.role || null,
+          onboarded: Boolean(data.onboarded),
+          provider:  "password",
+        },
+      };
+    },
+
     async signInWithPassword(email, password) {
       const displayName = email.split("@")[0].replace(/[._-]/g, " ");
       const data = await request("/v1/auth/dev-login", {
