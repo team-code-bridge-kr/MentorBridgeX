@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseMarkdown, inlineParts } from "./miniMarkdown.js";
+import { parseMarkdown, inlineParts, toPlainText } from "./miniMarkdown.js";
 
 describe("parseMarkdown", () => {
   it("제목의 단계를 읽는다", () => {
@@ -59,5 +59,35 @@ describe("inlineParts", () => {
 
   it("짝이 맞지 않는 별표는 글자로 남는다", () => {
     expect(inlineParts("**닫히지 않음")).toEqual([{ t: "**닫히지 않음" }]);
+  });
+});
+
+describe("toPlainText", () => {
+  it("붙여넣기 좋게 마크다운 기호를 걷는다", () => {
+    const out = toPlainText("## 인공지능탐구반\n\n**36시간**을 참여했다.");
+    expect(out).toBe("인공지능탐구반\n\n36시간을 참여했다.");
+  });
+
+  it("목록은 글머리를 남긴다 — 문단으로 뭉치면 읽기 어렵다", () => {
+    expect(toPlainText("- 첫째\n- 둘째")).toBe("· 첫째\n· 둘째");
+    expect(toPlainText("1. 하나\n2. 둘")).toBe("1. 하나\n2. 둘");
+  });
+
+  it("빈 글은 빈 글로", () => {
+    expect(toPlainText("")).toBe("");
+    expect(toPlainText(null)).toBe("");
+  });
+});
+
+describe("toPlainText · dropLeadingTitle", () => {
+  it("첫 줄의 문서 제목을 걷는다 — 화면 머리에 이미 있다", () => {
+    const src = "# 동아리 활동 보고서\n\n## 수학문제만들기반\n\n30시간을 활동했다.";
+    expect(toPlainText(src, { dropLeadingTitle: true }))
+      .toBe("수학문제만들기반\n\n30시간을 활동했다.");
+  });
+
+  it("`##` 은 제목이 아니므로 그대로 둔다", () => {
+    expect(toPlainText("## 소제목\n\n본문", { dropLeadingTitle: true }))
+      .toBe("소제목\n\n본문");
   });
 });

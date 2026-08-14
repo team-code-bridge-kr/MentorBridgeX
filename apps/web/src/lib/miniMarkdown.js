@@ -79,3 +79,38 @@ export function parseMarkdown(src) {
   flushList();
   return blocks;
 }
+
+
+/**
+ * 붙여넣기 좋은 **평문**으로.
+ *
+ * 학생이 이 보고서로 하는 일은 대개 하나다 — 한글이나 구글 문서에 붙여 넣어
+ * 제출한다. 그런데 원문에는 `##`, `**` 가 그대로 있어서, 붙여 넣으면 화면에서
+ * 보던 것과 다른 것이 붙는다(제목이 `## 인공지능탐구반` 으로 나온다).
+ *
+ * 그래서 화면이 쓰는 것과 **같은 파서**로 조각을 낸 뒤 기호만 걷어 낸다.
+ * 화면에 보이는 대로 붙는다 — 그것이 이 함수의 전부다.
+ *
+ * 글머리표는 `· ` 로 남긴다. 마크다운 기호는 아니지만, 목록이었다는 사실까지
+ * 지우면 문단이 한 덩이로 뭉쳐 읽기 어려워진다.
+ *
+ * @param dropLeadingTitle 첫 줄이 `# 제목` 이면 지운다. 화면(`Markdown`)이 쓰는
+ *   것과 **같은 옵션**이다 — 화면에서 안 보이는 줄이 복사본에는 들어가면,
+ *   붙여 넣었을 때 제목이 두 번 나온다.
+ */
+export function toPlainText(src, { dropLeadingTitle = false } = {}) {
+  const strip = (t) => inlineParts(t).map((p) => p.t).join("");
+  let blocks = parseMarkdown(src);
+  if (dropLeadingTitle && blocks[0]?.kind === "h" && blocks[0].level === 1) {
+    blocks = blocks.slice(1);
+  }
+  return blocks
+    .map((b) => {
+      if (b.kind === "h") return strip(b.text);
+      if (b.kind === "ul") return b.items.map((it) => `· ${strip(it)}`).join("\n");
+      if (b.kind === "ol") return b.items.map((it, i) => `${i + 1}. ${strip(it)}`).join("\n");
+      return strip(b.text);
+    })
+    .join("\n\n")
+    .trim();
+}

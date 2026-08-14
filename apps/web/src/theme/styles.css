@@ -4011,6 +4011,9 @@ tr:hover td { background:var(--surface-container-low); }
 
 /* 상세 머리 줄 — 뒤로·제목·편집이 한 줄에 선다 */
 .form-head { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+/* 머리의 단추 묶음(복사 · 내려받기 · 편집). 좁아지면 줄을 바꾼다 — 제목이
+   길면 셋이 밀려 나가 화면 밖으로 나간다. */
+.form-head-acts { display:flex; align-items:center; gap:8px; margin-left:auto; flex:0 0 auto; flex-wrap:wrap; }
 .form-title {
   flex:1; min-width:0; margin:0;
   font-size:19px; font-weight:700; color:var(--tp); letter-spacing:-.02em;

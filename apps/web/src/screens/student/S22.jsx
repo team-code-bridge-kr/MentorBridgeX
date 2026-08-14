@@ -16,6 +16,8 @@ import { useState, useEffect, useMemo } from "react";
 import { Back, Btn } from "../../components/ui.jsx";
 import { FormTabs } from "../../components/forms/FormTabs.jsx";
 import { Markdown } from "../../components/forms/Markdown.jsx";
+import { toPlainText } from "../../lib/miniMarkdown.js";
+import { showNote } from "../../components/LoadingDock.jsx";
 import { useLoading } from "../../components/LoadingDock.jsx";
 import api from "../../api/index.js";
 
@@ -55,6 +57,42 @@ export function S22({ onNav }) {
   const [err, setErr] = useState("");
   const [expanded, setExpanded] = useState(false);
   const formId = sessionStorage.getItem("mbx_form_id");
+
+  /**
+   * 내보내기 — **복사**와 **내려받기** 둘뿐이다.
+   *
+   * 링크로 공유하는 길은 두지 않는다. 이 글은 생기부에 적힌 것으로 쓴 것이라
+   * 주소만 알면 누구나 열리는 자리에 두면 미성년자의 기록이 그대로 새어 나간다.
+   * 학생이 자기 손으로 붙여 넣거나 내려받아 건네는 것과, 우리가 공개 주소를
+   * 만들어 주는 것은 다른 일이다.
+   *
+   * 둘 다 **화면에 보이는 대로** 나간다 — `##`, `**` 를 걷어 낸 평문이다.
+   * 한글이나 구글 문서에 붙여 넣는 것이 이 글의 거의 유일한 쓸모라, 원문
+   * 그대로 주면 제목이 `## 인공지능탐구반` 으로 붙는다.
+   */
+  const plain = () =>
+    `${doc?.title || "보고서"}\n\n${toPlainText(content, { dropLeadingTitle: true })}`;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(plain());
+      showNote("보고서를 복사했습니다. 붙여 넣어 쓰세요.");
+    } catch {
+      // 클립보드를 막아 둔 브라우저가 있다. 그때는 내려받기로 안내한다.
+      setErr("복사가 막혀 있습니다. 「내려받기」를 눌러 파일로 받아 주세요.");
+    }
+  };
+
+  const download = () => {
+    const blob = new Blob([plain()], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    // 파일 이름에 쓸 수 없는 글자만 걷는다. 제목은 학생이 알아볼 이름이다.
+    a.download = `${(doc?.title || "보고서").replace(/[\\/:*?"<>|]/g, "")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (!formId) return undefined;
@@ -104,9 +142,17 @@ export function S22({ onNav }) {
       <div className="form-head">
         <Back onClick={() => onNav("S21")} label="목록" />
         <h1 className="form-title">{doc?.title || "보고서"}</h1>
-        <Btn v="secondary" s="sm" onClick={() => (editing ? save() : setEditing(true))}>
-          {editing ? "저장" : "편집"}
-        </Btn>
+        <div className="form-head-acts">
+          {!editing && (
+            <>
+              <Btn v="secondary" s="sm" onClick={copy}>복사</Btn>
+              <Btn v="secondary" s="sm" onClick={download}>내려받기</Btn>
+            </>
+          )}
+          <Btn v="secondary" s="sm" onClick={() => (editing ? save() : setEditing(true))}>
+            {editing ? "저장" : "편집"}
+          </Btn>
+        </div>
       </div>
 
       {err && <div className="form-err">{err}</div>}
